@@ -17,13 +17,45 @@
 
 ---
 
-## 핵심 기능 (MVP)
+## 서비스 흐름
 
-- [x] 가정통신문 이미지/PDF 업로드 → OCR 텍스트 추출
-- [x] "할 일" 체크리스트 요약 (일정 / 준비물 / 제출 / 비용)
-- [x] 교육 용어 쉬운말 변환 + 베트남어 번역
-- [x] 난이도별 TTS (초급: 베트남어 / 중급: 한국어 + 용어 설명)
-- [ ] STT 음성 질문 → 담임 문자 전달 (후순위)
+```text
+[Android 앱]
+    │ 가정통신문 텍스트 입력
+    ▼
+POST /notice/analyze
+    │ 할 일 추출 → 카테고리 분류 → 베트남어 번역
+    ▼
+POST /tts/generate
+    │ 난이도별 음성 생성 (초급: 베트남어 / 중급: 한국어)
+    ▼
+[Android 앱]
+    체크리스트 표시 + 음성 재생
+```
+
+---
+
+## API 목록
+
+| 엔드포인트 | 메서드 | 설명 |
+| --- | --- | --- |
+| `/notice/analyze` | POST | 가정통신문 텍스트 → 할 일 체크리스트 |
+| `/tts/generate` | POST | 체크리스트 → 음성 파일 |
+| `/user/{id}` | GET | 사용자 프로파일 조회 |
+| `/user/` | POST | 사용자 프로파일 저장 |
+| `/health` | GET | 서버 상태 확인 |
+
+> Swagger UI: `http://localhost:8000/docs`
+
+---
+
+## 진도 현황
+
+- [x] 태수: FastAPI 서버 뼈대
+- [ ] (2): 할 일 추출 모델
+- [ ] (3): 카테고리 분류 모델
+- [ ] (4): TTS / 번역 연결
+- [ ] (5): Android 앱 UI
 
 ---
 
@@ -32,11 +64,10 @@
 ```text
 Backend   : FastAPI + Python 3.11
 ML        : HuggingFace Transformers (KoELECTRA / mBERT 파인튜닝)
-OCR       : EasyOCR / Tesseract
 TTS       : Edge-TTS (vi-VN / ko-KR)
 번역      : DeepL API / Papago API
 Android   : Kotlin + Retrofit2 + Jetpack Compose
-DB        : SQLite (로컬 프로파일) / Firebase (선택)
+DB        : SQLite (로컬 프로파일)
 ```
 
 ---
@@ -44,14 +75,13 @@ DB        : SQLite (로컬 프로파일) / Firebase (선택)
 ## 로컬 실행
 
 ```bash
-# 백엔드
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-# Android
-# Android Studio에서 android/ 폴더 열기
+git clone https://github.com/Maxmunzy/multicultural-ai.git
+cd multicultural-ai
+cp backend/.env.example backend/.env
+docker-compose up --build
 ```
+
+> 접속: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
