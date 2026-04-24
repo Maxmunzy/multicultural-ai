@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Any
 from pydantic import BaseModel
 
 
@@ -40,3 +41,17 @@ class UserProfile(BaseModel):
     child_grade: int        # 1~6학년
     level: KoreanLevel
     tts_speed: float = 1.0  # 0.5 ~ 2.0
+
+
+class ApiResponse(BaseModel):
+    status: str   # "success" | "error"
+    data: Any = None
+    message: str = ""
+
+    @classmethod
+    def success(cls, data: Any = None, message: str = "") -> "ApiResponse":
+        return cls(status="success", data=data, message=message)
+
+    @classmethod
+    def error(cls, message: str) -> "ApiResponse":
+        return cls(status="error", data=None, message=message)
