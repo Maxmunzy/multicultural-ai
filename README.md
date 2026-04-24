@@ -10,9 +10,9 @@
 | 이름 | 담당 | 폴더 |
 | --- | --- | --- |
 | 태수 | FastAPI 서버 · API 설계 · 모델 연결 · Android 통신 | `backend/` |
-| (2) | 가정통신문 → 할 일 문장 추출 (baseline + 파인튜닝) | `ml/extraction/` |
-| (3) | 추출 문장 → 카테고리 분류 + 중요도 점수 | `ml/classification/` |
-| 세종 | Edge-TTS · 번역 API · 데이터 수집·라벨링 | `tts/` · `translation/` · `data/` |
+| 윤정 | 가정통신문 → 할 일 문장 추출 (baseline + 파인튜닝) | `model/extraction/` |
+| 민경 | 추출 문장 → 카테고리 분류 + 중요도 점수 | `model/classification/` |
+| 세종 | Edge-TTS · 번역 API · 데이터 수집·라벨링 | `data/` |
 | 찬영 | Android 데모 앱 UI · 시연 시나리오 · 발표자료 | `android/` · `docs/` |
 
 ---
@@ -20,16 +20,19 @@
 ## 서비스 흐름
 
 ```text
-[Android 앱]
-    │ 가정통신문 텍스트 입력
+[선생님 디바이스]
+    │ 가정통신문 작성 → 발송
+    ▼ POST /notice/send
+[서버]
+    │ 저장
     ▼
-POST /notice/analyze
+[부모 디바이스]
+    │ 수신함 확인 → GET /notice/inbox/{parent_id}
+    ▼ POST /notice/analyze/{notice_id}
+[서버]
     │ 할 일 추출 → 카테고리 분류 → 베트남어 번역
-    ▼
-POST /tts/generate
-    │ 난이도별 음성 생성 (초급: 베트남어 / 중급: 한국어)
-    ▼
-[Android 앱]
+    ▼ POST /tts/generate
+[부모 디바이스]
     체크리스트 표시 + 음성 재생
 ```
 
@@ -39,7 +42,9 @@ POST /tts/generate
 
 | 엔드포인트 | 메서드 | 설명 |
 | --- | --- | --- |
-| `/notice/analyze` | POST | 가정통신문 텍스트 → 할 일 체크리스트 |
+| `/notice/send` | POST | 선생님 → 부모 가정통신문 발송 |
+| `/notice/inbox/{parent_id}` | GET | 부모 수신함 조회 |
+| `/notice/analyze/{notice_id}` | POST | 가정통신문 → 할 일 체크리스트 |
 | `/tts/generate` | POST | 체크리스트 → 음성 파일 |
 | `/user/{id}` | GET | 사용자 프로파일 조회 |
 | `/user/` | POST | 사용자 프로파일 저장 |
@@ -52,23 +57,24 @@ POST /tts/generate
 ## 진도 현황
 
 - [x] 태수: FastAPI 서버 뼈대
-- [x] 세종: 할 일 추출 모델
-- [ ] (3): 카테고리 분류 모델
-- [ ] (4): TTS / 번역 연결
-- [ ] (5): Android 앱 UI
+- [ ] 윤정: 할 일 추출 모델
+- [ ] 민경: 카테고리 분류 모델
+- [ ] 세종: TTS / 번역 연결
+- [ ] 찬영: Android 앱 UI
 
 ---
 
 ## 기술 스택
 
-```text
-Backend   : FastAPI + Python 3.11
-ML        : HuggingFace Transformers (KoELECTRA / mBERT 파인튜닝)
-TTS       : Edge-TTS (vi-VN / ko-KR)
-번역      : DeepL API / Papago API
-Android   : Kotlin + Retrofit2 + Jetpack Compose
-DB        : SQLite (로컬 프로파일)
-```
+> 각자 본인이 사용한 기술로 업데이트해주세요
+
+| 이름 | 기술 스택 |
+| --- | --- |
+| 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose |
+| 윤정 | (작성 예정) |
+| 민경 | (작성 예정) |
+| 세종 | Edge-TTS, (작성 예정) |
+| 찬영 | (작성 예정) |
 
 ---
 

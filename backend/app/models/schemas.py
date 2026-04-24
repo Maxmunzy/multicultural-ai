@@ -25,7 +25,22 @@ class TodoItem(BaseModel):
     due_date: str | None = None
 
 
-class NoticeUploadResponse(BaseModel):
+class Notice(BaseModel):
+    notice_id: str
+    teacher_id: str
+    parent_id: str
+    text: str
+    todos: list[TodoItem] = []
+
+
+class NoticeSendRequest(BaseModel):
+    teacher_id: str
+    parent_id: str
+    text: str
+
+
+class NoticeAnalyzeResponse(BaseModel):
+    notice_id: str
     raw_text: str
     todos: list[TodoItem]
 
@@ -38,9 +53,10 @@ class TTSRequest(BaseModel):
 
 class UserProfile(BaseModel):
     user_id: str
-    child_grade: int        # 1~6학년
-    level: KoreanLevel
-    tts_speed: float = 1.0  # 0.5 ~ 2.0
+    role: str = "parent"   # "teacher" | "parent"
+    child_grade: int = 1   # 1~6학년 (부모만 해당)
+    level: KoreanLevel = KoreanLevel.beginner
+    tts_speed: float = 1.0
 
 
 class ApiResponse(BaseModel):
