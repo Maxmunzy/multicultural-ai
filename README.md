@@ -11,9 +11,9 @@
 | --- | --- | --- |
 | 태수 | FastAPI 서버 · API 설계 · 모델 연결 · Android 통신 | `backend/` |
 | (2) | 가정통신문 → 할 일 문장 추출 (baseline + 파인튜닝) | `model/extraction/` |
-| (3) | 추출 문장 → 카테고리 분류 + 중요도 점수 | `model/classification/` |
-| (4) | Edge-TTS · 번역 API · 데이터 수집·라벨링 | `data/` |
-| (5) | Android 데모 앱 UI · 시연 시나리오 · 발표자료 | `android/` · `docs/` |
+| 민경 | 추출 문장 → 카테고리 분류 + 중요도 점수 | `model/classification/` |
+| 세종 | Edge-TTS · 번역 API · 데이터 수집·라벨링 | `data/` |
+| 찬영 | Android 데모 앱 UI · 시연 시나리오 · 발표자료 | `android/` · `docs/` |
 
 ---
 
