@@ -65,8 +65,8 @@ POST /tts/generate
 
 | 이름 | 기술 스택 |
 | --- | --- |
-| 태수 | FastAPI, Python 3.11, Docker |
-| (2) | (작성 예정) |
+| 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose |
+| 윤정 | (작성 예정) |
 | 민경 | (작성 예정) |
 | 세종 | Edge-TTS, (작성 예정) |
 | 찬영 | (작성 예정) |
