@@ -53,22 +53,23 @@ POST /tts/generate
 
 - [x] 태수: FastAPI 서버 뼈대
 - [ ] (2): 할 일 추출 모델
-- [ ] (3): 카테고리 분류 모델
-- [ ] (4): TTS / 번역 연결
-- [ ] (5): Android 앱 UI
+- [ ] 민경: 카테고리 분류 모델
+- [ ] 세종: TTS / 번역 연결
+- [ ] 찬영: Android 앱 UI
 
 ---
 
 ## 기술 스택
 
-```text
-Backend   : FastAPI + Python 3.11
-ML        : HuggingFace Transformers (KoELECTRA / mBERT 파인튜닝)
-TTS       : Edge-TTS (vi-VN / ko-KR)
-번역      : DeepL API / Papago API
-Android   : Kotlin + Retrofit2 + Jetpack Compose
-DB        : SQLite (로컬 프로파일)
-```
+> 각자 본인이 사용한 기술로 업데이트해주세요
+
+| 이름 | 기술 스택 |
+| --- | --- |
+| 태수 | FastAPI, Python 3.11, Docker |
+| (2) | (작성 예정) |
+| 민경 | (작성 예정) |
+| 세종 | Edge-TTS, (작성 예정) |
+| 찬영 | (작성 예정) |
 
 ---
 
