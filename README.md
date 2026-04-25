@@ -10,48 +10,84 @@
 | 이름 | 담당 | 폴더 |
 | --- | --- | --- |
 | 태수 | FastAPI 서버 · API 설계 · 모델 연결 · Android 통신 | `backend/` |
-| (2) | 가정통신문 → 할 일 문장 추출 (baseline + 파인튜닝) | `ml/extraction/` |
-| (3) | 추출 문장 → 카테고리 분류 + 중요도 점수 | `ml/classification/` |
-| (4) | Edge-TTS · 번역 API · 데이터 수집·라벨링 | `tts/` · `translation/` · `data/` |
-| (5) | Android 데모 앱 UI · 시연 시나리오 · 발표자료 | `android/` · `docs/` |
+| 윤정 | 가정통신문 → 할 일 문장 추출 모델 (파인튜닝) | `model/extraction/` |
+| 경이 | 추출 문장 → 카테고리 분류 + 중요도 모델 | `model/classification/` |
+| 세종 | NLLB 번역 모델 + MMS-TTS + 데이터 수집·라벨링 | `data/` |
+| 찬영 | Android 데모 앱 UI · 시연 시나리오 · 발표자료 | `android/` · `docs/` |
 
 ---
 
-## 핵심 기능 (MVP)
+## 서비스 흐름
 
-- [x] 가정통신문 이미지/PDF 업로드 → OCR 텍스트 추출
-- [x] "할 일" 체크리스트 요약 (일정 / 준비물 / 제출 / 비용)
-- [x] 교육 용어 쉬운말 변환 + 베트남어 번역
-- [x] 난이도별 TTS (초급: 베트남어 / 중급: 한국어 + 용어 설명)
-- [ ] STT 음성 질문 → 담임 문자 전달 (후순위)
+```text
+[선생님 디바이스]
+    │ 가정통신문 작성 → 발송
+    ▼ POST /notice/send
+[서버]
+    │ 저장
+    ▼
+[부모 디바이스]
+    │ 수신함 확인 → GET /notice/inbox/{parent_id}
+    ▼ POST /notice/analyze/{notice_id}
+[서버]
+    │ 할 일 추출 → 카테고리 분류 → 베트남어 번역
+    ▼ POST /tts/generate
+[부모 디바이스]
+    체크리스트 표시 + 음성 재생
+```
+
+---
+
+## API 목록
+
+| 엔드포인트 | 메서드 | 설명 |
+| --- | --- | --- |
+| `/notice/send` | POST | 선생님 → 부모 가정통신문 발송 |
+| `/notice/inbox/{parent_id}` | GET | 부모 수신함 조회 |
+| `/notice/analyze/{notice_id}` | POST | 가정통신문 → 할 일 체크리스트 |
+| `/tts/generate` | POST | 체크리스트 → 음성 파일 |
+| `/user/{id}` | GET | 사용자 프로파일 조회 |
+| `/user/` | POST | 사용자 프로파일 저장 |
+| `/health` | GET | 서버 상태 확인 |
+
+> Swagger UI: `http://localhost:8000/docs`
+
+---
+
+## 진도 현황
+
+- [x] 태수: FastAPI 서버 뼈대
+- [ ] 윤정: 할 일 추출 모델
+- [ ] 경이: 카테고리 분류 모델
+- [ ] 세종: NLLB 번역 + MMS-TTS 연결
+- [ ] 찬영: Android 앱 UI
 
 ---
 
 ## 기술 스택
 
-```text
-Backend   : FastAPI + Python 3.11
-ML        : HuggingFace Transformers (KoELECTRA / mBERT 파인튜닝)
-OCR       : EasyOCR / Tesseract
-TTS       : Edge-TTS (vi-VN / ko-KR)
-번역      : DeepL API / Papago API
-Android   : Kotlin + Retrofit2 + Jetpack Compose
-DB        : SQLite (로컬 프로파일) / Firebase (선택)
-```
+> 각자 본인이 사용한 기술로 업데이트해주세요
+
+| 이름 | 기술 스택 |
+| --- | --- |
+| 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose |
+| 윤정 | (작성 예정) |
+| 경이 | (작성 예정) |
+| 세종 | facebook/nllb-200-distilled-600M, facebook/mms-tts-vie, (작성 예정) |
+| 찬영 | (작성 예정) |
 
 ---
 
 ## 로컬 실행
 
 ```bash
-# 백엔드
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload
-
-# Android
-# Android Studio에서 android/ 폴더 열기
+git clone https://github.com/Maxmunzy/multicultural-ai.git
+cd multicultural-ai
+cp backend/.env.example backend/.env
+docker-compose up --build
 ```
+
+> 접속: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ---
 
