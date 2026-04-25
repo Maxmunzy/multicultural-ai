@@ -2,8 +2,9 @@ import uuid
 from fastapi import APIRouter
 from app.models.schemas import (
     ApiResponse, Notice, NoticeAnalyzeResponse,
-    NoticeSendRequest, TodoItem
+    NoticeSendRequest,
 )
+from app.services.mock import MOCK_TODOS
 
 router = APIRouter()
 
@@ -35,13 +36,14 @@ async def get_inbox(parent_id: str):
 
 @router.post("/analyze/{notice_id}", response_model=ApiResponse)
 async def analyze_notice(notice_id: str):
-    """수신된 가정통신문 → 할 일 체크리스트 추출."""
+    """수신된 가정통신문 → 할 일 체크리스트 추출 (mock)."""
     if notice_id not in _notices:
         return ApiResponse.error(message="가정통신문을 찾을 수 없습니다")
+
     notice = _notices[notice_id]
     result = NoticeAnalyzeResponse(
         notice_id=notice_id,
         raw_text=notice.text,
-        todos=[],  # 모델 연결 후 채움
+        todos=MOCK_TODOS,
     )
     return ApiResponse.success(data=result)
