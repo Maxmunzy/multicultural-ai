@@ -306,9 +306,12 @@ public class MainActivity extends Activity {
     private void playTts() {
         releasePlayer();
         try {
-            if (!TextUtils.isEmpty(currentTtsUrl) && currentTtsUrl.startsWith("http")) {
+            if (!TextUtils.isEmpty(currentTtsUrl)) {
+                String dataSourceUrl = currentTtsUrl.startsWith("http")
+                        ? currentTtsUrl
+                        : BASE_URL + currentTtsUrl;
                 player = new MediaPlayer();
-                player.setDataSource(currentTtsUrl);
+                player.setDataSource(dataSourceUrl);
                 player.setOnPreparedListener(mp -> {
                     mp.start();
                     playButton.setText("\uC7AC\uC0DD \uC911... \uB2E4\uC2DC \uB204\uB974\uBA74 \uC815\uC9C0");

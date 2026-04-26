@@ -1,7 +1,14 @@
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.routers import notice, tts, user
+
+STATIC_DIR = Path("/app/static")
+STATIC_DIR.mkdir(parents=True, exist_ok=True)
+(STATIC_DIR / "tts").mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(
     title="가정통신문 AI 도우미 API",
@@ -15,6 +22,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 app.include_router(notice.router, prefix="/notice", tags=["notice"])
 app.include_router(tts.router, prefix="/tts", tags=["tts"])
