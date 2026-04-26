@@ -56,6 +56,10 @@ except ImportError:
 # 1. 모델 로드 (서버 시작 시 1회, lazy)
 # ─────────────────────────────────────────
 HF_REPO_ID = "yunjeong116/koelectra-extractor"
+HF_SUBFOLDER = "koelectra-extractor"
+LOCAL_CHECKPOINT_DIR = os.path.join(
+    os.path.dirname(__file__), "checkpoints/koelectra-extractor"
+)
 
 _tokenizer = None
 _model = None
@@ -64,18 +68,30 @@ _device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def _load_model():
-    """첫 호출 때만 모델 로드 (HuggingFace Hub에서 자동 다운로드)"""
+    """첫 호출 때만 모델 로드. 로컬 가중치 있으면 로컬, 없으면 HF Hub."""
     global _tokenizer, _model, _id2label
     if _model is not None:
         return
 
-    _tokenizer = AutoTokenizer.from_pretrained(HF_REPO_ID)
-    _model = AutoModelForSequenceClassification.from_pretrained(HF_REPO_ID)
+    if os.path.exists(os.path.join(LOCAL_CHECKPOINT_DIR, "pytorch_model.bin")):
+        load_kwargs = {"pretrained_model_name_or_path": LOCAL_CHECKPOINT_DIR}
+        labels_path = os.path.join(LOCAL_CHECKPOINT_DIR, "labels.json")
+    else:
+        load_kwargs = {
+            "pretrained_model_name_or_path": HF_REPO_ID,
+            "subfolder": HF_SUBFOLDER,
+        }
+        from huggingface_hub import hf_hub_download
+        labels_path = hf_hub_download(
+            repo_id=HF_REPO_ID,
+            filename=f"{HF_SUBFOLDER}/labels.json",
+        )
+
+    _tokenizer = AutoTokenizer.from_pretrained(**load_kwargs)
+    _model = AutoModelForSequenceClassification.from_pretrained(**load_kwargs)
     _model.to(_device)
     _model.eval()
 
-    from huggingface_hub import hf_hub_download
-    labels_path = hf_hub_download(repo_id=HF_REPO_ID, filename="labels.json")
     with open(labels_path, encoding="utf-8") as f:
         meta = json.load(f)
     _id2label = {int(k): v for k, v in meta["id2label"].items()}
