@@ -22,15 +22,23 @@ Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출�
 
 ---
 
+## 탑재형 AI 도우미 모듈
+
+이 프로젝트의 핵심은 새로운 알림장 앱 자체를 만드는 것이 아니라, 기존 학교 알림장/가정통신문 서비스가 가져다 쓸 수 있는 AI 도우미 모듈을 만드는 것입니다. Android 앱은 이 모듈의 동작을 보여 주기 위한 실기기 데모 클라이언트입니다.
+
+서버와 모델 파이프라인은 가정통신문 텍스트를 받아 체크리스트, 쉬운 한국어, 베트남어 번역, 용어 검수 결과, TTS 음성을 만들어 반환합니다. 이후에는 기존 학교 앱이나 알림장 서비스가 같은 API를 호출하는 방식으로 확장할 수 있습니다.
+
+---
+
 ## 역할 분담
 
 | 이름 | 담당 | 주요 위치 |
 | --- | --- | --- |
-| 지수 | FastAPI 서버, API 설계, Android 통신 연결 | `backend/` |
-| 수정 | 중요 문장 추출 모델 | `model/extraction/` |
+| 태수 | FastAPI 서버, API 설계, Android 통신 연결 | `backend/` |
+| 윤정 | 중요 문장 추출 모델 | `model/extraction/` |
 | 경이 | 카테고리 분류, 중요도 모델 | `model/classification/` |
 | 세종 | NLLB 번역, 학교 용어사전 검수, Edge-TTS 출력, 데이터셋 | `model/translation_tts/`, `data/`, `demo/translation_tts/` |
-| 차영 | Android 실기기 데모, UI, 발표 자료 | `android/`, `docs/` |
+| 찬영 | Android 실기기 데모, UI, 발표 자료 | `android/`, `docs/` |
 
 ---
 

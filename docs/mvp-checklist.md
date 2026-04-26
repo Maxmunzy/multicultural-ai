@@ -48,7 +48,6 @@
 - [x] `data/labeled/notice_sample_v3.csv` 200개 샘플 확보
 - [x] 컬럼 정의: `id`, `source_type`, `original_text`, `category`, `keywords`, `importance`, `action_required`, `easy_korean`, `vietnamese`, `tts_target`
 - [x] 번역/TTS 입력 샘플: `data/translation_tts/easy_ko_text_sample.csv`
-- [ ] 데이터 인코딩 깨짐 여부 점검 및 원문 복구
 
 ### 모델 A: 중요 문장 추출
 
@@ -84,7 +83,6 @@
 - [x] `POST /tts/generate`
 - [x] `GET /user/{id}`, `POST /user/`
 - [x] `GET /health`
-- [ ] 깨진 한글 문자열 및 Python 문법 점검
 - [ ] 실제 모델 서비스 연결
 
 ### Android
@@ -103,10 +101,6 @@
 - [x] `docs/team-brief.md` 최신화
 - [x] `docs/mvp-checklist.md` 최신화
 - [x] `docs/troubleshooting.md` 최신화
-- [ ] `README.md` 깨진 한글 복구
-- [ ] `data/README.md` 깨진 한글 복구
-- [ ] `model/translation_tts/README.md` 깨진 한글 복구
-- [ ] `android/README.md` 깨진 한글 복구
 
 ---
 
@@ -126,7 +120,6 @@
 
 | 리스크 | 영향 | 대응 |
 | --- | --- | --- |
-| 일부 한글 파일 깨짐 | 문서/코드 설명 이해 어려움, Python 문자열 오류 가능 | UTF-8 기준으로 순차 복구 |
 | 추출/분류 모델 미연결 | 분석 결과가 실제 AI 결과가 아님 | 발표에서 mock 범위 명시 |
 | Android `BASE_URL` 고정 | 네트워크가 바뀌면 앱 수정 필요 | 시연 전 PC IP 확인 |
 | NLLB 출력 품질 변동 | 자연스럽지 않은 번역 가능 | 용어사전 검수와 보정 번역으로 설명 |
