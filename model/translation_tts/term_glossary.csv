@@ -1,0 +1,125 @@
+korean,preferred_vi,note
+앞치마,tạp dề,유치원 요리/김장 활동 준비물
+머릿수건,khăn trùm đầu,유치원 요리/김장 활동 준비물
+체험학습,hoạt động trải nghiệm,학교 체험 활동
+현장체험학습,chuyến tham quan học tập,학교 밖 체험학습
+원복,đồng phục,유치원 지정 복장
+도화지,giấy vẽ,미술 준비물
+색칠 도구,dụng cụ tô màu,미술 준비물
+정서행동 검사,kiểm tra đặc điểm cảm xúc và hành vi,학생 검사
+돌봄교실,lớp chăm sóc sau giờ học,초등 돌봄
+방과후학교,lớp sau giờ học,방과후 프로그램
+하원,giờ đón trẻ,유치원 귀가
+등원,giờ đưa trẻ đến lớp,유치원 등교
+가정통신문,thông báo gửi phụ huynh,기타
+알림장,sổ liên lạc,기타
+공지사항,thông báo,기타
+동의서,giấy đồng ý,제출 서류
+신청서,đơn đăng ký,제출 서류
+조사서,phiếu khảo sát,제출 서류
+확인서,giấy xác nhận,제출 서류
+안내문,thông báo hướng dẫn,기타
+회신,phản hồi,제출
+제출,nộp,행동 동사
+서명,ký tên,행동 동사
+참가 여부,có tham gia hay không,제출
+불참,không tham gia,제출
+기한,thời hạn,일정
+마감일,hạn chót,일정
+준비물,đồ cần chuẩn bị,준비물 범주
+실내화,dép đi trong lớp,준비물
+체육복,đồng phục thể dục,준비물
+여벌옷,quần áo thay,준비물
+개인 물병,bình nước cá nhân,준비물
+도시락,cơm hộp,준비물
+간식,đồ ăn nhẹ,준비물/비용
+간식비,phí ăn nhẹ,비용
+돗자리,thảm ngồi,준비물
+색종이,giấy màu,준비물
+풀,keo dán,준비물
+가위,kéo,준비물
+크레파스,bút sáp màu,준비물
+네임펜,bút lông dầu,준비물
+스쿨뱅킹,school banking,납부 방식
+납부,nộp,비용 행동
+자동이체,trừ tự động,비용 행동
+교육비,phí giáo dục,비용
+급식비,tiền ăn,비용
+체험학습비,phí hoạt động trải nghiệm,비용
+등교,đến trường,초등학교 등교
+하교,tan học,초등학교 하교
+결석,nghỉ học,출결
+지각,đi muộn,출결
+조퇴,về sớm,출결
+전학,chuyển trường,출결/학적
+출석인정,được công nhận có mặt,출결
+출결,chuyên cần,출결
+담임교사,giáo viên chủ nhiệm,학교 담당자
+원장,hiệu trưởng,유치원 담당자
+교무실,phòng giáo vụ,학교 부서
+행정실,văn phòng hành chính,학교 부서
+상담,tư vấn,상담
+학부모 상담,tư vấn phụ huynh,상담
+공개수업,tiết học mở,일정
+학부모 총회,họp toàn thể phụ huynh,일정
+운동회,ngày hội thể thao,행사
+학예회,buổi biểu diễn văn nghệ,행사
+소풍,dã ngoại,행사
+수련회,trại sinh hoạt tập thể,일정
+방학,kỳ nghỉ,일정
+개학,ngày tựu trường,일정
+입학식,lễ nhập học,행사
+졸업식,lễ tốt nghiệp,행사
+종업식,lễ kết thúc năm học,일정
+학급,lớp,학교 단위
+학년,khối lớp,학교 단위
+반,lớp,학교 단위
+번호,số,학교 단위
+급식,bữa ăn ở trường,급식
+식단표,thực đơn,급식
+알레르기,dị ứng,건강
+예방접종,tiêm phòng,건강
+건강검진,khám sức khỏe,건강
+신체검사,khám sức khỏe thể chất,건강
+감염병,bệnh truyền nhiễm,건강
+머릿니,chấy,건강
+독감,cúm,건강
+코로나,COVID-19,건강
+미세먼지,bụi mịn,건강
+안전교육,giáo dục an toàn,안전
+재난대피훈련,diễn tập sơ tán khi có thiên tai,안전
+학교폭력,bạo lực học đường,안전
+생활지도,hướng dẫn nề nếp sinh hoạt,건강·안전
+교통안전,an toàn giao thông,안전
+귀가 동의,đồng ý cho ra về,제출
+귀가 동의서,giấy đồng ý cho trẻ ra về,제출 서류
+응급처치,sơ cứu,건강/안전
+투약 의뢰서,phiếu yêu cầu cho uống thuốc,제출 서류
+칫솔,bàn chải đánh răng,준비물
+컵,cốc,준비물
+수건,khăn,준비물
+방과후 신청,đăng ký lớp sau giờ học,제출
+돌봄 신청,đăng ký lớp chăm sóc sau giờ học,제출
+키즈노트,Kids Note,서비스명
+학교종이,School Bell,서비스명 확인완료
+하이클래스,HiClass,서비스명
+e알리미,e-Alimi,서비스명
+숙제,bài tập về nhà,기타
+수행평가,đánh giá thực hành,기타
+준비 학습,bài học chuẩn bị,기타
+독서 활동,hoạt động đọc sách,기타
+방학 과제,bài tập kỳ nghỉ,기타
+개인정보 동의서,giấy đồng ý cung cấp thông tin cá nhân,제출
+응급 연락처,số liên lạc khẩn cấp,건강·안전
+보호자,người giám hộ,기타
+보호자 서명,chữ ký của người giám hộ,제출
+비상 연락망,mạng lưới liên lạc khẩn cấp,건강·안전
+우산,ô,준비물
+마스크,khẩu trang,건강·안전
+여분 마스크,khẩu trang dự phòng,건강·안전
+손 소독제,nước rửa tay khô,건강·안전
+실습복,đồ thực hành,준비물
+우천 시,khi trời mưa,일정
+연기,hoãn,일정
+취소,hủy,일정
+변경 사항,nội dung thay đổi,기타
