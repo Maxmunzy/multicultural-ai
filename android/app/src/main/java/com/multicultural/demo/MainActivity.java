@@ -56,6 +56,7 @@ public class MainActivity extends Activity {
     private EditText inboxParentInput;
     private TextView sendResultText;
     private TextView inboxListText;
+    private LinearLayout inboxListBox;
     private TextView selectedNoticeText;
     private TextView analysisResultText;
     private Button analyzeButton;
@@ -101,6 +102,9 @@ public class MainActivity extends Activity {
         buildBase("\uD559\uBD80\uBAA8 \uD654\uBA74", "\uC218\uC2E0\uD568 + \uBD84\uC11D \uACB0\uACFC");
         inboxParentInput = input("parent_id", DEFAULT_PARENT_ID);
         inboxListText = text("\uC218\uC2E0\uD568\uC744 \uBD88\uB7EC\uC624\uC138\uC694.", 14, Color.rgb(71, 85, 105), false);
+        inboxListBox = new LinearLayout(this);
+        inboxListBox.setOrientation(LinearLayout.VERTICAL);
+        inboxListBox.addView(inboxListText);
         selectedNoticeText = text("\uC120\uD0DD\uB41C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(71, 85, 105), false);
         analysisResultText = text("\uBD84\uC11D \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(30, 41, 59), false);
         analyzeButton = primaryButton("\uBD84\uC11D\uD558\uAE30", v -> analyzeSelectedNotice());
@@ -109,7 +113,7 @@ public class MainActivity extends Activity {
         content.addView(inboxParentInput);
         content.addView(primaryButton("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uAE30", v -> loadInbox()));
         content.addView(outlineButton("\uC11C\uBC84 \uC751\uB2F5 \uC5C6\uC744 \uB54C \uB370\uBAA8 \uACB0\uACFC \uBCF4\uAE30", v -> showMockAnalysis()));
-        content.addView(cardWithView("\uAC00\uC815\uD1B5\uC2E0\uBB38 \uBAA9\uB85D", inboxListText, Color.WHITE));
+        content.addView(cardWithView("\uAC00\uC815\uD1B5\uC2E0\uBB38 \uBAA9\uB85D", inboxListBox, Color.WHITE));
         content.addView(cardWithView("\uC120\uD0DD\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38", selectedNoticeText, Color.rgb(245, 250, 255)));
         content.addView(analyzeButton);
         content.addView(cardWithView("\uBD84\uC11D \uACB0\uACFC", analysisResultText, Color.WHITE));
@@ -157,10 +161,11 @@ public class MainActivity extends Activity {
     private void loadInbox() {
         String parentId = safe(inboxParentInput.getText().toString());
         if (parentId.isEmpty()) parentId = DEFAULT_PARENT_ID;
+        resetInboxList("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uB294 \uC911...");
         inboxListText.setText("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uB294 \uC911...");
         getJson("/notice/inbox/" + parentId, result -> {
             if (!result.error.isEmpty()) {
-                inboxListText.setText("\uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328\n" + result.error);
+                resetInboxList("\uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328\n" + result.error);
                 return;
             }
             try {
@@ -168,12 +173,11 @@ public class MainActivity extends Activity {
                 JSONArray data = json.optJSONArray("data");
                 inbox.clear();
                 if (data == null || data.length() == 0) {
-                    inboxListText.setText("\uC218\uC2E0\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
+                    resetInboxList("\uC218\uC2E0\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
                     selectedNotice = null;
                     selectedNoticeText.setText("\uC120\uD0DD\uB41C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
                     return;
                 }
-                StringBuilder listText = new StringBuilder();
                 for (int i = 0; i < data.length(); i++) {
                     JSONObject item = data.getJSONObject(i);
                     NoticeItem notice = new NoticeItem(
@@ -182,15 +186,42 @@ public class MainActivity extends Activity {
                             item.optString("text", "")
                     );
                     inbox.add(notice);
-                    listText.append(i + 1).append(". ").append(shorten(notice.text)).append("\n");
                 }
                 selectedNotice = inbox.get(0);
-                inboxListText.setText(listText.toString().trim() + "\n\n\uCCAB \uBC88\uC9F8 \uAC00\uC815\uD1B5\uC2E0\uBB38\uC744 \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4.");
-                selectedNoticeText.setText(selectedNotice.text);
+                renderInboxList();
+                selectNotice(0);
             } catch (Exception error) {
-                inboxListText.setText("\uC218\uC2E0\uD568 \uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328\n" + result.body);
+                resetInboxList("\uC218\uC2E0\uD568 \uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328\n" + result.body);
             }
         });
+    }
+
+    private void renderInboxList() {
+        inboxListBox.removeAllViews();
+        TextView guide = text("\uBCF4\uB824\uB294 \uAC00\uC815\uD1B5\uC2E0\uC744 \uC120\uD0DD\uD558\uC138\uC694.", 13, COLOR_MUTED, false);
+        guide.setPadding(0, 0, 0, dp(8));
+        inboxListBox.addView(guide);
+        for (int i = 0; i < inbox.size(); i++) {
+            final int index = i;
+            NoticeItem notice = inbox.get(i);
+            Button itemButton = outlineButton((i + 1) + ". " + shorten(notice.text), v -> selectNotice(index));
+            inboxListBox.addView(itemButton);
+        }
+    }
+
+    private void selectNotice(int index) {
+        if (index < 0 || index >= inbox.size()) return;
+        selectedNotice = inbox.get(index);
+        selectedNoticeText.setText(selectedNotice.text);
+        analysisResultText.setText("\uBD84\uC11D\uD558\uAE30\uB97C \uB204\uB974\uBA74 \uACB0\uACFC\uB97C \uBCFC \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
+        currentTtsUrl = "";
+        setStatus((index + 1) + "\uBC88 \uAC00\uC815\uD1B5\uC2E0\uC744 \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4.");
+    }
+
+    private void resetInboxList(String message) {
+        inboxListBox.removeAllViews();
+        inboxListText.setText(message);
+        inboxListBox.addView(inboxListText);
     }
 
     private void analyzeSelectedNotice() {
