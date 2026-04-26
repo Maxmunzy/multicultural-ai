@@ -104,18 +104,18 @@ public class MainActivity extends Activity {
         selectedNoticeText = text("\uC120\uD0DD\uB41C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(71, 85, 105), false);
         analysisResultText = text("\uBD84\uC11D \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(30, 41, 59), false);
         analyzeButton = primaryButton("\uBD84\uC11D\uD558\uAE30", v -> analyzeSelectedNotice());
-        playButton = primaryButton("\uBCA0\uD2B8\uB0A8\uC5B4 TTS \uC7AC\uC0DD", v -> playTts());
+        playButton = primaryButton("\uBCA0\uD2B8\uB0A8\uC5B4\uB85C \uB4E3\uAE30", v -> playTts());
 
         content.addView(inboxParentInput);
         content.addView(primaryButton("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uAE30", v -> loadInbox()));
-        content.addView(outlineButton("\uBAA9 \uC751\uB2F5 \uC5C6\uC744 \uB54C \uB370\uBAA8 \uACB0\uACFC \uBCF4\uAE30", v -> showMockAnalysis()));
+        content.addView(outlineButton("\uC11C\uBC84 \uC751\uB2F5 \uC5C6\uC744 \uB54C \uB370\uBAA8 \uACB0\uACFC \uBCF4\uAE30", v -> showMockAnalysis()));
         content.addView(cardWithView("\uAC00\uC815\uD1B5\uC2E0\uBB38 \uBAA9\uB85D", inboxListText, Color.WHITE));
         content.addView(cardWithView("\uC120\uD0DD\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38", selectedNoticeText, Color.rgb(245, 250, 255)));
         content.addView(analyzeButton);
         content.addView(cardWithView("\uBD84\uC11D \uACB0\uACFC", analysisResultText, Color.WHITE));
         content.addView(playButton);
         content.addView(outlineButton("\uCC98\uC74C\uC73C\uB85C", v -> showStartScreen()));
-        setStatus("GET /notice/inbox/{parent_id} ? POST /notice/analyze/{notice_id}");
+        setStatus("\uC218\uC2E0\uD568 \uC870\uD68C\uC640 \uBD84\uC11D \uC694\uCCAD\uC744 \uC900\uBE44\uD588\uC2B5\uB2C8\uB2E4.");
     }
 
     private void sendNotice() {
@@ -223,21 +223,29 @@ public class MainActivity extends Activity {
     private String formatAnalysis(JSONObject data) {
         StringBuilder builder = new StringBuilder();
         JSONArray todos = data.optJSONArray("todos");
-        builder.append("\uD575\uC2EC \uCCB4\uD06C\uB9AC\uC2A4\uD2B8\n");
+        builder.append("\uD574\uC57C \uD560 \uC77C\n");
         if (todos != null && todos.length() > 0) {
             for (int i = 0; i < todos.length(); i++) {
                 JSONObject todo = todos.optJSONObject(i);
                 if (todo == null) continue;
                 builder.append("- ").append(todo.optString("text_ko", todo.toString())).append("\n");
-                String vi = todo.optString("text_vi", "");
-                if (!vi.isEmpty()) builder.append("  ").append(vi).append("\n");
             }
         } else {
             builder.append("\uBD84\uC11D \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.\n");
         }
         appendIfPresent(builder, "\n\uC26C\uC6B4 \uD55C\uAD6D\uC5B4\n", data, "easy_ko_text", "easy_korean");
-        appendIfPresent(builder, "\n\uBCA0\uD2B8\uB0A8\uC5B4 \uBC88\uC5ED\n", data, "vi_text", "vietnamese", "translation_vi");
-        appendIfPresent(builder, "\nGlossary check\n", data, "glossary_check", "quality_note");
+        String finalVi = optStringDeep(data, "corrected_vi_text", "corrected_translation", "vi_corrected_translation", "final_vi_text", "vi_text", "vietnamese", "translation_vi");
+        if (!finalVi.isEmpty()) {
+            builder.append("\n\uBCA0\uD2B8\uB0A8\uC5B4 \uBC88\uC5ED\n").append(finalVi).append('\n');
+        }
+        String glossary = optStringDeep(data, "glossary_check", "quality_note");
+        if (!glossary.isEmpty()) {
+            builder.append("\n\uC6A9\uC5B4 \uD655\uC778\n").append(parentGlossarySummary(glossary)).append('\n');
+        }
+        String review = optStringDeep(data, "review_needed", "review_note", "glossary_review");
+        if (!review.isEmpty()) {
+            builder.append("\n\uAC80\uC218 \uC0C1\uC138(\uD655\uC778\uC6A9)\n").append(compactReview(review)).append('\n');
+        }
         return builder.toString().trim();
     }
 
@@ -253,10 +261,10 @@ public class MainActivity extends Activity {
                 "- \uBB3C\uBCD1\uACFC \uB3C4\uC2DC\uB77D \uC900\uBE44\n" +
                 "- \uC624\uC804 9\uC2DC\uAE4C\uC9C0 \uD559\uAD50 \uC6B4\uB3D9\uC7A5 \uB3C4\uCC29\n\n" +
                 "\uC26C\uC6B4 \uD55C\uAD6D\uC5B4\n" + easyKo + "\n" +
-                "\uBCA0\uD2B8\uB0A8\uC5B4 \uBC88\uC5ED\n" + rawVi + "\n\n" +
-                "Glossary check\n" + summarizeGlossary(glossary) + "\n\n" +
-                "review_needed / missing_term\n" + compactReview(review) + "\n\n" +
-                "\uBCF4\uC815 \uBC88\uC5ED\uBB38\n" + correctedVi
+                "\uBCA0\uD2B8\uB0A8\uC5B4 \uBC88\uC5ED\n" + correctedVi + "\n\n" +
+                "\uC6A9\uC5B4 \uD655\uC778\n" + summarizeGlossary(glossary) + "\n\n" +
+                "\uAC80\uC218 \uC0C1\uC138(\uD655\uC778\uC6A9)\n" + compactReview(review) + "\n\n" +
+                "\uCC38\uACE0: \uC6D0\uBC88\uC5ED\uC5D0\uC11C\uB294 \uB2E4\uC74C\uACFC \uAC19\uC774 \uD45C\uC2DC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.\n" + rawVi
         );
     }
 
@@ -267,18 +275,32 @@ public class MainActivity extends Activity {
         String row = lines[1];
         String[] cols = row.split(",", -1);
         if (cols.length >= 5) {
-            return "missing_term \uAC10\uC9C0\n" + cols[0] + " -> " + cols[1] + "\nquality_label: " + cols[4];
+            return cols[0] + " \uB204\uB77D \uAC10\uC9C0 \u2192 \uBCF4\uC815 \uBC88\uC5ED\uBB38\uC5D0 \uBC18\uC601\uB428";
         }
-        return csv.trim();
+        return parentGlossarySummary(csv);
     }
 
     private String compactReview(String review) {
-        return review
+        String clean = review
                 .replace("# Review Needed", "Review Needed")
                 .replace("## ", "")
                 .replace("```text", "")
                 .replace("```", "")
+                .replace("missing_term", "\uB204\uB77D\uB41C \uC6A9\uC5B4")
+                .replace("quality_label", "\uAC80\uC218 \uACB0\uACFC")
                 .trim();
+        return clean.length() > 420 ? clean.substring(0, 420) + "\n..." : clean;
+    }
+
+    private String parentGlossarySummary(String value) {
+        if (TextUtils.isEmpty(value)) return "\uC6A9\uC5B4 \uD655\uC778 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.";
+        if (value.contains("\uB3C4\uC2DC\uB77D") || value.contains("c\u01A1m h\u1ED9p")) {
+            return "\uB3C4\uC2DC\uB77D \uB204\uB77D \uAC10\uC9C0 \u2192 \uBCF4\uC815 \uBC88\uC5ED\uBB38\uC5D0 \uBC18\uC601\uB428";
+        }
+        if (value.toLowerCase().contains("missing")) {
+            return "\uD544\uC694\uD55C \uD559\uAD50 \uC6A9\uC5B4\uB97C \uD655\uC778\uD588\uC2B5\uB2C8\uB2E4.";
+        }
+        return "\uD559\uAD50 \uC6A9\uC5B4\uB97C \uD655\uC778\uD588\uC2B5\uB2C8\uB2E4.";
     }
 
     private void playTts() {
@@ -291,13 +313,13 @@ public class MainActivity extends Activity {
                     mp.start();
                     playButton.setText("\uC7AC\uC0DD \uC911... \uB2E4\uC2DC \uB204\uB974\uBA74 \uC815\uC9C0");
                 });
-                player.setOnCompletionListener(mp -> playButton.setText("\uBCA0\uD2B8\uB0A8\uC5B4 TTS \uC7AC\uC0DD"));
+                player.setOnCompletionListener(mp -> playButton.setText("\uBCA0\uD2B8\uB0A8\uC5B4\uB85C \uB4E3\uAE30"));
                 player.prepareAsync();
             } else {
                 player = MediaPlayer.create(this, R.raw.tts_output);
                 player.start();
                 playButton.setText("\uC7AC\uC0DD \uC911... \uB2E4\uC2DC \uB204\uB974\uBA74 \uC815\uC9C0");
-                player.setOnCompletionListener(mp -> playButton.setText("\uBCA0\uD2B8\uB0A8\uC5B4 TTS \uC7AC\uC0DD"));
+                player.setOnCompletionListener(mp -> playButton.setText("\uBCA0\uD2B8\uB0A8\uC5B4\uB85C \uB4E3\uAE30"));
             }
         } catch (Exception error) {
             analysisResultText.setText(analysisResultText.getText() + "\n\nTTS \uC7AC\uC0DD \uC2E4\uD328: " + error.getMessage());
