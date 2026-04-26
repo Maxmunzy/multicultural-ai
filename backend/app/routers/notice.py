@@ -4,7 +4,10 @@ from app.models.schemas import (
     ApiResponse, Notice, NoticeAnalyzeResponse,
     NoticeSendRequest,
 )
-from app.services.mock import MOCK_TODOS
+from app.services.mock import (
+    MOCK_TODOS, MOCK_EASY_KO, MOCK_VI_TEXT,
+    MOCK_QUALITY_NOTE, MOCK_REVIEW_NEEDED, MOCK_TTS_URL,
+)
 
 router = APIRouter()
 
@@ -45,5 +48,10 @@ async def analyze_notice(notice_id: str):
         notice_id=notice_id,
         raw_text=notice.text,
         todos=MOCK_TODOS,
+        easy_ko_text=MOCK_EASY_KO,
+        vi_text=MOCK_VI_TEXT,
+        quality_note=MOCK_QUALITY_NOTE,
+        review_needed=MOCK_REVIEW_NEEDED,
+        tts_url=MOCK_TTS_URL,
     )
     return ApiResponse.success(data=result)
