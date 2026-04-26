@@ -1,6 +1,7 @@
 package com.multicultural.demo;
 
 import android.app.Activity;
+import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -9,6 +10,8 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -72,50 +75,171 @@ public class MainActivity extends Activity {
     }
 
     private void showStartScreen() {
-        buildBase("\uAC00\uC815\uD1B5\uC2E0\uBB38 AI", "\uC2E4\uAE30\uAE30 MVP \uB370\uBAA8");
-        content.addView(card("\uC2DC\uC5F0 \uD750\uB984", "1. \uC120\uC0DD\uB2D8\uC774 \uAC00\uC815\uD1B5\uC2E0\uBB38\uC744 \uBC1C\uC1A1\uD569\uB2C8\uB2E4.\n2. \uD559\uBD80\uBAA8\uAC00 \uC218\uC2E0\uD568\uC5D0\uC11C \uD655\uC778\uD569\uB2C8\uB2E4.\n3. \uBD84\uC11D \uACB0\uACFC, \uBC88\uC5ED, \uC6A9\uC5B4\uC0AC\uC804 \uAC80\uC218, TTS\uB97C \uD655\uC778\uD569\uB2C8\uB2E4.", Color.WHITE));
-        content.addView(primaryButton("\uC120\uC0DD\uB2D8\uC73C\uB85C \uC2DC\uC791", v -> showTeacherScreen()));
-        content.addView(outlineButton("\uD559\uBD80\uBAA8\uB85C \uC2DC\uC791", v -> showParentScreen()));
-        setStatus("\uC11C\uBC84 IP\uB294 MainActivity.java \uC0C1\uB2E8 BASE_URL\uC5D0\uC11C \uBCC0\uACBD\uD569\uB2C8\uB2E4: " + BASE_URL);
+        buildBase("가정통신문 AI", "실기기 MVP 데모");
+        content.addView(card("시연 흐름", "1. 선생님이 가정통신문을 발송합니다.\n2. 학부모가 수신함에서 확인합니다.\n3. 분석 결과, 번역, 용어사전 검수, TTS를 확인합니다.", Color.WHITE));
+        content.addView(primaryButton("선생님으로 시작", v -> showTeacherScreen()));
+        content.addView(outlineButton("학부모로 시작", v -> showParentScreen()));
+        setStatus("서버 IP는 MainActivity.java 상단 BASE_URL에서 변경합니다: " + BASE_URL);
     }
 
     private void showTeacherScreen() {
-        buildBase("\uC120\uC0DD\uB2D8 \uD654\uBA74", "\uAC00\uC815\uD1B5\uC2E0\uBB38 \uBC1C\uC1A1");
-        titleInput = input("\uC81C\uBAA9", "\uD604\uC7A5\uD559\uC2B5 \uC548\uB0B4");
-        bodyInput = multiInput("\uAC00\uC815\uD1B5\uC2E0\uBB38 \uBCF8\uBB38", sampleNotice());
+        buildBase("선생님 화면", "가정통신문 발송");
+        titleInput = input("제목", "현장학습 안내");
+        bodyInput = multiInput("가정통신문 본문", sampleNotice());
         parentIdInput = input("parent_id", DEFAULT_PARENT_ID);
         sendResultText = text("", 14, Color.rgb(71, 85, 105), false);
 
         content.addView(titleInput);
         content.addView(bodyInput);
         content.addView(parentIdInput);
-        content.addView(primaryButton("\uBC1C\uC1A1", v -> sendNotice()));
-        content.addView(outlineButton("\uC0D8\uD50C \uAC00\uC815\uD1B5\uC2E0\uBB38 \uCC44\uC6B0\uAE30", v -> fillSampleNotice()));
-        content.addView(card("\uBC1C\uC1A1 \uACB0\uACFC", "\uC544\uC9C1 \uBC1C\uC1A1\uD558\uC9C0 \uC54A\uC558\uC2B5\uB2C8\uB2E4.", Color.WHITE));
+        content.addView(primaryButton("발송", v -> sendNotice()));
+        content.addView(outlineButton("샘플 가정통신문 채우기", v -> fillSampleNotice()));
+        content.addView(card("발송 결과", "아직 발송하지 않았습니다.", Color.WHITE));
         ((LinearLayout) content.getChildAt(content.getChildCount() - 1)).addView(sendResultText);
-        content.addView(outlineButton("\uCC98\uC74C\uC73C\uB85C", v -> showStartScreen()));
+        content.addView(outlineButton("처음으로", v -> showStartScreen()));
         setStatus("POST /notice/send");
     }
 
     private void showParentScreen() {
-        buildBase("\uD559\uBD80\uBAA8 \uD654\uBA74", "\uC218\uC2E0\uD568 + \uBD84\uC11D \uACB0\uACFC");
-        inboxParentInput = input("parent_id", DEFAULT_PARENT_ID);
-        inboxListText = text("\uC218\uC2E0\uD568\uC744 \uBD88\uB7EC\uC624\uC138\uC694.", 14, Color.rgb(71, 85, 105), false);
-        selectedNoticeText = text("\uC120\uD0DD\uB41C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(71, 85, 105), false);
-        analysisResultText = text("\uBD84\uC11D \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(30, 41, 59), false);
-        analyzeButton = primaryButton("\uBD84\uC11D\uD558\uAE30", v -> analyzeSelectedNotice());
-        playButton = primaryButton("\uBCA0\uD2B8\uB0A8\uC5B4\uB85C \uB4E3\uAE30", v -> playTts());
+        releasePlayer();
+        setContentView(R.layout.activity_parent);
 
-        content.addView(inboxParentInput);
-        content.addView(primaryButton("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uAE30", v -> loadInbox()));
-        content.addView(outlineButton("\uC11C\uBC84 \uC751\uB2F5 \uC5C6\uC744 \uB54C \uB370\uBAA8 \uACB0\uACFC \uBCF4\uAE30", v -> showMockAnalysis()));
-        content.addView(cardWithView("\uAC00\uC815\uD1B5\uC2E0\uBB38 \uBAA9\uB85D", inboxListText, Color.WHITE));
-        content.addView(cardWithView("\uC120\uD0DD\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38", selectedNoticeText, Color.rgb(245, 250, 255)));
-        content.addView(analyzeButton);
-        content.addView(cardWithView("\uBD84\uC11D \uACB0\uACFC", analysisResultText, Color.WHITE));
-        content.addView(playButton);
-        content.addView(outlineButton("\uCC98\uC74C\uC73C\uB85C", v -> showStartScreen()));
-        setStatus("\uC218\uC2E0\uD568 \uC870\uD68C\uC640 \uBD84\uC11D \uC694\uCCAD\uC744 \uC900\uBE44\uD588\uC2B5\uB2C8\uB2E4.");
+        statusText = findViewById(R.id.tvStatus);
+        inboxParentInput = findViewById(R.id.etParentId);
+        inboxListText = findViewById(R.id.tvInboxList);
+        selectedNoticeText = findViewById(R.id.tvSelectedNotice);
+        analysisResultText = findViewById(R.id.tvAnalysisResult);
+        analyzeButton = findViewById(R.id.btnAnalyze);
+        playButton = findViewById(R.id.btnPlay);
+
+        findViewById(R.id.btnLoadInbox).setOnClickListener(v -> loadInbox());
+        findViewById(R.id.btnDemo).setOnClickListener(v -> showMockAnalysis());
+        analyzeButton.setOnClickListener(v -> analyzeSelectedNotice());
+        playButton.setOnClickListener(v -> playTts());
+        findViewById(R.id.btnAiAssistant).setOnClickListener(v -> showAiBottomSheet());
+        findViewById(R.id.btnBack).setOnClickListener(v -> showStartScreen());
+
+        setStatus("수신함 조회와 분석 요청을 준비했습니다.");
+    }
+
+    private void showAiBottomSheet() {
+        Dialog dialog = new Dialog(this, R.style.BottomSheetTheme);
+        View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet_ai, null);
+        dialog.setContentView(sheetView);
+
+        Window window = dialog.getWindow();
+        if (window != null) {
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            window.setGravity(Gravity.BOTTOM);
+        }
+
+        ScrollView scrollChat = sheetView.findViewById(R.id.scrollChat);
+        LinearLayout chatContainer = sheetView.findViewById(R.id.chatContainer);
+        LinearLayout quickQuestions = sheetView.findViewById(R.id.quickQuestions);
+        EditText etInput = sheetView.findViewById(R.id.etChatInput);
+
+        sheetView.<Button>findViewById(R.id.btnClose).setOnClickListener(v -> dialog.dismiss());
+        sheetView.<Button>findViewById(R.id.btnSend).setOnClickListener(v ->
+                sendChatMessage(chatContainer, scrollChat, etInput, null));
+
+        addBotBubble(chatContainer, scrollChat,
+                "안녕하세요! 가정통신문에 대해 궁금한 것을 물어보세요.");
+
+        String[] quickList = {
+            "번역해줘",
+            "요약해줘",
+            "할 일 뭐야?",
+            "날짜 알려줘"
+        };
+        for (String q : quickList) {
+            Button qBtn = new Button(this);
+            qBtn.setText(q);
+            qBtn.setTextSize(13);
+            qBtn.setTextColor(COLOR_PRIMARY_DARK);
+            qBtn.setAllCaps(false);
+            qBtn.setPadding(dp(14), dp(8), dp(14), dp(8));
+            qBtn.setBackgroundResource(R.drawable.bg_quick_btn);
+            LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            qp.setMargins(0, 0, dp(8), 0);
+            qBtn.setLayoutParams(qp);
+            qBtn.setOnClickListener(v -> sendChatMessage(chatContainer, scrollChat, etInput, q));
+            quickQuestions.addView(qBtn);
+        }
+
+        dialog.show();
+    }
+
+    private void sendChatMessage(LinearLayout container, ScrollView scroll, EditText input, String override) {
+        String message = override != null ? override : safe(input.getText().toString());
+        if (message.isEmpty()) return;
+        input.setText("");
+
+        addUserBubble(container, scroll, message);
+
+        String context = selectedNotice != null ? selectedNotice.text : "";
+        JSONObject payload = new JSONObject();
+        try {
+            payload.put("message", message);
+            payload.put("context", context);
+            payload.put("parent_id", DEFAULT_PARENT_ID);
+        } catch (Exception e) {
+            addBotBubble(container, scroll, "오류: " + e.getMessage());
+            return;
+        }
+
+        addBotBubble(container, scroll, "답변 중...");
+        postJson("/ai/chat", payload, result -> {
+            if (container.getChildCount() > 0)
+                container.removeViewAt(container.getChildCount() - 1);
+            if (!result.error.isEmpty()) {
+                addBotBubble(container, scroll, "서버 연결 실패: " + result.error);
+                return;
+            }
+            try {
+                JSONObject json = new JSONObject(result.body);
+                String reply = optStringDeep(json, "reply", "message", "answer");
+                addBotBubble(container, scroll,
+                        reply.isEmpty() ? "응답을 받지 못했습니다." : reply);
+            } catch (Exception e) {
+                addBotBubble(container, scroll,
+                        result.body.isEmpty() ? "응답을 받지 못했습니다." : result.body);
+            }
+        });
+    }
+
+    private void addUserBubble(LinearLayout container, ScrollView scroll, String msg) {
+        TextView bubble = new TextView(this);
+        bubble.setText(msg);
+        bubble.setTextColor(Color.WHITE);
+        bubble.setTextSize(14);
+        bubble.setLineSpacing(0, 1.25f);
+        bubble.setPadding(dp(12), dp(8), dp(12), dp(8));
+        bubble.setBackgroundResource(R.drawable.bg_bubble_user);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        p.gravity = Gravity.END;
+        p.setMargins(dp(48), 0, 0, dp(8));
+        bubble.setLayoutParams(p);
+        container.addView(bubble);
+        scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
+    }
+
+    private void addBotBubble(LinearLayout container, ScrollView scroll, String msg) {
+        TextView bubble = new TextView(this);
+        bubble.setText(msg);
+        bubble.setTextColor(COLOR_TEXT);
+        bubble.setTextSize(14);
+        bubble.setLineSpacing(0, 1.25f);
+        bubble.setPadding(dp(12), dp(8), dp(12), dp(8));
+        bubble.setBackgroundResource(R.drawable.bg_bubble_bot);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        p.gravity = Gravity.START;
+        p.setMargins(0, 0, dp(48), dp(8));
+        bubble.setLayoutParams(p);
+        container.addView(bubble);
+        scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
     }
 
     private void sendNotice() {
@@ -124,7 +248,7 @@ public class MainActivity extends Activity {
         String parentId = safe(parentIdInput.getText().toString());
         if (parentId.isEmpty()) parentId = DEFAULT_PARENT_ID;
         if (body.isEmpty()) {
-            setSendResult("\uBCF8\uBB38\uC744 \uC785\uB825\uD574\uC8FC\uC138\uC694.");
+            setSendResult("본문을 입력해주세요.");
             return;
         }
         String payloadText = title.isEmpty() ? body : title + "\n" + body;
@@ -138,18 +262,18 @@ public class MainActivity extends Activity {
             return;
         }
 
-        setSendResult("\uBC1C\uC1A1 \uC911...");
+        setSendResult("발송 중...");
         postJson("/notice/send", bodyJson, result -> {
             if (!result.error.isEmpty()) {
-                setSendResult("\uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328: " + result.error);
+                setSendResult("서버 연결 실패: " + result.error);
                 return;
             }
             try {
                 JSONObject json = new JSONObject(result.body);
                 String noticeId = json.optJSONObject("data") == null ? "" : json.optJSONObject("data").optString("notice_id", "");
-                setSendResult("\uBC1C\uC1A1 \uC644\uB8CC\nnotice_id: " + noticeId + "\n" + json.optString("message", ""));
+                setSendResult("발송 완료\nnotice_id: " + noticeId + "\n" + json.optString("message", ""));
             } catch (Exception error) {
-                setSendResult("\uBC1C\uC1A1 \uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328\n" + result.body);
+                setSendResult("발송 응답 파싱 실패\n" + result.body);
             }
         });
     }
@@ -157,10 +281,10 @@ public class MainActivity extends Activity {
     private void loadInbox() {
         String parentId = safe(inboxParentInput.getText().toString());
         if (parentId.isEmpty()) parentId = DEFAULT_PARENT_ID;
-        inboxListText.setText("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uB294 \uC911...");
+        inboxListText.setText("수신함 불러오는 중...");
         getJson("/notice/inbox/" + parentId, result -> {
             if (!result.error.isEmpty()) {
-                inboxListText.setText("\uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328\n" + result.error);
+                inboxListText.setText("서버 연결 실패\n" + result.error);
                 return;
             }
             try {
@@ -168,9 +292,9 @@ public class MainActivity extends Activity {
                 JSONArray data = json.optJSONArray("data");
                 inbox.clear();
                 if (data == null || data.length() == 0) {
-                    inboxListText.setText("\uC218\uC2E0\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
+                    inboxListText.setText("수신한 가정통신문이 없습니다.");
                     selectedNotice = null;
-                    selectedNoticeText.setText("\uC120\uD0DD\uB41C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
+                    selectedNoticeText.setText("선택된 가정통신문이 없습니다.");
                     return;
                 }
                 StringBuilder listText = new StringBuilder();
@@ -185,23 +309,23 @@ public class MainActivity extends Activity {
                     listText.append(i + 1).append(". ").append(shorten(notice.text)).append("\n");
                 }
                 selectedNotice = inbox.get(0);
-                inboxListText.setText(listText.toString().trim() + "\n\n\uCCAB \uBC88\uC9F8 \uAC00\uC815\uD1B5\uC2E0\uBB38\uC744 \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4.");
+                inboxListText.setText(listText.toString().trim() + "\n\n첫 번째 가정통신문을 선택했습니다.");
                 selectedNoticeText.setText(selectedNotice.text);
             } catch (Exception error) {
-                inboxListText.setText("\uC218\uC2E0\uD568 \uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328\n" + result.body);
+                inboxListText.setText("수신함 응답 파싱 실패\n" + result.body);
             }
         });
     }
 
     private void analyzeSelectedNotice() {
         if (selectedNotice == null || selectedNotice.noticeId.isEmpty()) {
-            analysisResultText.setText("\uBD84\uC11D\uD560 \uAC00\uC815\uD1B5\uC2E0\uBB38\uC744 \uBA3C\uC800 \uC120\uD0DD\uD558\uC138\uC694.");
+            analysisResultText.setText("분석할 가정통신문을 먼저 선택하세요.");
             return;
         }
-        analysisResultText.setText("\uBD84\uC11D \uC911...");
+        analysisResultText.setText("분석 중...");
         postJson("/notice/analyze/" + selectedNotice.noticeId, null, result -> {
             if (!result.error.isEmpty()) {
-                analysisResultText.setText("\uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328\n" + result.error + "\n\n\uACE0\uC815 \uB370\uBAA8 \uACB0\uACFC\uB97C \uD45C\uC2DC\uD569\uB2C8\uB2E4.");
+                analysisResultText.setText("서버 연결 실패\n" + result.error + "\n\n고정 데모 결과를 표시합니다.");
                 showMockAnalysis();
                 return;
             }
@@ -209,13 +333,13 @@ public class MainActivity extends Activity {
                 JSONObject json = new JSONObject(result.body);
                 JSONObject data = json.optJSONObject("data");
                 if (data == null) {
-                    analysisResultText.setText("\uBD84\uC11D \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.");
+                    analysisResultText.setText("분석 결과가 없습니다.");
                     return;
                 }
                 analysisResultText.setText(formatAnalysis(data));
                 currentTtsUrl = optStringDeep(data, "tts_url", "tts_path", "audio_url");
             } catch (Exception error) {
-                analysisResultText.setText("\uBD84\uC11D \uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328\n" + result.body);
+                analysisResultText.setText("분석 응답 파싱 실패\n" + result.body);
             }
         });
     }
@@ -223,7 +347,7 @@ public class MainActivity extends Activity {
     private String formatAnalysis(JSONObject data) {
         StringBuilder builder = new StringBuilder();
         JSONArray todos = data.optJSONArray("todos");
-        builder.append("\uD574\uC57C \uD560 \uC77C\n");
+        builder.append("해야 할 일\n");
         if (todos != null && todos.length() > 0) {
             for (int i = 0; i < todos.length(); i++) {
                 JSONObject todo = todos.optJSONObject(i);
@@ -231,20 +355,20 @@ public class MainActivity extends Activity {
                 builder.append("- ").append(todo.optString("text_ko", todo.toString())).append("\n");
             }
         } else {
-            builder.append("\uBD84\uC11D \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.\n");
+            builder.append("분석 결과가 없습니다.\n");
         }
-        appendIfPresent(builder, "\n\uC26C\uC6B4 \uD55C\uAD6D\uC5B4\n", data, "easy_ko_text", "easy_korean");
+        appendIfPresent(builder, "\n쉬운 한국어\n", data, "easy_ko_text", "easy_korean");
         String finalVi = optStringDeep(data, "corrected_vi_text", "corrected_translation", "vi_corrected_translation", "final_vi_text", "vi_text", "vietnamese", "translation_vi");
         if (!finalVi.isEmpty()) {
-            builder.append("\n\uBCA0\uD2B8\uB0A8\uC5B4 \uBC88\uC5ED\n").append(finalVi).append('\n');
+            builder.append("\n베트남어 번역\n").append(finalVi).append('\n');
         }
         String glossary = optStringDeep(data, "glossary_check", "quality_note");
         if (!glossary.isEmpty()) {
-            builder.append("\n\uC6A9\uC5B4 \uD655\uC778\n").append(parentGlossarySummary(glossary)).append('\n');
+            builder.append("\n용어 확인\n").append(parentGlossarySummary(glossary)).append('\n');
         }
         String review = optStringDeep(data, "review_needed", "review_note", "glossary_review");
         if (!review.isEmpty()) {
-            builder.append("\n\uAC80\uC218 \uC0C1\uC138(\uD655\uC778\uC6A9)\n").append(compactReview(review)).append('\n');
+            builder.append("\n검수 상세(확인용)\n").append(compactReview(review)).append('\n');
         }
         return builder.toString().trim();
     }
@@ -257,25 +381,25 @@ public class MainActivity extends Activity {
         String correctedVi = readAsset("demo_case_01/05_vi_corrected_translation.txt");
         currentTtsUrl = "";
         analysisResultText.setText(
-                "\uD575\uC2EC \uCCB4\uD06C\uB9AC\uC2A4\uD2B8\n" +
-                "- \uBB3C\uBCD1\uACFC \uB3C4\uC2DC\uB77D \uC900\uBE44\n" +
-                "- \uC624\uC804 9\uC2DC\uAE4C\uC9C0 \uD559\uAD50 \uC6B4\uB3D9\uC7A5 \uB3C4\uCC29\n\n" +
-                "\uC26C\uC6B4 \uD55C\uAD6D\uC5B4\n" + easyKo + "\n" +
-                "\uBCA0\uD2B8\uB0A8\uC5B4 \uBC88\uC5ED\n" + correctedVi + "\n\n" +
-                "\uC6A9\uC5B4 \uD655\uC778\n" + summarizeGlossary(glossary) + "\n\n" +
-                "\uAC80\uC218 \uC0C1\uC138(\uD655\uC778\uC6A9)\n" + compactReview(review) + "\n\n" +
-                "\uCC38\uACE0: \uC6D0\uBC88\uC5ED\uC5D0\uC11C\uB294 \uB2E4\uC74C\uACFC \uAC19\uC774 \uD45C\uC2DC\uB418\uC5C8\uC2B5\uB2C8\uB2E4.\n" + rawVi
+                "핵심 체크리스트\n" +
+                "- 물병과 도시락 준비\n" +
+                "- 오전 9시까지 학교 운동장 도착\n\n" +
+                "쉬운 한국어\n" + easyKo + "\n" +
+                "베트남어 번역\n" + correctedVi + "\n\n" +
+                "용어 확인\n" + summarizeGlossary(glossary) + "\n\n" +
+                "검수 상세(확인용)\n" + compactReview(review) + "\n\n" +
+                "참고: 원번역에서는 다음과 같이 표시되었습니다.\n" + rawVi
         );
     }
 
     private String summarizeGlossary(String csv) {
-        if (TextUtils.isEmpty(csv)) return "\uAC80\uC218 \uACB0\uACFC\uB97C \uC77D\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4.";
+        if (TextUtils.isEmpty(csv)) return "검수 결과를 읽지 못했습니다.";
         String[] lines = csv.split("\\r?\\n");
         if (lines.length < 2) return csv.trim();
         String row = lines[1];
         String[] cols = row.split(",", -1);
         if (cols.length >= 5) {
-            return cols[0] + " \uB204\uB77D \uAC10\uC9C0 \u2192 \uBCF4\uC815 \uBC88\uC5ED\uBB38\uC5D0 \uBC18\uC601\uB428";
+            return cols[0] + " 누락 감지 → 보정 번역문에 반영됨";
         }
         return parentGlossarySummary(csv);
     }
@@ -286,54 +410,57 @@ public class MainActivity extends Activity {
                 .replace("## ", "")
                 .replace("```text", "")
                 .replace("```", "")
-                .replace("missing_term", "\uB204\uB77D\uB41C \uC6A9\uC5B4")
-                .replace("quality_label", "\uAC80\uC218 \uACB0\uACFC")
+                .replace("missing_term", "누락된 용어")
+                .replace("quality_label", "검수 결과")
                 .trim();
         return clean.length() > 420 ? clean.substring(0, 420) + "\n..." : clean;
     }
 
     private String parentGlossarySummary(String value) {
-        if (TextUtils.isEmpty(value)) return "\uC6A9\uC5B4 \uD655\uC778 \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.";
-        if (value.contains("\uB3C4\uC2DC\uB77D") || value.contains("c\u01A1m h\u1ED9p")) {
-            return "\uB3C4\uC2DC\uB77D \uB204\uB77D \uAC10\uC9C0 \u2192 \uBCF4\uC815 \uBC88\uC5ED\uBB38\uC5D0 \uBC18\uC601\uB428";
+        if (TextUtils.isEmpty(value)) return "용어 확인 결과가 없습니다.";
+        if (value.contains("도시락") || value.contains("cơm hộp")) {
+            return "도시락 누락 감지 → 보정 번역문에 반영됨";
         }
         if (value.toLowerCase().contains("missing")) {
-            return "\uD544\uC694\uD55C \uD559\uAD50 \uC6A9\uC5B4\uB97C \uD655\uC778\uD588\uC2B5\uB2C8\uB2E4.";
+            return "필요한 학교 용어를 확인했습니다.";
         }
-        return "\uD559\uAD50 \uC6A9\uC5B4\uB97C \uD655\uC778\uD588\uC2B5\uB2C8\uB2E4.";
+        return "학교 용어를 확인했습니다.";
     }
 
     private void playTts() {
         releasePlayer();
         try {
-            if (!TextUtils.isEmpty(currentTtsUrl) && currentTtsUrl.startsWith("http")) {
+            if (!TextUtils.isEmpty(currentTtsUrl)) {
+                String dataSourceUrl = currentTtsUrl.startsWith("http")
+                        ? currentTtsUrl
+                        : BASE_URL + currentTtsUrl;
                 player = new MediaPlayer();
-                player.setDataSource(currentTtsUrl);
+                player.setDataSource(dataSourceUrl);
                 player.setOnPreparedListener(mp -> {
                     mp.start();
-                    playButton.setText("\uC7AC\uC0DD \uC911... \uB2E4\uC2DC \uB204\uB974\uBA74 \uC815\uC9C0");
+                    playButton.setText("재생 중... 다시 누르면 정지");
                 });
-                player.setOnCompletionListener(mp -> playButton.setText("\uBCA0\uD2B8\uB0A8\uC5B4\uB85C \uB4E3\uAE30"));
+                player.setOnCompletionListener(mp -> playButton.setText("베트남어로 듣기"));
                 player.prepareAsync();
             } else {
                 player = MediaPlayer.create(this, R.raw.tts_output);
                 player.start();
-                playButton.setText("\uC7AC\uC0DD \uC911... \uB2E4\uC2DC \uB204\uB974\uBA74 \uC815\uC9C0");
-                player.setOnCompletionListener(mp -> playButton.setText("\uBCA0\uD2B8\uB0A8\uC5B4\uB85C \uB4E3\uAE30"));
+                playButton.setText("재생 중... 다시 누르면 정지");
+                player.setOnCompletionListener(mp -> playButton.setText("베트남어로 듣기"));
             }
         } catch (Exception error) {
-            analysisResultText.setText(analysisResultText.getText() + "\n\nTTS \uC7AC\uC0DD \uC2E4\uD328: " + error.getMessage());
+            analysisResultText.setText(analysisResultText.getText() + "\n\nTTS 재생 실패: " + error.getMessage());
         }
     }
 
     private void fillSampleNotice() {
-        titleInput.setText("\uD604\uC7A5\uD559\uC2B5 \uC548\uB0B4");
+        titleInput.setText("현장학습 안내");
         bodyInput.setText(sampleNotice());
         parentIdInput.setText(DEFAULT_PARENT_ID);
     }
 
     private String sampleNotice() {
-        return "\uB0B4\uC77C \uD604\uC7A5\uD559\uC2B5\uC774 \uC788\uC2B5\uB2C8\uB2E4.\n\uC544\uC774\uB294 \uBB3C\uBCD1\uACFC \uB3C4\uC2DC\uB77D\uC744 \uAC00\uC838\uC640 \uC8FC\uC138\uC694.\n\uC544\uCE68 9\uC2DC\uAE4C\uC9C0 \uD559\uAD50 \uC6B4\uB3D9\uC7A5\uC73C\uB85C \uC640 \uC8FC\uC138\uC694.";
+        return "내일 현장학습이 있습니다.\n아이는 물병과 도시락을 가져와 주세요.\n아침 9시까지 학교 운동장으로 와 주세요.";
     }
 
     private void buildBase(String title, String subtitle) {
@@ -555,7 +682,7 @@ public class MainActivity extends Activity {
             String line;
             while ((line = reader.readLine()) != null) builder.append(line).append('\n');
         } catch (Exception error) {
-            return "\uD30C\uC77C\uC744 \uC77D\uC9C0 \uBABB\uD588\uC2B5\uB2C8\uB2E4: " + name + "\n" + error.getMessage();
+            return "파일을 읽지 못했습니다: " + name + "\n" + error.getMessage();
         }
         return builder.toString();
     }
