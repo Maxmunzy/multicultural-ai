@@ -37,8 +37,6 @@ from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
 )
-
-
 # ─────────────────────────────────────────
 # 0. schemas.py 임포트
 # ─────────────────────────────────────────
@@ -57,10 +55,7 @@ except ImportError:
 # ─────────────────────────────────────────
 # 1. 모델 로드 (서버 시작 시 1회, lazy)
 # ─────────────────────────────────────────
-CHECKPOINT_DIR = os.path.join(
-    os.path.dirname(__file__),
-    "checkpoints/koelectra-extractor"
-)
+HF_REPO_ID = "yunjeong116/koelectra-extractor"
 
 _tokenizer = None
 _model = None
@@ -69,24 +64,19 @@ _device = "cuda" if torch.cuda.is_available() else "cpu"
 
 
 def _load_model():
-    """첫 호출 때만 모델 로드 (서버 메모리에 1회 적재)"""
+    """첫 호출 때만 모델 로드 (HuggingFace Hub에서 자동 다운로드)"""
     global _tokenizer, _model, _id2label
     if _model is not None:
         return
 
-    if not os.path.exists(CHECKPOINT_DIR):
-        raise FileNotFoundError(
-            f"학습된 모델이 없어요: {CHECKPOINT_DIR}\n"
-            f"코랩에서 train_koelectra.ipynb 돌리고 koelectra-extractor.zip 을\n"
-            f"풀어서 위 경로에 두세요."
-        )
-
-    _tokenizer = AutoTokenizer.from_pretrained(CHECKPOINT_DIR)
-    _model = AutoModelForSequenceClassification.from_pretrained(CHECKPOINT_DIR)
+    _tokenizer = AutoTokenizer.from_pretrained(HF_REPO_ID)
+    _model = AutoModelForSequenceClassification.from_pretrained(HF_REPO_ID)
     _model.to(_device)
     _model.eval()
 
-    with open(os.path.join(CHECKPOINT_DIR, "labels.json"), encoding="utf-8") as f:
+    from huggingface_hub import hf_hub_download
+    labels_path = hf_hub_download(repo_id=HF_REPO_ID, filename="labels.json")
+    with open(labels_path, encoding="utf-8") as f:
         meta = json.load(f)
     _id2label = {int(k): v for k, v in meta["id2label"].items()}
 
