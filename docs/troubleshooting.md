@@ -90,16 +90,29 @@ http://192.168.0.23:8000/docs
 
 현재 backend는 DB가 아니라 프로세스 메모리에 가정통신문을 저장합니다. 서버를 재시작하면 이전 발송 데이터는 사라집니다.
 
-### 분석 결과가 실제 모델 결과가 아님
+### 분석 결과가 실제 모델 결과가 아님 (해결됨)
 
-현재 `POST /notice/analyze/{notice_id}`는 `backend/app/services/mock.py`의 고정 `MOCK_TODOS`를 반환합니다.
+`POST /notice/analyze/{notice_id}`는 실제 모델 파이프라인과 연결되어 있습니다.
 
-모델 자체는 구현 완료 상태입니다.
+- 모델 A (추출): `backend/app/services/extractor.py` → `extract_todos()`
+- 모델 B (분류 교차검증): `backend/app/services/classifier.py` → `review_todos()`
+- 번역/TTS: `backend/app/services/translator.py` + `tts.py`
 
-- 모델 A (추출): `model/extraction/predict.py` — `extract_todos_dict()` 호출 가능
-- 모델 B (분류): `model/classification/src/api.py` — `POST /classify` (port 8001) 로컬 실행 가능
+결과가 고정 샘플처럼 보이는 경우: 추출 모델이 해당 텍스트에서 항목을 뽑지 못하면 `MOCK_TODOS`로 fallback됩니다. 실제 가정통신문 형식의 텍스트로 테스트하세요.
 
-현재 메인 백엔드(`backend/`)와 두 모델의 연결 작업이 마지막으로 남아 있습니다.
+### NLLB 첫 실행이 너무 오래 걸림
+
+첫 실행 시 HuggingFace Hub에서 모델(약 2.4GB)을 다운로드합니다. 10~15분 소요될 수 있습니다. 이후 `hf_cache` 볼륨에 캐시되어 재시작 시 빠르게 로드됩니다.
+
+시연 전 warmup 필수:
+
+```bash
+curl -s -X POST http://localhost:8000/notice/send \
+  -H "Content-Type: application/json" \
+  -d '{"teacher_id":"t1","parent_id":"p1","text":"6월 12일 수요일에 학부모 공개수업이 진행됩니다."}' | python -m json.tool
+```
+
+send 후 반환된 `notice_id`로 analyze 한 번 호출하면 모델이 메모리에 로드됩니다.
 
 ---
 
