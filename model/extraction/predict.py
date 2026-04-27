@@ -132,6 +132,12 @@ def split_sentences(text: str) -> list[str]:
 NON_TODO_PATTERNS = [
     r"^학부모님\s*안녕하십니까",
     r"^안녕하십니까",
+    r"^학부모님께\s*안내드립니다",
+    r"^학부모님께\s*드립니다",
+    r"안내드립니다\s*\.?\s*$",
+    r"드립니다\s*\.?\s*$",
+    # 제목성 문장 (구두점 없이 "안내"로 끝남)
+    r"^[^.,!?]{1,30}\s*안내\s*$",
     r"서울갈산초등학교장$",
     r"교장$",
     r"^\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?\s*$",
@@ -149,7 +155,7 @@ def is_likely_todo(sentence: str) -> bool:
     for pat in NON_TODO_PATTERNS:
         if re.search(pat, sentence):
             return False
-    if len(sentence) < 10:
+    if len(sentence) < 7:
         return False
     return True
 
@@ -306,11 +312,11 @@ def extract_todos(notice_text: str) -> list:
             category, confidence = classify_category(sent)
 
         # 신뢰도 너무 낮으면 노이즈
-        if confidence < 0.4 and not is_money:
+        if confidence < 0.25 and not is_money:
             continue
 
         importance = calc_importance(sent, category, due_date)
-        if importance < 0.3:
+        if importance < 0.25:
             continue
 
         text_ko = sent
