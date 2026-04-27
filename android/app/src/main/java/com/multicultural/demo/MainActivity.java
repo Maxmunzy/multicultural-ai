@@ -47,9 +47,9 @@ public class MainActivity extends Activity {
     private static final int COLOR_BORDER = Color.rgb(226, 232, 240);
     private static final int COLOR_SUCCESS = Color.rgb(16, 185, 129);
 
-    private static final String[] LANG_CODES  = {"ko_easy", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja", "id"};
-    private static final String[] LANG_LABELS = {"🇰🇷 쉬운 한국어", "🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이어", "🇲🇳 몽골어", "🇻🇳 베트남어", "🇨🇳 중국어", "🇹🇭 태국어", "🇯🇵 일본어", "🇮🇩 인도네시아"};
-    private static final String[] LANG_NAMES  = {"쉬운 한국어", "영어", "러시아어", "말레이시아어", "몽골어", "베트남어", "중국어", "태국어", "일본어", "인도네시아어"};
+    private static final String[] LANG_CODES  = {"ko_easy", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
+    private static final String[] LANG_LABELS = {"🇰🇷 쉬운 한국어", "🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이시아어", "🇲🇳 몽골어", "🇻🇳 베트남어", "🇨🇳 중국어", "🇹🇭 태국어", "🇯🇵 일본어"};
+    private static final String[] LANG_NAMES  = {"쉬운 한국어", "영어", "러시아어", "말레이시아어", "몽골어", "베트남어", "중국어", "태국어", "일본어"};
     private static String selectedLanguage = "ko_easy";
 
     private static final float TEXT_SIZE_MIN = 12f;
@@ -143,19 +143,19 @@ public class MainActivity extends Activity {
         buttons[0].setLayoutParams(mainParams);
         card.addView(buttons[0]);
 
-        // 9개국어: 3열 × 3행 그리드 (인덱스 1~9)
-        for (int row = 0; row < 3; row++) {
+        // 8개국어: 2열 × 4행 그리드 (인덱스 1~8)
+        for (int row = 0; row < 4; row++) {
             LinearLayout rowLayout = new LinearLayout(this);
             rowLayout.setOrientation(LinearLayout.HORIZONTAL);
             LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            rowParams.setMargins(0, 0, 0, row < 2 ? dp(6) : 0);
+            rowParams.setMargins(0, 0, 0, row < 3 ? dp(6) : 0);
             rowLayout.setLayoutParams(rowParams);
-            for (int col = 0; col < 3; col++) {
-                int idx = 1 + row * 3 + col;
+            for (int col = 0; col < 2; col++) {
+                int idx = 1 + row * 2 + col;
                 LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
                         0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-                btnParams.setMargins(0, 0, col < 2 ? dp(4) : 0, 0);
+                btnParams.setMargins(0, 0, col < 1 ? dp(6) : 0, 0);
                 buttons[idx].setLayoutParams(btnParams);
                 rowLayout.addView(buttons[idx]);
             }
