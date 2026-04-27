@@ -25,9 +25,29 @@ class TodoItem(BaseModel):
     due_date: str | None = None
 
 
-class NoticeUploadResponse(BaseModel):
+class Notice(BaseModel):
+    notice_id: str
+    teacher_id: str
+    parent_id: str
+    text: str
+    todos: list[TodoItem] = []
+
+
+class NoticeSendRequest(BaseModel):
+    teacher_id: str
+    parent_id: str
+    text: str
+
+
+class NoticeAnalyzeResponse(BaseModel):
+    notice_id: str
     raw_text: str
     todos: list[TodoItem]
+    easy_ko_text: str = ""        # 쉬운 한국어 (세종 파이프라인 산출물)
+    vi_text: str = ""             # 베트남어 번역
+    quality_note: str = ""        # 용어 검수 결과 (ok / missing_term / review_needed)
+    review_needed: str = ""       # 검수 필요 항목 상세
+    tts_url: str = ""             # TTS 음성 파일 URL
 
 
 class TTSRequest(BaseModel):
@@ -38,9 +58,10 @@ class TTSRequest(BaseModel):
 
 class UserProfile(BaseModel):
     user_id: str
-    child_grade: int        # 1~6학년
-    level: KoreanLevel
-    tts_speed: float = 1.0  # 0.5 ~ 2.0
+    role: str = "parent"   # "teacher" | "parent"
+    child_grade: int = 1   # 1~6학년 (부모만 해당)
+    level: KoreanLevel = KoreanLevel.beginner
+    tts_speed: float = 1.0
 
 
 class ApiResponse(BaseModel):

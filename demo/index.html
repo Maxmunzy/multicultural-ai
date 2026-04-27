@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>가정통신문 AI 도우미</title>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0e0c;
+    --surface: #1a1814;
+    --surface2: #242118;
+    --border: #2e2b24;
+    --amber: #e8a445;
+    --amber-dim: #b07a28;
+    --amber-glow: rgba(232,164,69,0.12);
+    --teal: #4ab8a0;
+    --teal-dim: #2d8a76;
+    --red: #e85c4a;
+    --text: #f0ead8;
+    --text-dim: #9e9680;
+    --text-muted: #5a5648;
+    --radius: 16px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* 배경 노이즈 */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* 헤더 */
+  .header {
+    padding: 24px 20px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    background: var(--amber-glow);
+    border: 1px solid var(--amber-dim);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+  }
+
+  .logo-text {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--amber);
+    letter-spacing: -0.3px;
+    line-height: 1.2;
+  }
+
+  .logo-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 300;
+    letter-spacing: 0.5px;
+  }
+
+  /* 역할 전환 토글 */
+  .role-toggle {
+    display: flex;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 4px;
+  }
+
+  .role-btn {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    border-radius: 9px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: transparent;
+    color: var(--text-muted);
+  }
+
+  .role-btn.active-teacher {
+    background: var(--amber);
+    color: var(--bg);
+  }
+
+  .role-btn.active-parent {
+    background: var(--teal);
+    color: var(--bg);
+  }
+
+  /* 사용자 배지 */
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  .user-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 6px var(--amber);
+    animation: pulse 2s infinite;
+  }
+
+  .user-dot.parent { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+
+  /* 메인 콘텐츠 */
+  .main {
+    flex: 1;
+    padding: 0 20px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  /* 섹션 카드 */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    animation: fadeUp 0.3s ease;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card-title {
+    font-family: 'Nanum Myeongjo', serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--amber);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .card-title.teal { color: var(--teal); }
+
+  /* 입력 영역 */
+  textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    line-height: 1.7;
+    resize: none;
+    height: 140px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  textarea:focus { border-color: var(--amber-dim); }
+  textarea.parent-focus:focus { border-color: var(--teal-dim); }
+
+  textarea::placeholder { color: var(--text-muted); }
+
+  /* 수신자 선택 */
+  .recipient-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .recipient-label {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .recipient-select {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  /* 버튼 */
+  .btn {
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    letter-spacing: 0.3px;
+  }
+
+  .btn-amber {
+    background: var(--amber);
+    color: var(--bg);
+  }
+
+  .btn-amber:hover { background: #f0b055; transform: translateY(-1px); }
+  .btn-amber:active { transform: translateY(0); }
+
+  .btn-teal {
+    background: var(--teal);
+    color: var(--bg);
+  }
+
+  .btn-teal:hover { background: #5acdb5; transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  /* 알림 뱃지 */
+  .inbox-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .badge {
+    background: var(--red);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 99px;
+  }
+
+  /* 가정통신문 아이템 */
+  .notice-item {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .notice-item:hover {
+    border-color: var(--teal-dim);
+    background: rgba(74,184,160,0.05);
+  }
+
+  .notice-item.selected {
+    border-color: var(--teal);
+    background: rgba(74,184,160,0.08);
+  }
+
+  .notice-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .notice-from {
+    font-size: 11px;
+    color: var(--teal);
+    font-weight: 500;
+  }
+
+  .notice-time {
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  .notice-preview {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .notice-unread {
+    width: 6px;
+    height: 6px;
+    background: var(--teal);
+    border-radius: 50%;
+    box-shadow: 0 0 4px var(--teal);
+  }
+
+  /* 체크리스트 */
+  .todo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .todo-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface2);
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    animation: fadeUp 0.3s ease both;
+  }
+
+  .todo-item:nth-child(1) { animation-delay: 0.05s; }
+  .todo-item:nth-child(2) { animation-delay: 0.1s; }
+  .todo-item:nth-child(3) { animation-delay: 0.15s; }
+
+  .todo-category {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 99px;
+    font-weight: 700;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 1px;
+  }
+
+  .cat-schedule { background: rgba(232,164,69,0.15); color: var(--amber); }
+  .cat-supplies { background: rgba(74,184,160,0.15); color: var(--teal); }
+  .cat-submission { background: rgba(232,92,74,0.15); color: var(--red); }
+  .cat-cost { background: rgba(160,130,200,0.15); color: #b08de0; }
+  .cat-health { background: rgba(100,180,100,0.15); color: #7bc97b; }
+
+  .todo-texts { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+
+  .todo-ko {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    font-weight: 500;
+  }
+
+  .todo-vi {
+    font-size: 11px;
+    color: var(--text-muted);
+    line-height: 1.4;
+    font-style: italic;
+  }
+
+  .importance-bar {
+    width: 3px;
+    border-radius: 99px;
+    background: var(--border);
+    flex-shrink: 0;
+    align-self: stretch;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .importance-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--amber);
+    transition: height 0.5s ease;
+  }
+
+  /* TTS 컨트롤 */
+  .tts-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .tts-play {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--teal);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+
+  .tts-play:hover { background: #5acdb5; transform: scale(1.05); }
+
+  .tts-info { flex: 1; }
+
+  .tts-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 4px;
+  }
+
+  .tts-wave {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    height: 20px;
+  }
+
+  .wave-bar {
+    width: 3px;
+    border-radius: 99px;
+    background: var(--teal-dim);
+    animation: wave 1.2s ease-in-out infinite;
+  }
+
+  .wave-bar:nth-child(1) { animation-delay: 0s; }
+  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
+  .wave-bar:nth-child(5) { animation-delay: 0.2s; }
+  .wave-bar:nth-child(6) { animation-delay: 0.1s; }
+  .wave-bar:nth-child(7) { animation-delay: 0s; }
+
+  @keyframes wave {
+    0%, 100% { height: 4px; }
+    50% { height: 18px; }
+  }
+
+  .tts-playing .wave-bar { background: var(--teal); }
+
+  .level-badge {
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: rgba(74,184,160,0.1);
+    border: 1px solid var(--teal-dim);
+    color: var(--teal);
+    font-weight: 500;
+  }
+
+  /* 전송 성공 메시지 */
+  .success-msg {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 14px;
+    background: rgba(74,184,160,0.1);
+    border: 1px solid var(--teal-dim);
+    border-radius: 10px;
+    font-size: 13px;
+    color: var(--teal);
+    animation: fadeUp 0.3s ease;
+  }
+
+  .success-msg.show { display: flex; }
+
+  /* 로딩 */
+  .loading {
+    display: none;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    padding: 8px 0;
+  }
+
+  .loading.show { display: flex; }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--teal);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* 숨김 */
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">
+        <div class="logo-icon">📋</div>
+        <div>
+          <div class="logo-text">가정통신문 AI</div>
+          <div class="logo-sub">THÔNG BÁO TRƯỜNG HỌC</div>
+        </div>
+      </div>
+      <div class="user-badge">
+        <div class="user-dot" id="userDot"></div>
+        <span id="userLabel">김선생님</span>
+      </div>
+    </div>
+
+    <div class="role-toggle">
+      <button class="role-btn active-teacher" id="btnTeacher" onclick="switchRole('teacher')">
+        👩‍🏫 선생님
+      </button>
+      <button class="role-btn" id="btnParent" onclick="switchRole('parent')">
+        👩 학부모
+      </button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- 선생님 화면 -->
+    <div id="teacherView">
+      <div class="card">
+        <div class="card-title">📨 가정통신문 발송</div>
+
+        <div class="recipient-row">
+          <span class="recipient-label">수신자</span>
+          <select class="recipient-select" id="recipientSelect">
+            <option>전체 학부모</option>
+            <option>응우옌 티 흐엉 (1학년 3반)</option>
+            <option>쩐 티 마이 (2학년 1반)</option>
+            <option>레 티 란 (3학년 2반)</option>
+          </select>
+        </div>
+
+        <textarea id="noticeInput" placeholder="가정통신문 내용을 입력하세요...
+
+예) 4월 25일(금) 봄 소풍이 있습니다.
+준비물: 도시락, 개인 물병, 돗자리
+체험학습비 15,000원을 4월 22일까지 납부해 주세요.
+참가 동의서를 내일까지 제출해 주세요."></textarea>
+
+        <div class="success-msg" id="successMsg">
+          ✅ 발송 완료! 학부모 앱에 전달되었습니다.
+        </div>
+
+        <button class="btn btn-amber" onclick="sendNotice()">
+          📤 발송하기
+        </button>
+      </div>
+    </div>
+
+    <!-- 부모 화면 -->
+    <div id="parentView" class="hidden">
+
+      <!-- 수신함 -->
+      <div class="card" id="inboxCard">
+        <div class="inbox-header">
+          <div class="card-title teal">📬 수신함</div>
+          <span class="badge" id="inboxBadge">1</span>
+        </div>
+
+        <div class="notice-item selected" onclick="openNotice(this)">
+          <div class="notice-meta">
+            <span class="notice-from">👩‍🏫 김지현 선생님</span>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <div class="notice-unread"></div>
+              <span class="notice-time">방금 전</span>
+            </div>
+          </div>
+          <div class="notice-preview">4월 25일(금) 봄 소풍이 있습니다. 준비물: 도시락, 개인 물병, 돗자리...</div>
+        </div>
+
+        <div class="loading show" id="analyzeLoading">
+          <div class="spinner"></div>
+          <span>AI가 분석 중입니다...</span>
+        </div>
+      </div>
+
+      <!-- 체크리스트 결과 -->
+      <div class="card hidden" id="resultCard">
+        <div class="card-title teal">✅ 오늘 해야 할 일</div>
+
+        <div class="todo-list" id="todoList"></div>
+
+        <!-- TTS 컨트롤 -->
+        <div class="tts-bar" id="ttsBar">
+          <button class="tts-play" id="ttsPlayBtn" onclick="toggleTTS()">▶</button>
+          <div class="tts-info">
+            <div class="tts-label">음성 안내 · Hướng dẫn bằng giọng nói</div>
+            <div class="tts-wave" id="ttsWave">
+              <div class="wave-bar" style="height:4px"></div>
+              <div class="wave-bar" style="height:4px"></div>
+              <div class="wave-bar" style="height:4px"></div>
+              <div class="wave-bar" style="height:4px"></div>
+              <div class="wave-bar" style="height:4px"></div>
+              <div class="wave-bar" style="height:4px"></div>
+              <div class="wave-bar" style="height:4px"></div>
+            </div>
+          </div>
+          <span class="level-badge">초급 🇻🇳</span>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+  let currentRole = 'teacher';
+  let ttsPlaying = false;
+  let analysisTimer = null;
+
+  const mockTodos = [
+    {
+      category: '일정',
+      catClass: 'cat-schedule',
+      ko: '4월 25일(금) 봄 소풍',
+      vi: 'Ngày 25 tháng 4 (thứ Sáu) đi dã ngoại mùa xuân',
+      importance: 0.9
+    },
+    {
+      category: '준비물',
+      catClass: 'cat-supplies',
+      ko: '도시락, 개인 물병, 돗자리 준비',
+      vi: 'Chuẩn bị: hộp cơm, bình nước cá nhân, chiếu',
+      importance: 0.95
+    },
+    {
+      category: '비용',
+      catClass: 'cat-cost',
+      ko: '체험학습비 15,000원 → 4월 22일까지 납부',
+      vi: 'Nộp phí 15,000 won trước ngày 22 tháng 4',
+      importance: 0.85
+    },
+    {
+      category: '제출',
+      catClass: 'cat-submission',
+      ko: '참가 동의서 내일까지 제출',
+      vi: 'Nộp giấy đồng ý tham gia trước ngày mai',
+      importance: 1.0
+    }
+  ];
+
+  function switchRole(role) {
+    currentRole = role;
+    const teacherView = document.getElementById('teacherView');
+    const parentView = document.getElementById('parentView');
+    const btnTeacher = document.getElementById('btnTeacher');
+    const btnParent = document.getElementById('btnParent');
+    const userDot = document.getElementById('userDot');
+    const userLabel = document.getElementById('userLabel');
+
+    if (role === 'teacher') {
+      teacherView.classList.remove('hidden');
+      parentView.classList.add('hidden');
+      btnTeacher.className = 'role-btn active-teacher';
+      btnParent.className = 'role-btn';
+      userDot.className = 'user-dot';
+      userLabel.textContent = '김지현 선생님';
+    } else {
+      teacherView.classList.add('hidden');
+      parentView.classList.remove('hidden');
+      btnTeacher.className = 'role-btn';
+      btnParent.className = 'role-btn active-parent';
+      userDot.className = 'user-dot parent';
+      userLabel.textContent = '응우옌 티 흐엉';
+
+      // 자동 분석 시뮬레이션
+      if (!document.getElementById('resultCard').classList.contains('hidden')) return;
+      if (analysisTimer) return;
+      analysisTimer = setTimeout(() => {
+        showAnalysisResult();
+      }, 2000);
+    }
+  }
+
+  function sendNotice() {
+    const input = document.getElementById('noticeInput').value.trim();
+    if (!input) return;
+
+    const msg = document.getElementById('successMsg');
+    msg.classList.add('show');
+    setTimeout(() => msg.classList.remove('show'), 3000);
+  }
+
+  function openNotice(el) {
+    if (!document.getElementById('resultCard').classList.contains('hidden')) return;
+    document.getElementById('analyzeLoading').classList.add('show');
+    setTimeout(showAnalysisResult, 1800);
+  }
+
+  function showAnalysisResult() {
+    document.getElementById('analyzeLoading').classList.remove('show');
+    document.getElementById('inboxBadge').style.display = 'none';
+
+    const resultCard = document.getElementById('resultCard');
+    resultCard.classList.remove('hidden');
+
+    const todoList = document.getElementById('todoList');
+    todoList.innerHTML = '';
+
+    mockTodos.sort((a, b) => b.importance - a.importance).forEach((todo, i) => {
+      const item = document.createElement('div');
+      item.className = 'todo-item';
+      item.style.animationDelay = `${i * 0.07}s`;
+      item.innerHTML = `
+        <div class="importance-bar">
+          <div class="importance-fill" style="height:${todo.importance * 100}%"></div>
+        </div>
+        <span class="todo-category ${todo.catClass}">${todo.category}</span>
+        <div class="todo-texts">
+          <div class="todo-ko">${todo.ko}</div>
+          <div class="todo-vi">${todo.vi}</div>
+        </div>
+      `;
+      todoList.appendChild(item);
+    });
+  }
+
+  function toggleTTS() {
+    ttsPlaying = !ttsPlaying;
+    const btn = document.getElementById('ttsPlayBtn');
+    const wave = document.getElementById('ttsWave');
+    btn.textContent = ttsPlaying ? '⏸' : '▶';
+    wave.className = ttsPlaying ? 'tts-wave tts-playing' : 'tts-wave';
+
+    if (ttsPlaying) {
+      setTimeout(() => {
+        ttsPlaying = false;
+        btn.textContent = '▶';
+        wave.className = 'tts-wave';
+      }, 8000);
+    }
+  }
+</script>
+</body>
+</html>
