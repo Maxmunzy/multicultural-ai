@@ -9,7 +9,7 @@ LANG_TO_VOICE = {
     "en": "en-US-JennyNeural",
     "ru": "ru-RU-SvetlanaNeural",
     "ms": "ms-MY-YasminNeural",
-    "mn": None,  # Edge-TTS 몽골어 음성 미지원
+    "mn": "mn-MN-YesuiNeural",
     "zh": "zh-CN-XiaoxiaoNeural",
     "th": "th-TH-PremwadeeNeural",
     "ja": "ja-JP-NanamiNeural",
