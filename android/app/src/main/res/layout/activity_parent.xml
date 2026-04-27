@@ -34,7 +34,7 @@
                     android:layout_weight="1"
                     android:text="학부모 화면"
                     android:textColor="#FFFFFF"
-                    android:textSize="24sp"
+                    android:textSize="28sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -56,7 +56,7 @@
                 android:layout_height="wrap_content"
                 android:text="수신함 + 분석 결과"
                 android:textColor="#DDFFFFFF"
-                android:textSize="14sp"
+                android:textSize="16sp"
                 android:paddingTop="6dp" />
         </LinearLayout>
 
@@ -99,7 +99,7 @@
                 android:hint="parent_id"
                 android:text="parent_001"
                 android:singleLine="true"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textColor="#1E2937"
                 android:paddingStart="14dp"
                 android:paddingTop="10dp"
@@ -115,7 +115,7 @@
                 android:layout_height="wrap_content"
                 android:text="수신함 불러오기"
                 android:textColor="#FFFFFF"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
                 android:paddingTop="12dp"
@@ -129,7 +129,7 @@
                 android:layout_height="wrap_content"
                 android:text="서버 응답 없을 때 데모 결과 보기"
                 android:textColor="#1E40AF"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
                 android:paddingTop="12dp"
@@ -161,7 +161,7 @@
                     android:layout_height="wrap_content"
                     android:text="수신함을 불러오세요."
                     android:textColor="#475569"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:lineSpacingMultiplier="1.25" />
 
                 <LinearLayout
@@ -195,7 +195,7 @@
                     android:layout_height="wrap_content"
                     android:text="선택된 가정통신문이 없습니다."
                     android:textColor="#475569"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:lineSpacingMultiplier="1.25" />
             </LinearLayout>
 
@@ -205,7 +205,7 @@
                 android:layout_height="wrap_content"
                 android:text="분석하기"
                 android:textColor="#FFFFFF"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
                 android:paddingTop="12dp"
@@ -227,7 +227,7 @@
                     android:layout_weight="1"
                     android:text="분석 결과"
                     android:textColor="#FFFFFF"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:textStyle="bold"
                     android:textAllCaps="false"
                     android:paddingTop="10dp"
@@ -242,7 +242,7 @@
                     android:layout_weight="1"
                     android:text="피드백"
                     android:textColor="#1E40AF"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:textStyle="bold"
                     android:textAllCaps="false"
                     android:paddingTop="10dp"
@@ -306,7 +306,7 @@
                     android:layout_height="wrap_content"
                     android:text="분석 결과가 없습니다."
                     android:textColor="#1E2937"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:lineSpacingMultiplier="1.25" />
             </LinearLayout>
 
@@ -367,7 +367,7 @@
                     android:layout_height="wrap_content"
                     android:text="분석 후 피드백이 표시됩니다."
                     android:textColor="#1E2937"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     android:lineSpacingMultiplier="1.25" />
             </LinearLayout>
 
@@ -377,7 +377,7 @@
                 android:layout_height="wrap_content"
                 android:text="베트남어로 듣기"
                 android:textColor="#FFFFFF"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
                 android:paddingTop="12dp"
@@ -391,7 +391,7 @@
                 android:layout_height="wrap_content"
                 android:text="✨ AI 어시스턴트에게 물어보기"
                 android:textColor="#FFFFFF"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
                 android:paddingTop="12dp"
@@ -405,7 +405,7 @@
                 android:layout_height="wrap_content"
                 android:text="처음으로"
                 android:textColor="#1E40AF"
-                android:textSize="15sp"
+                android:textSize="16sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
                 android:paddingTop="12dp"

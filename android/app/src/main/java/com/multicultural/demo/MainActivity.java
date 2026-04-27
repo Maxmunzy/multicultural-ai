@@ -47,9 +47,9 @@ public class MainActivity extends Activity {
     private static final int COLOR_BORDER = Color.rgb(226, 232, 240);
     private static final int COLOR_SUCCESS = Color.rgb(16, 185, 129);
 
-    private static final float TEXT_SIZE_MIN = 10f;
-    private static final float TEXT_SIZE_MAX = 24f;
-    private float currentTextSize = 14f;
+    private static final float TEXT_SIZE_MIN = 12f;
+    private static final float TEXT_SIZE_MAX = 28f;
+    private float currentTextSize = 16f;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final List<NoticeItem> inbox = new ArrayList<>();
@@ -545,14 +545,14 @@ public class MainActivity extends Activity {
         LinearLayout headerTop = new LinearLayout(this);
         headerTop.setOrientation(LinearLayout.HORIZONTAL);
         headerTop.setGravity(Gravity.CENTER_VERTICAL);
-        TextView titleView = text(title, 24, Color.WHITE, true);
+        TextView titleView = text(title, 28, Color.WHITE, true);
         LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         headerTop.addView(titleView, titleParams);
         TextView badge = pill("VI", Color.argb(45, 255, 255, 255), Color.WHITE);
         headerTop.addView(badge);
         header.addView(headerTop);
 
-        TextView sub = text(subtitle, 14, Color.argb(220, 255, 255, 255), false);
+        TextView sub = text(subtitle, 16, Color.argb(220, 255, 255, 255), false);
         sub.setPadding(0, dp(6), 0, 0);
         header.addView(sub);
         root.addView(header);
@@ -576,7 +576,7 @@ public class MainActivity extends Activity {
         edit.setHint(hint);
         edit.setText(value);
         edit.setSingleLine(true);
-        edit.setTextSize(15);
+        edit.setTextSize(16);
         edit.setTextColor(COLOR_TEXT);
         edit.setHintTextColor(Color.rgb(148, 163, 184));
         edit.setPadding(dp(14), dp(10), dp(14), dp(10));
@@ -600,7 +600,7 @@ public class MainActivity extends Activity {
     private Button primaryButton(String label, View.OnClickListener listener) {
         Button button = new Button(this);
         button.setText(label);
-        button.setTextSize(15);
+        button.setTextSize(16);
         button.setTextColor(Color.WHITE);
         button.setAllCaps(false);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
@@ -617,7 +617,7 @@ public class MainActivity extends Activity {
     private Button outlineButton(String label, View.OnClickListener listener) {
         Button button = new Button(this);
         button.setText(label);
-        button.setTextSize(15);
+        button.setTextSize(16);
         button.setAllCaps(false);
         button.setTextColor(COLOR_PRIMARY_DARK);
         button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
