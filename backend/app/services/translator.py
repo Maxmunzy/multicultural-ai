@@ -18,7 +18,18 @@ import run_mvp_pipeline as _sejong  # noqa: E402
 
 NLLB_MODEL_NAME = "facebook/nllb-200-distilled-600M"
 SOURCE_LANG = "kor_Hang"
-TARGET_LANG = "vie_Latn"
+
+# 안드 언어 코드 → NLLB FLORES-200 코드
+LANG_TO_NLLB = {
+    "vi": "vie_Latn",
+    "en": "eng_Latn",
+    "ru": "rus_Cyrl",
+    "ms": "zsm_Latn",
+    "mn": "khk_Cyrl",
+    "zh": "zho_Hans",
+    "th": "tha_Thai",
+    "ja": "jpn_Jpan",
+}
 
 _tokenizer = None
 _model = None
@@ -45,9 +56,9 @@ def _get_glossary():
     return _glossary
 
 
-def _translate(text: str, max_length: int = 512) -> str:
+def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) -> str:
     tokenizer, model = _get_translator()
-    target_id = tokenizer.convert_tokens_to_ids(TARGET_LANG)
+    target_id = tokenizer.convert_tokens_to_ids(target_nllb)
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
     with torch.no_grad():
         out = model.generate(
@@ -79,7 +90,7 @@ def _normalize_thousand_separator(text: str) -> str:
     return _THOUSAND_DOT.sub(repl, text)
 
 
-def _post_process(easy_ko: str, vi_text: str) -> str:
+def _post_process_vi(easy_ko: str, vi_text: str) -> str:
     if not vi_text:
         return vi_text
     if "원" in easy_ko:
@@ -89,9 +100,16 @@ def _post_process(easy_ko: str, vi_text: str) -> str:
     return vi_text
 
 
-def translate_and_review(notice_text: str) -> dict:
-    """가정통신문 → easy_ko + vi_text + 용어 검수 결과."""
-    empty = {"easy_ko_text": "", "vi_text": "", "quality_note": "", "review_needed": ""}
+def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
+    """가정통신문 → easy_ko + 다국어 번역 + 용어 검수 결과."""
+    empty = {
+        "easy_ko_text": "",
+        "translation": "",
+        "target_language": target_lang,
+        "vi_text": "",
+        "quality_note": "",
+        "review_needed": "",
+    }
     if not notice_text or not notice_text.strip():
         return empty
 
@@ -109,21 +127,40 @@ def translate_and_review(notice_text: str) -> dict:
     if not easy_ko_text:
         return empty
 
-    try:
-        vi_text = _translate(easy_ko_text)
-        vi_text = _post_process(easy_ko_text, vi_text)
-    except Exception as error:
-        print(f"[translator] translate failed: {error}")
-        vi_text = ""
-
     glossary = _get_glossary()
     glossary_hits = _sejong.find_glossary_hits(easy_ko_text, glossary)
-    rows = _sejong.build_glossary_check_rows(easy_ko_text, vi_text, glossary_hits)
+
+    # ko_easy: 번역 없이 easy_ko_text를 그대로 사용
+    if target_lang == "ko_easy":
+        rows = _sejong.build_glossary_check_rows(easy_ko_text, "", glossary_hits)
+        label, note = _sejong.summarize_quality(rows)
+        return {
+            "easy_ko_text": easy_ko_text,
+            "translation": "",
+            "target_language": "ko_easy",
+            "vi_text": "",
+            "quality_note": note if note else f"ok ({label})",
+            "review_needed": note if label == "review_needed" else "",
+        }
+
+    target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
+    try:
+        translated = _translate(easy_ko_text, target_nllb=target_nllb)
+        if target_lang == "vi":
+            translated = _post_process_vi(easy_ko_text, translated)
+    except Exception as error:
+        print(f"[translator] translate failed: {error}")
+        translated = ""
+
+    rows = _sejong.build_glossary_check_rows(easy_ko_text, translated, glossary_hits)
     label, note = _sejong.summarize_quality(rows)
 
     return {
         "easy_ko_text": easy_ko_text,
-        "vi_text": vi_text,
+        "translation": translated,
+        "target_language": target_lang,
+        # 호환: vi_text는 vi 선택 시만 채움 (안드 기존 fallback 동작)
+        "vi_text": translated if target_lang == "vi" else "",
         "quality_note": note if note else f"ok ({label})",
         "review_needed": note if label == "review_needed" else "",
     }

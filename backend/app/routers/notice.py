@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter
 from app.models.schemas import (
-    ApiResponse, Notice, NoticeAnalyzeResponse,
+    ApiResponse, Notice, NoticeAnalyzeRequest,
     NoticeSendRequest,
 )
 from app.services.extractor import extract_todos
@@ -53,12 +53,16 @@ async def clear_inbox(parent_id: str):
 
 
 @router.post("/analyze/{notice_id}", response_model=ApiResponse)
-async def analyze_notice(notice_id: str):
-    """수신된 가정통신문 → 추출(윤정) + 번역/검수(세종) + TTS 통합."""
+async def analyze_notice(
+    notice_id: str,
+    req: NoticeAnalyzeRequest = NoticeAnalyzeRequest(),
+):
+    """수신된 가정통신문 → 추출(윤정) + 검수(경이) + 번역(세종) + TTS 통합."""
     if notice_id not in _notices:
         return ApiResponse.error(message="가정통신문을 찾을 수 없습니다")
 
     notice = _notices[notice_id]
+    target_lang = req.target_language or "vi"
 
     # 1. 추출 (윤정 KoELECTRA): raw_text → todos[]
     try:
@@ -69,24 +73,26 @@ async def analyze_notice(notice_id: str):
         print(f"[analyze] extractor failed: {error}")
         todos = MOCK_TODOS
 
-    # 2. 분류 검수 (경이 모델): 윤정 todos를 재평가, 불일치 시 review에 추가
+    # 2. 분류 검수 (경이 모델): 윤정 todos를 재평가
     classifier_review = ""
     try:
         classifier_review = review_todos(todos)
     except Exception as error:
         print(f"[analyze] classifier review failed: {error}")
 
-    # 3. 번역 + 검수 (세종 NLLB + glossary): raw_text → easy_ko + vi_text
+    # 3. 번역 + 검수 (세종 NLLB + glossary): raw_text → easy_ko + translation
     try:
-        review = translate_and_review(notice.text)
+        review = translate_and_review(notice.text, target_lang=target_lang)
         easy_ko_text = review["easy_ko_text"] or MOCK_EASY_KO
-        vi_text = review["vi_text"] or MOCK_VI_TEXT
+        translation = review["translation"]
+        vi_text = review["vi_text"]
         quality_note = review["quality_note"] or MOCK_QUALITY_NOTE
         review_needed = review["review_needed"] or MOCK_REVIEW_NEEDED
     except Exception as error:
         print(f"[analyze] translator failed: {error}")
         easy_ko_text = MOCK_EASY_KO
-        vi_text = MOCK_VI_TEXT
+        translation = MOCK_VI_TEXT if target_lang == "vi" else ""
+        vi_text = MOCK_VI_TEXT if target_lang == "vi" else ""
         quality_note = MOCK_QUALITY_NOTE
         review_needed = MOCK_REVIEW_NEEDED
 
@@ -98,21 +104,29 @@ async def analyze_notice(notice_id: str):
             else f"[경이 모델 교차검증]\n{classifier_review}"
         )
 
-    # 4. TTS (Edge-TTS): vi_text → mp3
+    # 4. TTS (Edge-TTS): 선택 언어 음성 → mp3
+    # ko_easy면 easy_ko_text 한국어 음성, 그 외엔 translation 해당 언어 음성
+    tts_text = easy_ko_text if target_lang == "ko_easy" else translation
     try:
-        tts_url = await generate_tts_file(vi_text) if vi_text else ""
+        tts_url = await generate_tts_file(tts_text, target_lang=target_lang) if tts_text else ""
     except Exception as error:
         print(f"[analyze] TTS failed: {error}")
         tts_url = ""
 
-    result = NoticeAnalyzeResponse(
-        notice_id=notice_id,
-        raw_text=notice.text,
-        todos=todos,
-        easy_ko_text=easy_ko_text,
-        vi_text=vi_text,
-        quality_note=quality_note,
-        review_needed=review_needed,
-        tts_url=tts_url,
-    )
-    return ApiResponse.success(data=result)
+    # 안드 호환: target_language별 동적 키 (en_text, ru_text, vi_text 등)
+    response = {
+        "notice_id": notice_id,
+        "raw_text": notice.text,
+        "todos": [t.model_dump() for t in todos],
+        "easy_ko_text": easy_ko_text,
+        "vi_text": vi_text,
+        "translation": translation,
+        "target_language": target_lang,
+        "quality_note": quality_note,
+        "review_needed": review_needed,
+        "tts_url": tts_url,
+    }
+    if target_lang not in ("vi", "ko_easy") and translation:
+        response[f"{target_lang}_text"] = translation
+
+    return ApiResponse.success(data=response)
