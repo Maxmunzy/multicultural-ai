@@ -47,6 +47,11 @@ public class MainActivity extends Activity {
     private static final int COLOR_BORDER = Color.rgb(226, 232, 240);
     private static final int COLOR_SUCCESS = Color.rgb(16, 185, 129);
 
+    private static final String[] LANG_CODES  = {"vi", "zh", "ja", "mn"};
+    private static final String[] LANG_LABELS = {"🇻🇳 베트남어", "🇨🇳 중국어", "🇯🇵 일본어", "🇲🇳 몽골어"};
+    private static final String[] LANG_NAMES  = {"베트남어", "중국어", "일본어", "몽골어"};
+    private static String selectedLanguage = "vi";
+
     private static final float TEXT_SIZE_MIN = 12f;
     private static final float TEXT_SIZE_MAX = 28f;
     private float currentTextSize = 16f;
@@ -85,9 +90,98 @@ public class MainActivity extends Activity {
     private void showStartScreen() {
         buildBase("가정통신문 AI", "실기기 MVP 데모");
         content.addView(card("시연 흐름", "1. 선생님이 가정통신문을 발송합니다.\n2. 학부모가 수신함에서 확인합니다.\n3. 분석 결과, 번역, 용어사전 검수, TTS를 확인합니다.", Color.WHITE));
+        addLanguageSelector(content);
         content.addView(primaryButton("선생님으로 시작", v -> showTeacherScreen()));
         content.addView(outlineButton("학부모로 시작", v -> showParentScreen()));
         setStatus("서버 IP는 MainActivity.java 상단 BASE_URL에서 변경합니다: " + BASE_URL);
+    }
+
+    private void addLanguageSelector(LinearLayout parent) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(16), dp(16), dp(16), dp(16));
+        card.setLayoutParams(spacedParams());
+        GradientDrawable cardBg = new GradientDrawable();
+        cardBg.setColor(Color.WHITE);
+        cardBg.setCornerRadius(dp(18));
+        cardBg.setStroke(dp(1), COLOR_BORDER);
+        card.setBackground(cardBg);
+
+        TextView label = text("번역 언어 선택", 13, COLOR_MUTED, true);
+        label.setPadding(0, 0, 0, dp(10));
+        card.addView(label);
+
+        final Button[] buttons = new Button[LANG_CODES.length];
+        LinearLayout row1 = new LinearLayout(this);
+        row1.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams row1Params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        row1Params.setMargins(0, 0, 0, dp(8));
+        row1.setLayoutParams(row1Params);
+
+        LinearLayout row2 = new LinearLayout(this);
+        row2.setOrientation(LinearLayout.HORIZONTAL);
+        row2.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+
+        for (int i = 0; i < LANG_CODES.length; i++) {
+            final String code = LANG_CODES[i];
+            Button btn = new Button(this);
+            btn.setText(LANG_LABELS[i]);
+            btn.setTextSize(14);
+            btn.setAllCaps(false);
+            btn.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            btn.setPadding(dp(6), dp(10), dp(6), dp(10));
+            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            btnParams.setMargins(0, 0, i % 2 == 0 ? dp(6) : 0, 0);
+            btn.setLayoutParams(btnParams);
+            buttons[i] = btn;
+            applyLangButtonStyle(btn, code.equals(selectedLanguage));
+            btn.setOnClickListener(v -> {
+                selectedLanguage = code;
+                for (int j = 0; j < LANG_CODES.length; j++) {
+                    applyLangButtonStyle(buttons[j], LANG_CODES[j].equals(selectedLanguage));
+                }
+            });
+            if (i < 2) row1.addView(btn);
+            else row2.addView(btn);
+        }
+
+        card.addView(row1);
+        card.addView(row2);
+        parent.addView(card);
+    }
+
+    private void applyLangButtonStyle(Button btn, boolean selected) {
+        GradientDrawable bg = new GradientDrawable();
+        bg.setCornerRadius(dp(12));
+        if (selected) {
+            bg.setColor(COLOR_PRIMARY);
+            btn.setTextColor(Color.WHITE);
+        } else {
+            bg.setColor(COLOR_PRIMARY_LIGHT);
+            bg.setStroke(dp(1), Color.rgb(191, 219, 254));
+            btn.setTextColor(COLOR_PRIMARY_DARK);
+        }
+        btn.setBackground(bg);
+    }
+
+    private String languageDisplayName(String code) {
+        for (int i = 0; i < LANG_CODES.length; i++) {
+            if (LANG_CODES[i].equals(code)) return LANG_NAMES[i];
+        }
+        return code;
+    }
+
+    private String getTranslationForLanguage(JSONObject data, String code) {
+        switch (code) {
+            case "zh": return optStringDeep(data, "zh_text", "chinese", "translation_zh");
+            case "ja": return optStringDeep(data, "ja_text", "japanese", "translation_ja");
+            case "mn": return optStringDeep(data, "mn_text", "mongolian", "translation_mn");
+            default:
+                return optStringDeep(data, "corrected_vi_text", "corrected_translation",
+                        "vi_corrected_translation", "final_vi_text", "vi_text", "vietnamese", "translation_vi");
+        }
     }
 
     private void showTeacherScreen() {
@@ -123,6 +217,7 @@ public class MainActivity extends Activity {
         layoutFeedback = findViewById(R.id.layoutFeedback);
         analyzeButton = findViewById(R.id.btnAnalyze);
         playButton = findViewById(R.id.btnPlay);
+        playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기");
 
         findViewById(R.id.btnLoadInbox).setOnClickListener(v -> loadInbox());
         findViewById(R.id.btnDemo).setOnClickListener(v -> showMockAnalysis());
@@ -141,7 +236,7 @@ public class MainActivity extends Activity {
         findViewById(R.id.btnZoomInFeedback).setOnClickListener(v -> adjustTextSize(2f));
         findViewById(R.id.btnZoomOutFeedback).setOnClickListener(v -> adjustTextSize(-2f));
 
-        setStatus("수신함 조회와 분석 요청을 준비했습니다.");
+        setStatus("번역 언어: " + languageDisplayName(selectedLanguage) + " | 수신함 조회와 분석 요청을 준비했습니다.");
     }
 
     private void switchTab(boolean showAnalysis) {
@@ -373,7 +468,9 @@ public class MainActivity extends Activity {
         }
         analysisResultText.setText("분석 중...");
         feedbackText.setText("분석 중...");
-        postJson("/notice/analyze/" + selectedNotice.noticeId, null, result -> {
+        JSONObject analyzePayload = new JSONObject();
+        try { analyzePayload.put("target_language", selectedLanguage); } catch (Exception ignored) {}
+        postJson("/notice/analyze/" + selectedNotice.noticeId, analyzePayload, result -> {
             if (!result.error.isEmpty()) {
                 analysisResultText.setText("서버 연결 실패\n" + result.error + "\n\n고정 데모 결과를 표시합니다.");
                 showMockAnalysis();
@@ -410,9 +507,9 @@ public class MainActivity extends Activity {
             builder.append("분석 결과가 없습니다.\n");
         }
         appendIfPresent(builder, "\n쉬운 한국어\n", data, "easy_ko_text", "easy_korean");
-        String finalVi = optStringDeep(data, "corrected_vi_text", "corrected_translation", "vi_corrected_translation", "final_vi_text", "vi_text", "vietnamese", "translation_vi");
-        if (!finalVi.isEmpty()) {
-            builder.append("\n베트남어 번역\n").append(finalVi).append('\n');
+        String translation = getTranslationForLanguage(data, selectedLanguage);
+        if (!translation.isEmpty()) {
+            builder.append("\n").append(languageDisplayName(selectedLanguage)).append(" 번역\n").append(translation).append('\n');
         }
         return builder.toString().trim();
     }
@@ -499,13 +596,13 @@ public class MainActivity extends Activity {
                     mp.start();
                     playButton.setText("재생 중... 다시 누르면 정지");
                 });
-                player.setOnCompletionListener(mp -> playButton.setText("베트남어로 듣기"));
+                player.setOnCompletionListener(mp -> playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기"));
                 player.prepareAsync();
             } else {
                 player = MediaPlayer.create(this, R.raw.tts_output);
                 player.start();
                 playButton.setText("재생 중... 다시 누르면 정지");
-                player.setOnCompletionListener(mp -> playButton.setText("베트남어로 듣기"));
+                player.setOnCompletionListener(mp -> playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기"));
             }
         } catch (Exception error) {
             analysisResultText.setText(analysisResultText.getText() + "\n\nTTS 재생 실패: " + error.getMessage());
