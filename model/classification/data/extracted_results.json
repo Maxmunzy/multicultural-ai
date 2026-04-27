@@ -1,0 +1,1348 @@
+[
+    {
+        "notice_id": 0,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "의사의 진단서 제출",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "의사의 진단서",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 1,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "학기초 1회",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "의사 소견 및 치료 의견",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "대기오염과 유관성",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 4,
+        "todos": [
+            {
+                "category": "건강·안전",
+                "text_ko": "안심벨 올바르게 착용",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "건강·안전",
+                "text_ko": "위급 상황에서만 사용",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 6,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "장난 주의",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 8,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "충전 권고",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "대기 시간",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 10,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "체험학습 후 7일 이내 보고서 제출",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "보고서 작성",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "비용",
+                "text_ko": "체험학습",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "체험학습",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 11,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "2026년 양식 제출",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "홈페이지 및 학교종이 탑재",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 12,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "담임교사에게 연락",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "기간 중 1회 이상"
+            }
+        ]
+    },
+    {
+        "notice_id": 13,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "질병결석이 2일 이내인 경우 결석신고서와 증빙자료 제출",
+                "due_date": "05일",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "결석신고서와 증빙자료 준비",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": "학부모 의견서, 처방전, 담임교사 확인서"
+            }
+        ]
+    },
+    {
+        "notice_id": 14,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "질병결석 3일 이상",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "결석신고서, 증빙자료",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            },
+            {
+                "category": "비용",
+                "text_ko": null,
+                "due_date": null,
+                "importance": null,
+                "text_vi": ""
+            },
+            {
+                "category": "건강·안전",
+                "text_ko": null,
+                "due_date": null,
+                "importance": null,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": null,
+                "due_date": null,
+                "importance": null,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 15,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "결석 신고서 제출",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "결석신고서 및 증빙자료 준비",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 16,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "결석 신고서 제출",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "증빙서류 준비",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 17,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "등교시간",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": "8시 30분~8시 45분"
+            },
+            {
+                "category": "건강·안전",
+                "text_ko": "8시 30분보다 일찍 등교하지 않기",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 18,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "1학기 학부모 상담주간",
+                "due_date": "04-13~04-24",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "대면 상담 및 전화 상담 준비",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 19,
+        "todos": [
+            {
+                "category": "건강·안전",
+                "text_ko": "감기에 걸린 학생 유의",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "미세먼지로 인해 감기에 걸린 학생이 많으므로 개인위생에 유의하고, 미세먼지가 나쁨 이상일 때에는 마스크를 착용합니다."
+            },
+            {
+                "category": "기타",
+                "text_ko": "마스크 착용",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": "미세먼지가 나쁨 이상일 때"
+            }
+        ]
+    },
+    {
+        "notice_id": 20,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "독서 생활",
+                "due_date": "월요일",
+                "importance": 0.8,
+                "text_vi": "매주 1편 이상 정성껏 작성"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "정성껏",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": "지참"
+            }
+        ]
+    },
+    {
+        "notice_id": 21,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "화요일까지 희망편지 제출",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "창체 시간 준비물",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 23,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "독서록",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "희망편지",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 24,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "희망편지",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "간편복",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "운동화",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 25,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "리코더",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 26,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "리코더",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "간편복",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "운동화",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 27,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "3월 24일(금) 5교시",
+                "due_date": "03-24",
+                "importance": 0.9,
+                "text_vi": "체육"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "학급티 및 간편한 복장",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": "준비"
+            }
+        ]
+    },
+    {
+        "notice_id": 28,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "개인용 이어폰",
+                "due_date": "월요일",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "3.5mm",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "C타입",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 29,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "나눔장터",
+                "due_date": "04-30",
+                "importance": 0.9,
+                "text_vi": "8:50~10:30, 본교 각 층 복도"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "없음",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 31,
+        "todos": [
+            {
+                "category": "비용",
+                "text_ko": "나눔장터 구입비",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "5000원 이내"
+            }
+        ]
+    },
+    {
+        "notice_id": 33,
+        "todos": [
+            {
+                "category": "비용",
+                "text_ko": "물병 가격",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "100원~3000원"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "물병 가격표 부착",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 35,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "마스크 사용",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "다니기",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 36,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "월요일",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "과제 제출"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "글씨",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": "매주"
+            }
+        ]
+    },
+    {
+        "notice_id": 37,
+        "todos": [
+            {
+                "category": "읽",
+                "text_ko": "윤독도서 '가정통신문 소동' 읽기",
+                "due_date": "04-27",
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 38,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "독서활동",
+                "due_date": "04-27",
+                "importance": 0.8,
+                "text_vi": "윤독도서(하룽밸)를 읽고 독서활동에 기록"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "윤독도서(하룽밸)",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "독서활동에 대한 기록",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 39,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "국어 수행평가",
+                "due_date": "04-27",
+                "importance": 0.8,
+                "text_vi": "중심 문장과 뒷받침 문장을 갖추어 문단 쓰기"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "문단 작성",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 40,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "독서록",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "리코더",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 41,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "간편복",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "운동화",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "줄넘기",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 43,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "도서 구입 신청",
+                "due_date": "03-27",
+                "importance": 0.9,
+                "text_vi": "12시"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "도서",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 44,
+        "todos": [
+            {
+                "category": "할 일",
+                "text_ko": "추천 도서 신청",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "1인당 5권 이내로"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "도서",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": "5권"
+            }
+        ]
+    },
+    {
+        "notice_id": 49,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "도보로 통학",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "자전거",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "자전거 이용 수칙 준수",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 50,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "교문 앞 혼잡 상황 및 학생 건강 고려",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "차량 이용 자제",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 51,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "자전거 안전장비 착용",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "팔꿈치·무릎 보호대 착용",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "장갑 착용",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 52,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "자전거 점검",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "브레이크, 핸들, 안장, 타이어, 페달, 전조 등",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 53,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "자전거 끄기",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 55,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "자전거 거치 장소",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "자전거 거치",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 58,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "전체적인 평가 일정과 내용 확인",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "학교 교육공동체 참여·소통·협력 활동 자료 준비",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            },
+            {
+                "category": "제출",
+                "text_ko": "학교 교육공동체 평가 결과 제출",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            },
+            {
+                "category": "비용",
+                "text_ko": "교육 활동 예산 관리",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            },
+            {
+                "category": "건강·안전",
+                "text_ko": "학생 및 교직원 건강 관리",
+                "due_date": null,
+                "importance": 0.4,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "기타 학교 교육 활동",
+                "due_date": null,
+                "importance": 0.3,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 59,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "2026학년도 학교교육활동 평가",
+                "due_date": "11월",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "일정",
+                "text_ko": "2027학년도 학교교육계획 수립 설문",
+                "due_date": "11월",
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 60,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "학교운영 및 회의 안건 의견",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "학교메일(galsanes@sen.go.kr)"
+            },
+            {
+                "category": "기타",
+                "text_ko": "안건 심의",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "안건 심의"
+            }
+        ]
+    },
+    {
+        "notice_id": 61,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "2학년 진단검사",
+                "due_date": "03-06",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "�기+쓰기, 셈하기",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 62,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "3월 5일 진단검사",
+                "due_date": "03-05",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "진단검사 준비물",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 63,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "국어, 수학, 영어 진단검사",
+                "due_date": "03-05",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "필기구",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 64,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "진단검사",
+                "due_date": "03-09",
+                "importance": 0.9,
+                "text_vi": "국어, 수학, 영어"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "필요한 자료",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 65,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "국어, 수학, 영어 진단검사",
+                "due_date": "03-05",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "필기구비",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 66,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "가정에서 생활화",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": "가정에서 생활화"
+            }
+        ]
+    },
+    {
+        "notice_id": 68,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "등·하굣길에는 친구들과 함께 다닙니다.",
+                "due_date": null,
+                "importance": 0.3,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 70,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "음료나 과자 등을 함부로 먹지 않기",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "물건 등을 준다고 유인해도 따라가지 않기",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 71,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "낯선 사람이 도움을 요청하면 정중하게 거절",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 73,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "아이의 지문, 사진, 보호자 인적 사항 미리등록",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 74,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "아이 사진 찍기",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 77,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "112 신고",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 79,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "외부 활동 시 마스크 착용",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "돌아오자마자 씻어내기",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 80,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "기상 상황 확인",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 81,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "지역연계 체험학습",
+                "due_date": "04-08",
+                "importance": 0.9,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "체험학습 준비물",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 91,
+        "todos": [
+            {
+                "category": "기타",
+                "text_ko": "낯선 사람이 같이 가자고 할 때 절대 따라가지 않습니다.",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 92,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "리코더",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "간편복",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "운동화",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 93,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "개인용 이어폰",
+                "due_date": "04-20",
+                "importance": 0.8,
+                "text_vi": "크롬북 이용 수업 시 소리를 들을 때 사용"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "3.5mm, C타입",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": "개인용 이어폰"
+            }
+        ]
+    },
+    {
+        "notice_id": 94,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "독서록 1편 이상 써오기 — 윤독도서 [하룻밤]을 4월 27일까지 기록",
+                "due_date": "04-27",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "윤독도서 [하룻밤]",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "독서 활동",
+                "due_date": null,
+                "importance": 0.5,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 95,
+        "todos": [
+            {
+                "category": "준비물",
+                "text_ko": "개인용 이어폰",
+                "due_date": "04-20",
+                "importance": 0.8,
+                "text_vi": "3.5mm, C타입"
+            },
+            {
+                "category": "준비물",
+                "text_ko": "개인용 이어폰",
+                "due_date": null,
+                "importance": 0.6,
+                "text_vi": "3.5mm, C타입"
+            }
+        ]
+    },
+    {
+        "notice_id": 96,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "평면도형 평가",
+                "due_date": "04-23",
+                "importance": 0.9,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "학습지 9장",
+                "due_date": null,
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "미니북",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 97,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "신체검사",
+                "due_date": "04-22",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "기타",
+                "text_ko": "신체검사",
+                "due_date": "04-22",
+                "importance": 0.8,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 98,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "3학년 전체 체육",
+                "due_date": "04-24",
+                "importance": 0.9,
+                "text_vi": "5교시"
+            }
+        ]
+    },
+    {
+        "notice_id": 99,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "맞춤형 학업성취도 자율평가",
+                "due_date": "04-09",
+                "importance": 0.9,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "자율평가 자료 준비",
+                "due_date": null,
+                "importance": 0.7,
+                "text_vi": ""
+            }
+        ]
+    },
+    {
+        "notice_id": 100,
+        "todos": [
+            {
+                "category": "일정",
+                "text_ko": "4월 말 평가 결과 개별 통지",
+                "due_date": "04-30",
+                "importance": 0.8,
+                "text_vi": ""
+            },
+            {
+                "category": "준비물",
+                "text_ko": "학생 강점 및 보완 필요 부분 파악",
+                "due_date": null,
+                "importance": 0.9,
+                "text_vi": ""
+            }
+        ]
+    }
+]
