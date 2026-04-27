@@ -86,7 +86,6 @@ public class MainActivity extends Activity {
 
     private void showStartScreen() {
         buildBase("가정통신문 AI", "다문화 가정 학교 알림 서비스");
-        addLanguageSelector(content);
         content.addView(stepCard("1", "선생님", "가정통신문을 작성하고 학부모에게 발송합니다."));
         content.addView(stepCard("2", "학부모", "수신함에서 선택 언어로 통신문을 확인합니다."));
         content.addView(stepCard("3", "AI 분석", "번역 · 요약 · 용어 검수 · TTS를 제공합니다."));
@@ -207,6 +206,58 @@ public class MainActivity extends Activity {
         parent.addView(card);
     }
 
+    private void populateLangSelector(LinearLayout container, Button toggleBtn) {
+        container.removeAllViews();
+        final Button[] buttons = new Button[LANG_CODES.length];
+
+        for (int i = 0; i < LANG_CODES.length; i++) {
+            Button btn = new Button(this);
+            btn.setText(LANG_LABELS[i]);
+            btn.setTextSize(i == 0 ? 14 : 12);
+            btn.setAllCaps(false);
+            btn.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            btn.setPadding(dp(4), dp(8), dp(4), dp(8));
+            buttons[i] = btn;
+            applyLangButtonStyle(btn, LANG_CODES[i].equals(selectedLanguage));
+        }
+
+        for (int i = 0; i < LANG_CODES.length; i++) {
+            final int idx = i;
+            buttons[i].setOnClickListener(v -> {
+                selectedLanguage = LANG_CODES[idx];
+                playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기");
+                toggleBtn.setText("🌐 번역 언어: " + languageDisplayName(selectedLanguage) + " ▲");
+                for (int j = 0; j < LANG_CODES.length; j++) {
+                    applyLangButtonStyle(buttons[j], LANG_CODES[j].equals(selectedLanguage));
+                }
+            });
+        }
+
+        LinearLayout.LayoutParams mainParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        mainParams.setMargins(0, 0, 0, dp(8));
+        buttons[0].setLayoutParams(mainParams);
+        container.addView(buttons[0]);
+
+        for (int row = 0; row < 4; row++) {
+            LinearLayout rowLayout = new LinearLayout(this);
+            rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rowParams.setMargins(0, 0, 0, row < 3 ? dp(6) : 0);
+            rowLayout.setLayoutParams(rowParams);
+            for (int col = 0; col < 2; col++) {
+                int idx = 1 + row * 2 + col;
+                LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+                btnParams.setMargins(0, 0, col < 1 ? dp(6) : 0, 0);
+                buttons[idx].setLayoutParams(btnParams);
+                rowLayout.addView(buttons[idx]);
+            }
+            container.addView(rowLayout);
+        }
+    }
+
     private void applyLangButtonStyle(Button btn, boolean selected) {
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(dp(12));
@@ -279,6 +330,16 @@ public class MainActivity extends Activity {
         analyzeButton = findViewById(R.id.btnAnalyze);
         playButton = findViewById(R.id.btnPlay);
         playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기");
+
+        // 언어 선택 토글
+        LinearLayout langSelector = findViewById(R.id.layoutLangSelector);
+        Button btnToggleLang = findViewById(R.id.btnToggleLang);
+        populateLangSelector(langSelector, btnToggleLang);
+        btnToggleLang.setOnClickListener(v -> {
+            boolean open = langSelector.getVisibility() == View.VISIBLE;
+            langSelector.setVisibility(open ? View.GONE : View.VISIBLE);
+            btnToggleLang.setText("🌐 번역 언어: " + languageDisplayName(selectedLanguage) + (open ? " ▼" : " ▲"));
+        });
 
         findViewById(R.id.btnLoadInbox).setOnClickListener(v -> loadInbox());
         findViewById(R.id.btnDemo).setOnClickListener(v -> showMockAnalysis());
