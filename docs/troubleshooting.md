@@ -2,7 +2,7 @@
 
 ## 문서 목적
 
-MVP 시연 중 자주 막히는 지점과 현재 구현상 제한사항을 정리합니다. 기준일은 2026-04-26이며, 현재 저장소 상태를 기준으로 작성했습니다.
+MVP 시연 중 자주 막히는 지점과 현재 구현상 제한사항을 정리합니다. 기준일은 2026-04-27이며, 현재 저장소 상태를 기준으로 작성했습니다.
 
 ---
 
@@ -92,7 +92,14 @@ http://192.168.0.23:8000/docs
 
 ### 분석 결과가 실제 모델 결과가 아님
 
-정상입니다. 현재 `POST /notice/analyze/{notice_id}`는 `backend/app/services/mock.py`의 고정 `MOCK_TODOS`를 반환합니다. 추출/분류 모델 연결은 다음 단계입니다.
+현재 `POST /notice/analyze/{notice_id}`는 `backend/app/services/mock.py`의 고정 `MOCK_TODOS`를 반환합니다.
+
+모델 자체는 구현 완료 상태입니다.
+
+- 모델 A (추출): `model/extraction/predict.py` — `extract_todos_dict()` 호출 가능
+- 모델 B (분류): `model/classification/src/api.py` — `POST /classify` (port 8001) 로컬 실행 가능
+
+현재 메인 백엔드(`backend/`)와 두 모델의 연결 작업이 마지막으로 남아 있습니다.
 
 ---
 
@@ -121,7 +128,7 @@ MVP의 중요한 관찰 지점입니다. NLLB 원번역은 자연스럽지 않�
 | 제한사항 | 설명 |
 | --- | --- |
 | DB 없음 | 가정통신문은 서버 메모리에 저장되므로 재시작 시 사라짐 |
-| 실제 추출/분류 모델 미연결 | 분석 API는 mock 응답 사용 |
+| 모델 A·B 백엔드 미연결 | 모델은 구현 완료. 메인 백엔드 `/notice/analyze`는 아직 mock 응답 사용 |
 | OCR 없음 | 이미지/PDF가 아니라 텍스트 입력 기준 |
 | 실제 학교 시스템 연동 없음 | MVP에서는 앱 내부 발송/수신 흐름만 시연 |
 | Android IP 수동 설정 | 네트워크가 바뀌면 `BASE_URL` 수정 필요 |
