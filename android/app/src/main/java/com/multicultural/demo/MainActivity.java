@@ -47,6 +47,10 @@ public class MainActivity extends Activity {
     private static final int COLOR_BORDER = Color.rgb(226, 232, 240);
     private static final int COLOR_SUCCESS = Color.rgb(16, 185, 129);
 
+    private static final float TEXT_SIZE_MIN = 10f;
+    private static final float TEXT_SIZE_MAX = 24f;
+    private float currentTextSize = 14f;
+
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final List<NoticeItem> inbox = new ArrayList<>();
 
@@ -62,6 +66,9 @@ public class MainActivity extends Activity {
     private LinearLayout inboxListBox;
     private TextView selectedNoticeText;
     private TextView analysisResultText;
+    private TextView feedbackText;
+    private LinearLayout layoutAnalysis;
+    private LinearLayout layoutFeedback;
     private Button analyzeButton;
     private Button playButton;
 
@@ -102,15 +109,18 @@ public class MainActivity extends Activity {
     }
 
     private void showParentScreen() {
-<<<<<<< HEAD
         releasePlayer();
         setContentView(R.layout.activity_parent);
 
         statusText = findViewById(R.id.tvStatus);
         inboxParentInput = findViewById(R.id.etParentId);
         inboxListText = findViewById(R.id.tvInboxList);
+        inboxListBox = findViewById(R.id.lvInboxList);
         selectedNoticeText = findViewById(R.id.tvSelectedNotice);
         analysisResultText = findViewById(R.id.tvAnalysisResult);
+        feedbackText = findViewById(R.id.tvFeedback);
+        layoutAnalysis = findViewById(R.id.layoutAnalysis);
+        layoutFeedback = findViewById(R.id.layoutFeedback);
         analyzeButton = findViewById(R.id.btnAnalyze);
         playButton = findViewById(R.id.btnPlay);
 
@@ -121,7 +131,28 @@ public class MainActivity extends Activity {
         findViewById(R.id.btnAiAssistant).setOnClickListener(v -> showAiBottomSheet());
         findViewById(R.id.btnBack).setOnClickListener(v -> showStartScreen());
 
+        // 탭 전환
+        findViewById(R.id.btnTabAnalysis).setOnClickListener(v -> switchTab(true));
+        findViewById(R.id.btnTabFeedback).setOnClickListener(v -> switchTab(false));
+
+        // 글씨 크기 조절
+        findViewById(R.id.btnZoomIn).setOnClickListener(v -> adjustTextSize(2f));
+        findViewById(R.id.btnZoomOut).setOnClickListener(v -> adjustTextSize(-2f));
+        findViewById(R.id.btnZoomInFeedback).setOnClickListener(v -> adjustTextSize(2f));
+        findViewById(R.id.btnZoomOutFeedback).setOnClickListener(v -> adjustTextSize(-2f));
+
         setStatus("수신함 조회와 분석 요청을 준비했습니다.");
+    }
+
+    private void switchTab(boolean showAnalysis) {
+        layoutAnalysis.setVisibility(showAnalysis ? View.VISIBLE : View.GONE);
+        layoutFeedback.setVisibility(showAnalysis ? View.GONE : View.VISIBLE);
+    }
+
+    private void adjustTextSize(float delta) {
+        currentTextSize = Math.max(TEXT_SIZE_MIN, Math.min(TEXT_SIZE_MAX, currentTextSize + delta));
+        if (analysisResultText != null) analysisResultText.setTextSize(currentTextSize);
+        if (feedbackText != null) feedbackText.setTextSize(currentTextSize);
     }
 
     private void showAiBottomSheet() {
@@ -144,15 +175,9 @@ public class MainActivity extends Activity {
         sheetView.<Button>findViewById(R.id.btnSend).setOnClickListener(v ->
                 sendChatMessage(chatContainer, scrollChat, etInput, null));
 
-        addBotBubble(chatContainer, scrollChat,
-                "안녕하세요! 가정통신문에 대해 궁금한 것을 물어보세요.");
+        addBotBubble(chatContainer, scrollChat, "안녕하세요! 가정통신문에 대해 궁금한 것을 물어보세요.");
 
-        String[] quickList = {
-            "번역해줘",
-            "요약해줘",
-            "할 일 뭐야?",
-            "날짜 알려줘"
-        };
+        String[] quickList = {"번역해줘", "요약해줘", "할 일 뭐야?", "날짜 알려줘"};
         for (String q : quickList) {
             Button qBtn = new Button(this);
             qBtn.setText(q);
@@ -201,11 +226,9 @@ public class MainActivity extends Activity {
             try {
                 JSONObject json = new JSONObject(result.body);
                 String reply = optStringDeep(json, "reply", "message", "answer");
-                addBotBubble(container, scroll,
-                        reply.isEmpty() ? "응답을 받지 못했습니다." : reply);
+                addBotBubble(container, scroll, reply.isEmpty() ? "응답을 받지 못했습니다." : reply);
             } catch (Exception e) {
-                addBotBubble(container, scroll,
-                        result.body.isEmpty() ? "응답을 받지 못했습니다." : result.body);
+                addBotBubble(container, scroll, result.body.isEmpty() ? "응답을 받지 못했습니다." : result.body);
             }
         });
     }
@@ -242,29 +265,6 @@ public class MainActivity extends Activity {
         bubble.setLayoutParams(p);
         container.addView(bubble);
         scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
-=======
-        buildBase("\uD559\uBD80\uBAA8 \uD654\uBA74", "\uC218\uC2E0\uD568 + \uBD84\uC11D \uACB0\uACFC");
-        inboxParentInput = input("parent_id", DEFAULT_PARENT_ID);
-        inboxListText = text("\uC218\uC2E0\uD568\uC744 \uBD88\uB7EC\uC624\uC138\uC694.", 14, Color.rgb(71, 85, 105), false);
-        inboxListBox = new LinearLayout(this);
-        inboxListBox.setOrientation(LinearLayout.VERTICAL);
-        inboxListBox.addView(inboxListText);
-        selectedNoticeText = text("\uC120\uD0DD\uB41C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(71, 85, 105), false);
-        analysisResultText = text("\uBD84\uC11D \uACB0\uACFC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.", 14, Color.rgb(30, 41, 59), false);
-        analyzeButton = primaryButton("\uBD84\uC11D\uD558\uAE30", v -> analyzeSelectedNotice());
-        playButton = primaryButton("\uBCA0\uD2B8\uB0A8\uC5B4\uB85C \uB4E3\uAE30", v -> playTts());
-
-        content.addView(inboxParentInput);
-        content.addView(primaryButton("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uAE30", v -> loadInbox()));
-        content.addView(outlineButton("\uC11C\uBC84 \uC751\uB2F5 \uC5C6\uC744 \uB54C \uB370\uBAA8 \uACB0\uACFC \uBCF4\uAE30", v -> showMockAnalysis()));
-        content.addView(cardWithView("\uAC00\uC815\uD1B5\uC2E0\uBB38 \uBAA9\uB85D", inboxListBox, Color.WHITE));
-        content.addView(cardWithView("\uC120\uD0DD\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38", selectedNoticeText, Color.rgb(245, 250, 255)));
-        content.addView(analyzeButton);
-        content.addView(cardWithView("\uBD84\uC11D \uACB0\uACFC", analysisResultText, Color.WHITE));
-        content.addView(playButton);
-        content.addView(outlineButton("\uCC98\uC74C\uC73C\uB85C", v -> showStartScreen()));
-        setStatus("\uC218\uC2E0\uD568 \uC870\uD68C\uC640 \uBD84\uC11D \uC694\uCCAD\uC744 \uC900\uBE44\uD588\uC2B5\uB2C8\uB2E4.");
->>>>>>> dev
     }
 
     private void sendNotice() {
@@ -306,18 +306,10 @@ public class MainActivity extends Activity {
     private void loadInbox() {
         String parentId = safe(inboxParentInput.getText().toString());
         if (parentId.isEmpty()) parentId = DEFAULT_PARENT_ID;
-<<<<<<< HEAD
-        inboxListText.setText("수신함 불러오는 중...");
+        resetInboxList("수신함 불러오는 중...");
         getJson("/notice/inbox/" + parentId, result -> {
             if (!result.error.isEmpty()) {
-                inboxListText.setText("서버 연결 실패\n" + result.error);
-=======
-        resetInboxList("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uB294 \uC911...");
-        inboxListText.setText("\uC218\uC2E0\uD568 \uBD88\uB7EC\uC624\uB294 \uC911...");
-        getJson("/notice/inbox/" + parentId, result -> {
-            if (!result.error.isEmpty()) {
-                resetInboxList("\uC11C\uBC84 \uC5F0\uACB0 \uC2E4\uD328\n" + result.error);
->>>>>>> dev
+                resetInboxList("서버 연결 실패\n" + result.error);
                 return;
             }
             try {
@@ -325,11 +317,7 @@ public class MainActivity extends Activity {
                 JSONArray data = json.optJSONArray("data");
                 inbox.clear();
                 if (data == null || data.length() == 0) {
-<<<<<<< HEAD
-                    inboxListText.setText("수신한 가정통신문이 없습니다.");
-=======
-                    resetInboxList("\uC218\uC2E0\uD55C \uAC00\uC815\uD1B5\uC2E0\uBB38\uC774 \uC5C6\uC2B5\uB2C8\uB2E4.");
->>>>>>> dev
+                    resetInboxList("수신한 가정통신문이 없습니다.");
                     selectedNotice = null;
                     selectedNoticeText.setText("선택된 가정통신문이 없습니다.");
                     return;
@@ -343,27 +331,17 @@ public class MainActivity extends Activity {
                     );
                     inbox.add(notice);
                 }
-                selectedNotice = inbox.get(0);
-<<<<<<< HEAD
-                inboxListText.setText(listText.toString().trim() + "\n\n첫 번째 가정통신문을 선택했습니다.");
-                selectedNoticeText.setText(selectedNotice.text);
-            } catch (Exception error) {
-                inboxListText.setText("수신함 응답 파싱 실패\n" + result.body);
-=======
                 renderInboxList();
                 selectNotice(0);
             } catch (Exception error) {
-                resetInboxList("\uC218\uC2E0\uD568 \uC751\uB2F5 \uD30C\uC2F1 \uC2E4\uD328\n" + result.body);
->>>>>>> dev
+                resetInboxList("수신함 응답 파싱 실패\n" + result.body);
             }
         });
     }
 
     private void renderInboxList() {
         inboxListBox.removeAllViews();
-        TextView guide = text("\uBCF4\uB824\uB294 \uAC00\uC815\uD1B5\uC2E0\uC744 \uC120\uD0DD\uD558\uC138\uC694.", 13, COLOR_MUTED, false);
-        guide.setPadding(0, 0, 0, dp(8));
-        inboxListBox.addView(guide);
+        inboxListText.setVisibility(View.GONE);
         for (int i = 0; i < inbox.size(); i++) {
             final int index = i;
             NoticeItem notice = inbox.get(i);
@@ -376,15 +354,16 @@ public class MainActivity extends Activity {
         if (index < 0 || index >= inbox.size()) return;
         selectedNotice = inbox.get(index);
         selectedNoticeText.setText(selectedNotice.text);
-        analysisResultText.setText("\uBD84\uC11D\uD558\uAE30\uB97C \uB204\uB974\uBA74 \uACB0\uACFC\uB97C \uBCFC \uC218 \uC788\uC2B5\uB2C8\uB2E4.");
+        analysisResultText.setText("분석하기를 누르면 결과를 볼 수 있습니다.");
+        feedbackText.setText("분석 후 피드백이 표시됩니다.");
         currentTtsUrl = "";
-        setStatus((index + 1) + "\uBC88 \uAC00\uC815\uD1B5\uC2E0\uC744 \uC120\uD0DD\uD588\uC2B5\uB2C8\uB2E4.");
+        setStatus((index + 1) + "번 가정통신문을 선택했습니다.");
     }
 
     private void resetInboxList(String message) {
         inboxListBox.removeAllViews();
+        inboxListText.setVisibility(View.VISIBLE);
         inboxListText.setText(message);
-        inboxListBox.addView(inboxListText);
     }
 
     private void analyzeSelectedNotice() {
@@ -393,6 +372,7 @@ public class MainActivity extends Activity {
             return;
         }
         analysisResultText.setText("분석 중...");
+        feedbackText.setText("분석 중...");
         postJson("/notice/analyze/" + selectedNotice.noticeId, null, result -> {
             if (!result.error.isEmpty()) {
                 analysisResultText.setText("서버 연결 실패\n" + result.error + "\n\n고정 데모 결과를 표시합니다.");
@@ -404,9 +384,11 @@ public class MainActivity extends Activity {
                 JSONObject data = json.optJSONObject("data");
                 if (data == null) {
                     analysisResultText.setText("분석 결과가 없습니다.");
+                    feedbackText.setText("피드백 결과가 없습니다.");
                     return;
                 }
-                analysisResultText.setText(formatAnalysis(data));
+                analysisResultText.setText(formatMain(data));
+                feedbackText.setText(formatFeedback(data));
                 currentTtsUrl = optStringDeep(data, "tts_url", "tts_path", "audio_url");
             } catch (Exception error) {
                 analysisResultText.setText("분석 응답 파싱 실패\n" + result.body);
@@ -414,7 +396,7 @@ public class MainActivity extends Activity {
         });
     }
 
-    private String formatAnalysis(JSONObject data) {
+    private String formatMain(JSONObject data) {
         StringBuilder builder = new StringBuilder();
         JSONArray todos = data.optJSONArray("todos");
         builder.append("해야 할 일\n");
@@ -432,15 +414,20 @@ public class MainActivity extends Activity {
         if (!finalVi.isEmpty()) {
             builder.append("\n베트남어 번역\n").append(finalVi).append('\n');
         }
+        return builder.toString().trim();
+    }
+
+    private String formatFeedback(JSONObject data) {
+        StringBuilder builder = new StringBuilder();
         String glossary = optStringDeep(data, "glossary_check", "quality_note");
         if (!glossary.isEmpty()) {
-            builder.append("\n용어 확인\n").append(parentGlossarySummary(glossary)).append('\n');
+            builder.append("용어 확인\n").append(parentGlossarySummary(glossary)).append("\n\n");
         }
         String review = optStringDeep(data, "review_needed", "review_note", "glossary_review");
         if (!review.isEmpty()) {
-            builder.append("\n검수 상세(확인용)\n").append(compactReview(review)).append('\n');
+            builder.append("검수 상세\n").append(compactReview(review)).append('\n');
         }
-        return builder.toString().trim();
+        return builder.length() == 0 ? "피드백 항목이 없습니다." : builder.toString().trim();
     }
 
     private void showMockAnalysis() {
@@ -455,10 +442,12 @@ public class MainActivity extends Activity {
                 "- 물병과 도시락 준비\n" +
                 "- 오전 9시까지 학교 운동장 도착\n\n" +
                 "쉬운 한국어\n" + easyKo + "\n" +
-                "베트남어 번역\n" + correctedVi + "\n\n" +
+                "베트남어 번역\n" + correctedVi
+        );
+        feedbackText.setText(
                 "용어 확인\n" + summarizeGlossary(glossary) + "\n\n" +
-                "검수 상세(확인용)\n" + compactReview(review) + "\n\n" +
-                "참고: 원번역에서는 다음과 같이 표시되었습니다.\n" + rawVi
+                "검수 상세\n" + compactReview(review) + "\n\n" +
+                "참고: 원번역\n" + rawVi
         );
     }
 
