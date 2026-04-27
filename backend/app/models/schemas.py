@@ -39,12 +39,18 @@ class NoticeSendRequest(BaseModel):
     text: str
 
 
+class NoticeAnalyzeRequest(BaseModel):
+    target_language: str = "vi"   # vi/en/ru/ms/mn/zh/th/ja/ko_easy
+
+
 class NoticeAnalyzeResponse(BaseModel):
     notice_id: str
     raw_text: str
     todos: list[TodoItem]
     easy_ko_text: str = ""        # 쉬운 한국어 (세종 파이프라인 산출물)
-    vi_text: str = ""             # 베트남어 번역
+    vi_text: str = ""             # 베트남어 번역 (호환 유지)
+    translation: str = ""         # 선택된 언어 번역
+    target_language: str = "vi"
     quality_note: str = ""        # 용어 검수 결과 (ok / missing_term / review_needed)
     review_needed: str = ""       # 검수 필요 항목 상세
     tts_url: str = ""             # TTS 음성 파일 URL
