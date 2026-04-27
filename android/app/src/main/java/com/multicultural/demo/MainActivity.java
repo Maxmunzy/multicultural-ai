@@ -550,7 +550,7 @@ public class MainActivity extends Activity {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod(method);
                 conn.setConnectTimeout(5000);
-                conn.setReadTimeout(10000);
+                conn.setReadTimeout(60000);
                 conn.setRequestProperty("Accept", "application/json");
                 if (payload != null) {
                     conn.setDoOutput(true);
