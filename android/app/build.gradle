@@ -4,12 +4,17 @@ plugins {
 
 android {
     namespace 'com.multicultural.demo'
-    compileSdk 35
+    compileSdk 36
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
 
     defaultConfig {
         applicationId 'com.multicultural.demo'
         minSdk 23
-        targetSdk 35
+        targetSdk 36
         versionCode 1
         versionName '0.1.0'
     }
