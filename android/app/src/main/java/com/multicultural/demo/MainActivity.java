@@ -47,10 +47,10 @@ public class MainActivity extends Activity {
     private static final int COLOR_BORDER = Color.rgb(226, 232, 240);
     private static final int COLOR_SUCCESS = Color.rgb(16, 185, 129);
 
-    private static final String[] LANG_CODES  = {"vi", "zh", "ja", "mn"};
-    private static final String[] LANG_LABELS = {"🇻🇳 베트남어", "🇨🇳 중국어", "🇯🇵 일본어", "🇲🇳 몽골어"};
-    private static final String[] LANG_NAMES  = {"베트남어", "중국어", "일본어", "몽골어"};
-    private static String selectedLanguage = "vi";
+    private static final String[] LANG_CODES  = {"en", "ru", "ms", "mn"};
+    private static final String[] LANG_LABELS = {"🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이시아어", "🇲🇳 몽골어"};
+    private static final String[] LANG_NAMES  = {"영어", "러시아어", "말레이시아어", "몽골어"};
+    private static String selectedLanguage = "mn";
 
     private static final float TEXT_SIZE_MIN = 12f;
     private static final float TEXT_SIZE_MAX = 28f;
@@ -175,12 +175,11 @@ public class MainActivity extends Activity {
 
     private String getTranslationForLanguage(JSONObject data, String code) {
         switch (code) {
-            case "zh": return optStringDeep(data, "zh_text", "chinese", "translation_zh");
-            case "ja": return optStringDeep(data, "ja_text", "japanese", "translation_ja");
-            case "mn": return optStringDeep(data, "mn_text", "mongolian", "translation_mn");
-            default:
-                return optStringDeep(data, "corrected_vi_text", "corrected_translation",
-                        "vi_corrected_translation", "final_vi_text", "vi_text", "vietnamese", "translation_vi");
+            case "en": return optStringDeep(data, "en_text", "english", "translation_en");
+            case "ru": return optStringDeep(data, "ru_text", "russian", "translation_ru");
+            case "ms": return optStringDeep(data, "ms_text", "malay", "translation_ms", "malaysian");
+            default: // mn
+                return optStringDeep(data, "mn_text", "mongolian", "translation_mn");
         }
     }
 
