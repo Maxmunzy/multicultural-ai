@@ -1,0 +1,30 @@
+# 모델 B (분류 + 중요도) 의존성
+# 각 트랙별로 필요한 부분만 설치하면 됨
+
+# --- 공통 (필수) ---
+numpy>=1.24
+pandas>=2.0
+
+# --- simple 트랙 (numpy만으로 동작, 추가 설치 없음) ---
+
+# --- sklearn 트랙 ---
+scikit-learn>=1.3
+joblib>=1.3
+
+# --- SBERT + LightGBM 트랙 (메인 권장) ---
+sentence-transformers>=2.7
+lightgbm>=4.1
+torch>=2.1  # CPU 버전: pip install torch --index-url https://download.pytorch.org/whl/cpu
+
+# --- KoBERT/KoELECTRA fine-tune 트랙 ---
+transformers>=4.40
+# torch는 위에서 이미
+
+# --- API ---
+fastapi>=0.110
+uvicorn[standard]>=0.27
+pydantic>=2.6
+
+# --- 평가/시각화 (선택) ---
+matplotlib>=3.7
+seaborn>=0.13
