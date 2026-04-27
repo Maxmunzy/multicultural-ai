@@ -12,9 +12,9 @@ model/extraction/predict.py
 ─────────────────────────────────────────
 가정통신문 텍스트
     ↓
-[1] split_sentences()       문장 단위로 나눔 (제목성 줄 조기 차단 — Bug 2 수정)
+[1] split_sentences()       문장 단위로 나눔
     ↓
-[2] is_likely_todo()        안부인사·서명 등 1차 제외 (Bug 1 수정)
+[2] is_likely_todo()        안부인사·서명 등 1차 제외
     ↓
 [3] extract_due_date()      정규식: 날짜·마감 추출
     ↓
@@ -37,7 +37,6 @@ from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification,
 )
-
 # ─────────────────────────────────────────
 # 0. schemas.py 임포트
 # ─────────────────────────────────────────
@@ -101,22 +100,20 @@ def _load_model():
 # ─────────────────────────────────────────
 # 2. 문장 분리
 #
-# Bug 2 수정: 제목성 줄(헤더)을 split 단계에서 조기 차단하여
-#            NLLB 에 "헤더+인사말" 이 혼합된 채 전달되는 것을 방지.
+# 가정통신문은 문장 끝이 다양해서 단순 . split 안 됨.
+# 한국어 종결어미 + 줄바꿈 + 번호 항목 시작점 모두 고려.
 # ─────────────────────────────────────────
-_HEADER_ONLY = re.compile(
-    r"^[^.,!?~]{2,40}(안내|공지|알림|공개수업|상담|학습|행사|일정)\s*$"
-)
-
-
 def split_sentences(text: str) -> list[str]:
     """가정통신문 전체 텍스트를 문장 리스트로 분리"""
+    # 먼저 줄바꿈 단위로 자르고, 각 줄을 다시 문장 단위로 자른다
+    # (가정통신문은 한 줄 = 한 항목인 경우가 많음)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
 
     sentences = []
     for line in lines:
-        if _HEADER_ONLY.match(line):
-            continue  # 제목성 줄은 번역 대상에서 제외
+        # 마침표/물음표/느낌표 + 공백 → 문장 끝
+        # 한국어 종결 어미(다./요./니다./까?) + 공백 → 문장 끝
+        # 번호 항목(1., 2)) 시작 직전 → 문장 끝
         parts = re.split(
             r"(?<=[.!?])\s+|"
             r"(?<=다\.)\s+|(?<=요\.)\s+|(?<=니다\.)\s+|"
@@ -131,17 +128,10 @@ def split_sentences(text: str) -> list[str]:
 
 # ─────────────────────────────────────────
 # 3. 1차 필터 (안부인사·서명 등 빠르게 제외)
-#
-# Bug 1 수정: "안녕하세요" 계열 패턴 3개 추가.
-#            기존에는 "안녕하십니까"만 있어 "학부모님 안녕하세요."가
-#            TODO로 잘못 분류됨.
 # ─────────────────────────────────────────
 NON_TODO_PATTERNS = [
     r"^학부모님\s*안녕하십니까",
     r"^안녕하십니까",
-    r"^학부모님\s*안녕하세요",        # Bug 1 추가
-    r"^안녕하세요",                    # Bug 1 추가
-    r"^.*님\s*안녕하(세요|십니까)",   # Bug 1 추가 (일반화)
     r"^학부모님께\s*안내드립니다",
     r"^학부모님께\s*드립니다",
     r"안내드립니다\s*\.?\s*$",
@@ -172,14 +162,23 @@ def is_likely_todo(sentence: str) -> bool:
 
 # ─────────────────────────────────────────
 # 4. 정규식 기반 구조 추출
+#
+# KoELECTRA 가 못 하는 일:
+#   - "4월 22일" → "2026-04-22"
+#   - "5,000원" → 비용 가중치
+#   - "다음 주 월요일" 같은 상대 날짜
 # ─────────────────────────────────────────
 CURRENT_YEAR = 2026
 
+# 절대 날짜
+# - "4월 22일" 형태
+# - "4. 22.", "4/22" 형태 (단, 앞에 다른 숫자나 단위가 없을 때만)
+# 단위(mm, cm, kg, 원, 시, 차시 등) 뒤에 오는 숫자는 날짜가 아님
 DATE_PATTERN_ABS = re.compile(
     r"(?:(\d{1,2})\s*월\s*(\d{1,2})\s*일)|"
-    r"(?<![\d.])(?<!mm)(?<!cm)(?<!원)(?<!시)"
+    r"(?<![\d.])(?<!mm)(?<!cm)(?<!원)(?<!시)"   # 앞에 숫자/단위 없을 때
     r"(\d{1,2})[./](\d{1,2})"
-    r"(?!\d)(?![mc]m)(?!kg)",
+    r"(?!\d)(?![mc]m)(?!kg)",                    # 뒤에도 숫자/단위 없을 때
 )
 
 DATE_PATTERN_REL = re.compile(
@@ -190,16 +189,12 @@ DATE_PATTERN_REL = re.compile(
 )
 
 DEADLINE_PATTERN = re.compile(r"([\w가-힣\s]+?)\s*까지")
-
-# Bug 3 메모:
-#   MONEY_PATTERN 은 이미 \d+\s*원 형태 → "원하시는"·"원인" 오탐 없음 (extraction 레벨 정상).
-#   검수 상세 "원→won" 오탐은 translation_tts/run_mvp_pipeline.py 글로사리 로직 문제.
-#   해당 파일에서 str.contains('원') → re.search(r'\d[\d,]*\s*원', text) 로 교체 필요.
 MONEY_PATTERN = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\s*원")
 
 
 def extract_due_date(sentence: str) -> Optional[str]:
     """문장에서 마감일/일정 날짜 추출"""
+    # 1) 절대 날짜
     m = DATE_PATTERN_ABS.search(sentence)
     if m:
         month = m.group(1) or m.group(3)
@@ -210,10 +205,12 @@ def extract_due_date(sentence: str) -> Optional[str]:
             except ValueError:
                 pass
 
+    # 2) 상대 날짜 (번역 모델이 처리하도록 원문 유지)
     m = DATE_PATTERN_REL.search(sentence)
     if m:
         return m.group(1).strip()
 
+    # 3) "X까지" 표현
     m = DEADLINE_PATTERN.search(sentence)
     if m:
         deadline_text = m.group(1).strip()
@@ -306,12 +303,15 @@ def extract_todos(notice_text: str) -> list:
         due_date = extract_due_date(sent)
         is_money = has_money(sent)
 
+        # 비용 패턴이면 모델 호출 없이 바로 비용 카테고리
+        # (학습 데이터가 2개라 모델에서 제외했음)
         if is_money:
             category = "비용"
             confidence = 1.0
         else:
             category, confidence = classify_category(sent)
 
+        # 신뢰도 너무 낮으면 노이즈
         if confidence < 0.25 and not is_money:
             continue
 
@@ -359,15 +359,27 @@ def extract_todos_dict(notice_text: str) -> list[dict]:
 # 8. 직접 실행 테스트
 # ─────────────────────────────────────────
 if __name__ == "__main__":
-    sample = """학부모 공개수업 및 상담 안내
-학부모님 안녕하세요.
+    sample = """주간학습계획 8주(4.20~4.24) 서울갈산초등학교 3학년 6반
 
-1. 공개수업 일시: 6월 12일(목) 3~4교시
-2. 상담 신청: 6월 5일(금)까지 가정통신문 회신
-3. 준비물: 실내화, 출입증 지참
-수업료 50,000원은 6월 10일까지 납부해 주세요.
+학부모님 안녕하십니까?
 
-서울갈산초등학교장"""
+1. 등교시간: 8시 30분 ~ 8시 45분까지 등교
+2. 3학년 합동 체육: 3월 24일(금) 5교시 체육관에서 실시. 학급티 및 간편한 복장 착용.
+3. 나눔장터 안내
+   1) 일시: 4월 30일(목) 8:50~10:30
+   2) 준비물: 학급티, 1인용 돗자리, 판매할 물건
+   3) 구입비는 5,000원 이내의 잔돈으로 준비합니다.
+4. 디벗 사용을 위해 개인용 이어폰(3.5mm, C타입)을 4월 20일(월)까지 준비해주세요.
+
+준비물
+체육: 운동화 착용, 물 넉넉하게 준비
+음악: 리코더(독일식)
+마스크 1장씩 가방에 넣고 다니기
+
+과제
+독서생활 매주 1편 이상 작성해서 월요일에 제출하기
+
+2026. 4. 17. 서울갈산초등학교장"""
 
     print("=" * 70)
     print("📝 추출 결과")
