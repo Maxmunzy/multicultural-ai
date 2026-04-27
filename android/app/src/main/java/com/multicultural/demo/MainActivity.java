@@ -47,10 +47,10 @@ public class MainActivity extends Activity {
     private static final int COLOR_BORDER = Color.rgb(226, 232, 240);
     private static final int COLOR_SUCCESS = Color.rgb(16, 185, 129);
 
-    private static final String[] LANG_CODES  = {"en", "ru", "ms", "mn"};
-    private static final String[] LANG_LABELS = {"🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이시아어", "🇲🇳 몽골어"};
-    private static final String[] LANG_NAMES  = {"영어", "러시아어", "말레이시아어", "몽골어"};
-    private static String selectedLanguage = "mn";
+    private static final String[] LANG_CODES  = {"ko_easy", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja", "id"};
+    private static final String[] LANG_LABELS = {"🇰🇷 쉬운 한국어", "🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이어", "🇲🇳 몽골어", "🇻🇳 베트남어", "🇨🇳 중국어", "🇹🇭 태국어", "🇯🇵 일본어", "🇮🇩 인도네시아"};
+    private static final String[] LANG_NAMES  = {"쉬운 한국어", "영어", "러시아어", "말레이시아어", "몽골어", "베트남어", "중국어", "태국어", "일본어", "인도네시아어"};
+    private static String selectedLanguage = "ko_easy";
 
     private static final float TEXT_SIZE_MIN = 12f;
     private static final float TEXT_SIZE_MAX = 28f;
@@ -112,43 +112,56 @@ public class MainActivity extends Activity {
         card.addView(label);
 
         final Button[] buttons = new Button[LANG_CODES.length];
-        LinearLayout row1 = new LinearLayout(this);
-        row1.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams row1Params = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        row1Params.setMargins(0, 0, 0, dp(8));
-        row1.setLayoutParams(row1Params);
 
-        LinearLayout row2 = new LinearLayout(this);
-        row2.setOrientation(LinearLayout.HORIZONTAL);
-        row2.setLayoutParams(new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT));
-
+        // 버튼 생성
         for (int i = 0; i < LANG_CODES.length; i++) {
-            final String code = LANG_CODES[i];
             Button btn = new Button(this);
             btn.setText(LANG_LABELS[i]);
-            btn.setTextSize(14);
+            btn.setTextSize(i == 0 ? 14 : 12);
             btn.setAllCaps(false);
             btn.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-            btn.setPadding(dp(6), dp(10), dp(6), dp(10));
-            LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-            btnParams.setMargins(0, 0, i % 2 == 0 ? dp(6) : 0, 0);
-            btn.setLayoutParams(btnParams);
+            btn.setPadding(dp(4), dp(8), dp(4), dp(8));
             buttons[i] = btn;
-            applyLangButtonStyle(btn, code.equals(selectedLanguage));
-            btn.setOnClickListener(v -> {
-                selectedLanguage = code;
+            applyLangButtonStyle(btn, LANG_CODES[i].equals(selectedLanguage));
+        }
+
+        // 클릭 리스너
+        for (int i = 0; i < LANG_CODES.length; i++) {
+            final int idx = i;
+            buttons[i].setOnClickListener(v -> {
+                selectedLanguage = LANG_CODES[idx];
                 for (int j = 0; j < LANG_CODES.length; j++) {
                     applyLangButtonStyle(buttons[j], LANG_CODES[j].equals(selectedLanguage));
                 }
             });
-            if (i < 2) row1.addView(btn);
-            else row2.addView(btn);
         }
 
-        card.addView(row1);
-        card.addView(row2);
+        // 쉬운 한국어: 첫 줄 전체 너비
+        LinearLayout.LayoutParams mainParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        mainParams.setMargins(0, 0, 0, dp(8));
+        buttons[0].setLayoutParams(mainParams);
+        card.addView(buttons[0]);
+
+        // 9개국어: 3열 × 3행 그리드 (인덱스 1~9)
+        for (int row = 0; row < 3; row++) {
+            LinearLayout rowLayout = new LinearLayout(this);
+            rowLayout.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            rowParams.setMargins(0, 0, 0, row < 2 ? dp(6) : 0);
+            rowLayout.setLayoutParams(rowParams);
+            for (int col = 0; col < 3; col++) {
+                int idx = 1 + row * 3 + col;
+                LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(
+                        0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+                btnParams.setMargins(0, 0, col < 2 ? dp(4) : 0, 0);
+                buttons[idx].setLayoutParams(btnParams);
+                rowLayout.addView(buttons[idx]);
+            }
+            card.addView(rowLayout);
+        }
+
         parent.addView(card);
     }
 
@@ -175,11 +188,18 @@ public class MainActivity extends Activity {
 
     private String getTranslationForLanguage(JSONObject data, String code) {
         switch (code) {
+            case "ko_easy": return ""; // formatMain의 쉬운 한국어 섹션에서 이미 표시
             case "en": return optStringDeep(data, "en_text", "english", "translation_en");
             case "ru": return optStringDeep(data, "ru_text", "russian", "translation_ru");
-            case "ms": return optStringDeep(data, "ms_text", "malay", "translation_ms", "malaysian");
-            default: // mn
-                return optStringDeep(data, "mn_text", "mongolian", "translation_mn");
+            case "ms": return optStringDeep(data, "ms_text", "malay", "translation_ms");
+            case "mn": return optStringDeep(data, "mn_text", "mongolian", "translation_mn");
+            case "vi": return optStringDeep(data, "corrected_vi_text", "corrected_translation",
+                    "vi_corrected_translation", "final_vi_text", "vi_text", "vietnamese", "translation_vi");
+            case "zh": return optStringDeep(data, "zh_text", "chinese", "translation_zh");
+            case "th": return optStringDeep(data, "th_text", "thai", "translation_th");
+            case "ja": return optStringDeep(data, "ja_text", "japanese", "translation_ja");
+            case "id": return optStringDeep(data, "id_text", "indonesian", "translation_id");
+            default: return "";
         }
     }
 
