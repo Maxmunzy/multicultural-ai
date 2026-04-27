@@ -63,11 +63,11 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 ## 진도 현황
 
 - [x] 태수: FastAPI 서버 뼈대 및 Android API 통신 흐름 1차 연결
-- [ ] 윤정: 할 일 추출 모델
-- [ ] 경이: 카테고리 분류 모델
+- [x] 윤정: KoELECTRA 하이브리드 추출 모델 구현 + HuggingFace Hub 배포
+- [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 (accuracy 0.857, MAE 0.038) + API 서버
 - [x] 세종: NLLB 베이스라인 번역 + 용어사전 검수 루프 + Edge-TTS 음성 출력 1차 MVP 실행 성공
 - [x] 찬영: Android 선생님/학부모 화면 및 실기기 데모 1차 구현
-- [ ] 팀 공통: 전체 모델 조립 및 최종 E2E 검증
+- [ ] 팀 공통: 모델 A·B 백엔드 연결 및 최종 E2E 검증
 
 ---
 
@@ -76,8 +76,8 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | 이름 | 기술 스택 |
 | --- | --- |
 | 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose, REST API |
-| 윤정 | 작성 예정 |
-| 경이 | 작성 예정 |
+| 윤정 | KoELECTRA-base-v3, HuggingFace Hub, PyTorch, Regex, Transformers |
+| 경이 | numpy TF-IDF, scikit-learn LR, SBERT + LightGBM, Ridge 회귀, FastAPI |
 | 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, fallback 처리 |
 | 찬영 | Android Studio, Java, Android SDK, HttpURLConnection, JSONObject, MediaPlayer |
 

@@ -51,17 +51,17 @@
 
 ### 모델 A: 중요 문장 추출
 
-- [ ] baseline 추출 모델 구현
-- [ ] 평가 기준 정의
-- [ ] 서버 연결용 `services/extractor.py` 설계
-- [ ] `POST /notice/analyze/{notice_id}` 응답에 실제 추출 결과 연결
+- [x] baseline 추출 모델 구현 (KoELECTRA 하이브리드, `model/extraction/predict.py`)
+- [x] 평가 기준 정의 (confidence 임계값 0.4, importance 임계값 0.3, 카테고리별 기본 점수)
+- [x] 서버 연결용 `extract_todos_dict()` 인터페이스 설계
+- [ ] `POST /notice/analyze/{notice_id}` 응답에 실제 추출 결과 연결 (백엔드 연결 잔여)
 
 ### 모델 B: 분류/중요도
 
-- [ ] 6개 카테고리 분류 baseline 구현
-- [ ] 중요도 점수 산출 기준 확정
-- [ ] 서버 연결용 `services/classifier.py` 설계
-- [ ] Android 표시 포맷과 응답 스키마 확정
+- [x] 6개 카테고리 분류 baseline 구현 (numpy LR / sklearn / SBERT 멀티트랙, accuracy 0.857, macro F1 0.747)
+- [x] 중요도 점수 산출 기준 확정 (룰 기반 시급도 + Ridge 회귀 결합, MAE 0.038)
+- [x] 서버 연결용 `model/classification/src/api.py` 설계 (`POST /classify`, port 8001)
+- [ ] 메인 백엔드(`POST /notice/analyze`)와 실제 연결
 
 ### 모델 C: 번역/TTS
 
@@ -120,6 +120,6 @@
 
 | 리스크 | 영향 | 대응 |
 | --- | --- | --- |
-| 추출/분류 모델 미연결 | 분석 결과가 실제 AI 결과가 아님 | 발표에서 mock 범위 명시 |
+| 모델 A·B 백엔드 미연결 | 분석 API는 여전히 mock 응답 반환 중. 모델 자체는 구현 완료 | 발표에서 mock 범위 명시, 연결 작업 진행 중 |
 | Android `BASE_URL` 고정 | 네트워크가 바뀌면 앱 수정 필요 | 시연 전 PC IP 확인 |
 | NLLB 출력 품질 변동 | 자연스럽지 않은 번역 가능 | 용어사전 검수와 보정 번역으로 설명 |
