@@ -45,3 +45,7 @@ backend/static/tts/*.mp3
 
 #클로드
 .claude
+
+# nested repo 방지
+multicultural-ai/
+multicultural-school-ai/
