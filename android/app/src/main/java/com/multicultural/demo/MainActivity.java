@@ -32,7 +32,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // On a real device, localhost means the phone itself. Use the PC Docker server IP on the same Wi-Fi.
-    private static final String BASE_URL = "http://192.168.40.77:8000";
+    private static final String BASE_URL = "http://192.168.x.x:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
     private static final int COLOR_PRIMARY = Color.rgb(37, 99, 235);
