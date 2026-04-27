@@ -3,6 +3,7 @@
 run_mvp_pipeline.py의 가벼운 함수들(easy_korean, glossary)은 직접 호출.
 NLLB 번역은 매번 모델 새로 로드하지 않게 캐싱.
 """
+import re
 import sys
 from pathlib import Path
 
@@ -44,7 +45,7 @@ def _get_glossary():
     return _glossary
 
 
-def _translate(text: str, max_length: int = 256) -> str:
+def _translate(text: str, max_length: int = 512) -> str:
     tokenizer, model = _get_translator()
     target_id = tokenizer.convert_tokens_to_ids(TARGET_LANG)
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
@@ -54,8 +55,38 @@ def _translate(text: str, max_length: int = 256) -> str:
             forced_bos_token_id=target_id,
             max_length=max_length,
             num_beams=4,
+            no_repeat_ngram_size=3,
+            repetition_penalty=1.3,
+            early_stopping=True,
         )
     return tokenizer.batch_decode(out, skip_special_tokens=True)[0]
+
+
+# 한국어 원문 → 베트남어 번역 결과의 명백한 오번역 강제 치환.
+# NLLB가 학교 도메인을 못 배워서 발생하는 시각적 결함을 시연 전에 막는 안전망.
+_CURRENCY_PATTERNS = [
+    re.compile(r"\bđô\s*la\b", re.IGNORECASE),
+    re.compile(r"\bdollars?\b", re.IGNORECASE),
+    re.compile(r"\bUSD\b"),
+]
+# 천단위 점(40.000) → 콤마(40,000). 베트남식 표기지만 한국 학부모는 "40원"으로 오인할 수 있음.
+_THOUSAND_DOT = re.compile(r"(\d{1,3}(?:\.\d{3})+)")
+
+
+def _normalize_thousand_separator(text: str) -> str:
+    def repl(m):
+        return m.group(1).replace(".", ",")
+    return _THOUSAND_DOT.sub(repl, text)
+
+
+def _post_process(easy_ko: str, vi_text: str) -> str:
+    if not vi_text:
+        return vi_text
+    if "원" in easy_ko:
+        for pat in _CURRENCY_PATTERNS:
+            vi_text = pat.sub("won", vi_text)
+        vi_text = _normalize_thousand_separator(vi_text)
+    return vi_text
 
 
 def translate_and_review(notice_text: str) -> dict:
@@ -80,6 +111,7 @@ def translate_and_review(notice_text: str) -> dict:
 
     try:
         vi_text = _translate(easy_ko_text)
+        vi_text = _post_process(easy_ko_text, vi_text)
     except Exception as error:
         print(f"[translator] translate failed: {error}")
         vi_text = ""
