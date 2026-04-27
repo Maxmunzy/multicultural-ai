@@ -1,7 +1,6 @@
 package com.multicultural.demo;
 
 import android.app.Activity;
-import android.app.Dialog;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -10,8 +9,6 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.Gravity;
 import android.view.View;
-import android.view.ViewGroup;
-import android.view.Window;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.LinearLayout;
@@ -38,14 +35,14 @@ public class MainActivity extends Activity {
     private static final String BASE_URL = "http://192.168.x.x:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
-    private static final int COLOR_PRIMARY = Color.rgb(37, 99, 235);
-    private static final int COLOR_PRIMARY_DARK = Color.rgb(30, 64, 175);
-    private static final int COLOR_PRIMARY_LIGHT = Color.rgb(239, 246, 255);
-    private static final int COLOR_BG = Color.rgb(248, 250, 252);
-    private static final int COLOR_TEXT = Color.rgb(30, 41, 59);
-    private static final int COLOR_MUTED = Color.rgb(100, 116, 139);
-    private static final int COLOR_BORDER = Color.rgb(226, 232, 240);
-    private static final int COLOR_SUCCESS = Color.rgb(16, 185, 129);
+    private static final int COLOR_PRIMARY       = Color.rgb(234,  88,  12); // orange-600
+    private static final int COLOR_PRIMARY_DARK  = Color.rgb(154,  52,  18); // orange-800
+    private static final int COLOR_PRIMARY_LIGHT = Color.rgb(255, 247, 237); // orange-50
+    private static final int COLOR_BG            = Color.rgb(250, 249, 247); // warm cream
+    private static final int COLOR_TEXT          = Color.rgb( 28,  25,  23); // stone-900
+    private static final int COLOR_MUTED         = Color.rgb(120, 113, 108); // stone-500
+    private static final int COLOR_BORDER        = Color.rgb(231, 229, 228); // stone-200
+    private static final int COLOR_SUCCESS       = Color.rgb( 22, 163,  74); // green-600
 
     private static final String[] LANG_CODES  = {"ko_easy", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
     private static final String[] LANG_LABELS = {"🇰🇷 쉬운 한국어", "🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이시아어", "🇲🇳 몽골어", "🇻🇳 베트남어", "🇨🇳 중국어", "🇹🇭 태국어", "🇯🇵 일본어"};
@@ -88,12 +85,57 @@ public class MainActivity extends Activity {
     }
 
     private void showStartScreen() {
-        buildBase("가정통신문 AI", "실기기 MVP 데모");
-        content.addView(card("시연 흐름", "1. 선생님이 가정통신문을 발송합니다.\n2. 학부모가 수신함에서 확인합니다.\n3. 분석 결과, 번역, 용어사전 검수, TTS를 확인합니다.", Color.WHITE));
+        buildBase("가정통신문 AI", "다문화 가정 학교 알림 서비스");
         addLanguageSelector(content);
+        content.addView(stepCard("1", "선생님", "가정통신문을 작성하고 학부모에게 발송합니다."));
+        content.addView(stepCard("2", "학부모", "수신함에서 선택 언어로 통신문을 확인합니다."));
+        content.addView(stepCard("3", "AI 분석", "번역 · 요약 · 용어 검수 · TTS를 제공합니다."));
         content.addView(primaryButton("선생님으로 시작", v -> showTeacherScreen()));
         content.addView(outlineButton("학부모로 시작", v -> showParentScreen()));
-        setStatus("서버 IP는 MainActivity.java 상단 BASE_URL에서 변경합니다: " + BASE_URL);
+        setStatus("서버: " + BASE_URL);
+    }
+
+    private LinearLayout stepCard(String num, String title, String desc) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setPadding(dp(16), dp(14), dp(16), dp(14));
+        box.setLayoutParams(spacedParams());
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(1), COLOR_BORDER);
+        box.setBackground(bg);
+        box.setElevation(dp(1));
+
+        int size = dp(44);
+        TextView numView = new TextView(this);
+        numView.setText(num);
+        numView.setTextColor(Color.WHITE);
+        numView.setTextSize(18);
+        numView.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        numView.setGravity(Gravity.CENTER);
+        GradientDrawable circleBg = new GradientDrawable();
+        circleBg.setShape(GradientDrawable.OVAL);
+        circleBg.setColor(COLOR_PRIMARY);
+        numView.setBackground(circleBg);
+        LinearLayout.LayoutParams numParams = new LinearLayout.LayoutParams(size, size);
+        numParams.setMargins(0, 0, dp(14), 0);
+        numView.setLayoutParams(numParams);
+        box.addView(numView);
+
+        LinearLayout textCol = new LinearLayout(this);
+        textCol.setOrientation(LinearLayout.VERTICAL);
+        textCol.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        TextView titleView = text(title, 16, COLOR_TEXT, true);
+        titleView.setPadding(0, 0, 0, dp(3));
+        TextView descView = text(desc, 13, COLOR_MUTED, false);
+        descView.setLineSpacing(0, 1.3f);
+        textCol.addView(titleView);
+        textCol.addView(descView);
+        box.addView(textCol);
+
+        return box;
     }
 
     private void addLanguageSelector(LinearLayout parent) {
@@ -173,7 +215,7 @@ public class MainActivity extends Activity {
             btn.setTextColor(Color.WHITE);
         } else {
             bg.setColor(COLOR_PRIMARY_LIGHT);
-            bg.setStroke(dp(1), Color.rgb(191, 219, 254));
+            bg.setStroke(dp(1), Color.rgb(253, 186, 116));
             btn.setTextColor(COLOR_PRIMARY_DARK);
         }
         btn.setBackground(bg);
@@ -242,7 +284,6 @@ public class MainActivity extends Activity {
         findViewById(R.id.btnDemo).setOnClickListener(v -> showMockAnalysis());
         analyzeButton.setOnClickListener(v -> analyzeSelectedNotice());
         playButton.setOnClickListener(v -> playTts());
-        findViewById(R.id.btnAiAssistant).setOnClickListener(v -> showAiBottomSheet());
         findViewById(R.id.btnBack).setOnClickListener(v -> showStartScreen());
 
         // 탭 전환
@@ -269,117 +310,6 @@ public class MainActivity extends Activity {
         if (feedbackText != null) feedbackText.setTextSize(currentTextSize);
     }
 
-    private void showAiBottomSheet() {
-        Dialog dialog = new Dialog(this, R.style.BottomSheetTheme);
-        View sheetView = getLayoutInflater().inflate(R.layout.bottom_sheet_ai, null);
-        dialog.setContentView(sheetView);
-
-        Window window = dialog.getWindow();
-        if (window != null) {
-            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            window.setGravity(Gravity.BOTTOM);
-        }
-
-        ScrollView scrollChat = sheetView.findViewById(R.id.scrollChat);
-        LinearLayout chatContainer = sheetView.findViewById(R.id.chatContainer);
-        LinearLayout quickQuestions = sheetView.findViewById(R.id.quickQuestions);
-        EditText etInput = sheetView.findViewById(R.id.etChatInput);
-
-        sheetView.<Button>findViewById(R.id.btnClose).setOnClickListener(v -> dialog.dismiss());
-        sheetView.<Button>findViewById(R.id.btnSend).setOnClickListener(v ->
-                sendChatMessage(chatContainer, scrollChat, etInput, null));
-
-        addBotBubble(chatContainer, scrollChat, "안녕하세요! 가정통신문에 대해 궁금한 것을 물어보세요.");
-
-        String[] quickList = {"번역해줘", "요약해줘", "할 일 뭐야?", "날짜 알려줘"};
-        for (String q : quickList) {
-            Button qBtn = new Button(this);
-            qBtn.setText(q);
-            qBtn.setTextSize(13);
-            qBtn.setTextColor(COLOR_PRIMARY_DARK);
-            qBtn.setAllCaps(false);
-            qBtn.setPadding(dp(14), dp(8), dp(14), dp(8));
-            qBtn.setBackgroundResource(R.drawable.bg_quick_btn);
-            LinearLayout.LayoutParams qp = new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-            qp.setMargins(0, 0, dp(8), 0);
-            qBtn.setLayoutParams(qp);
-            qBtn.setOnClickListener(v -> sendChatMessage(chatContainer, scrollChat, etInput, q));
-            quickQuestions.addView(qBtn);
-        }
-
-        dialog.show();
-    }
-
-    private void sendChatMessage(LinearLayout container, ScrollView scroll, EditText input, String override) {
-        String message = override != null ? override : safe(input.getText().toString());
-        if (message.isEmpty()) return;
-        input.setText("");
-
-        addUserBubble(container, scroll, message);
-
-        String context = selectedNotice != null ? selectedNotice.text : "";
-        JSONObject payload = new JSONObject();
-        try {
-            payload.put("message", message);
-            payload.put("context", context);
-            payload.put("parent_id", DEFAULT_PARENT_ID);
-        } catch (Exception e) {
-            addBotBubble(container, scroll, "오류: " + e.getMessage());
-            return;
-        }
-
-        addBotBubble(container, scroll, "답변 중...");
-        postJson("/ai/chat", payload, result -> {
-            if (container.getChildCount() > 0)
-                container.removeViewAt(container.getChildCount() - 1);
-            if (!result.error.isEmpty()) {
-                addBotBubble(container, scroll, "서버 연결 실패: " + result.error);
-                return;
-            }
-            try {
-                JSONObject json = new JSONObject(result.body);
-                String reply = optStringDeep(json, "reply", "message", "answer");
-                addBotBubble(container, scroll, reply.isEmpty() ? "응답을 받지 못했습니다." : reply);
-            } catch (Exception e) {
-                addBotBubble(container, scroll, result.body.isEmpty() ? "응답을 받지 못했습니다." : result.body);
-            }
-        });
-    }
-
-    private void addUserBubble(LinearLayout container, ScrollView scroll, String msg) {
-        TextView bubble = new TextView(this);
-        bubble.setText(msg);
-        bubble.setTextColor(Color.WHITE);
-        bubble.setTextSize(14);
-        bubble.setLineSpacing(0, 1.25f);
-        bubble.setPadding(dp(12), dp(8), dp(12), dp(8));
-        bubble.setBackgroundResource(R.drawable.bg_bubble_user);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        p.gravity = Gravity.END;
-        p.setMargins(dp(48), 0, 0, dp(8));
-        bubble.setLayoutParams(p);
-        container.addView(bubble);
-        scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
-    }
-
-    private void addBotBubble(LinearLayout container, ScrollView scroll, String msg) {
-        TextView bubble = new TextView(this);
-        bubble.setText(msg);
-        bubble.setTextColor(COLOR_TEXT);
-        bubble.setTextSize(14);
-        bubble.setLineSpacing(0, 1.25f);
-        bubble.setPadding(dp(12), dp(8), dp(12), dp(8));
-        bubble.setBackgroundResource(R.drawable.bg_bubble_bot);
-        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        p.gravity = Gravity.START;
-        p.setMargins(0, 0, dp(48), dp(8));
-        bubble.setLayoutParams(p);
-        container.addView(bubble);
-        scroll.post(() -> scroll.fullScroll(View.FOCUS_DOWN));
-    }
 
     private void sendNotice() {
         String title = safe(titleInput.getText().toString());
@@ -741,7 +671,7 @@ public class MainActivity extends Activity {
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(COLOR_PRIMARY_LIGHT);
         bg.setCornerRadius(dp(15));
-        bg.setStroke(dp(1), Color.rgb(191, 219, 254));
+        bg.setStroke(dp(1), Color.rgb(253, 186, 116));
         button.setBackground(bg);
         button.setOnClickListener(listener);
         button.setLayoutParams(spacedParams());

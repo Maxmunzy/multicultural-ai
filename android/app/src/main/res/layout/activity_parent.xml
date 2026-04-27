@@ -385,21 +385,7 @@
                 android:background="@drawable/bg_btn_primary"
                 android:layout_marginBottom="12dp" />
 
-            <Button
-                android:id="@+id/btnAiAssistant"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="✨ AI 어시스턴트에게 물어보기"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textAllCaps="false"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
-                android:background="@drawable/bg_btn_ai"
-                android:layout_marginBottom="12dp" />
-
-            <Button
+<Button
                 android:id="@+id/btnBack"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
