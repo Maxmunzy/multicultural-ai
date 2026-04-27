@@ -3,6 +3,7 @@
 run_mvp_pipeline.py의 가벼운 함수들(easy_korean, glossary)은 직접 호출.
 NLLB 번역은 매번 모델 새로 로드하지 않게 캐싱.
 """
+import re
 import sys
 from pathlib import Path
 
@@ -58,6 +59,24 @@ def _translate(text: str, max_length: int = 256) -> str:
     return tokenizer.batch_decode(out, skip_special_tokens=True)[0]
 
 
+# 한국어 원문 → 베트남어 번역 결과의 명백한 오번역 강제 치환.
+# NLLB가 학교 도메인을 못 배워서 발생하는 시각적 결함을 시연 전에 막는 안전망.
+_CURRENCY_PATTERNS = [
+    re.compile(r"\bđô\s*la\b", re.IGNORECASE),
+    re.compile(r"\bdollars?\b", re.IGNORECASE),
+    re.compile(r"\bUSD\b"),
+]
+
+
+def _post_process(easy_ko: str, vi_text: str) -> str:
+    if not vi_text:
+        return vi_text
+    if "원" in easy_ko:
+        for pat in _CURRENCY_PATTERNS:
+            vi_text = pat.sub("won", vi_text)
+    return vi_text
+
+
 def translate_and_review(notice_text: str) -> dict:
     """가정통신문 → easy_ko + vi_text + 용어 검수 결과."""
     empty = {"easy_ko_text": "", "vi_text": "", "quality_note": "", "review_needed": ""}
@@ -80,6 +99,7 @@ def translate_and_review(notice_text: str) -> dict:
 
     try:
         vi_text = _translate(easy_ko_text)
+        vi_text = _post_process(easy_ko_text, vi_text)
     except Exception as error:
         print(f"[translator] translate failed: {error}")
         vi_text = ""
