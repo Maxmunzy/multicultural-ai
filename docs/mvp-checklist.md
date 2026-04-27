@@ -2,7 +2,7 @@
 
 ## 서비스 MVP 정의
 
-선생님이 가정통신문을 발송하면 학부모가 앱에서 수신하고, AI가 핵심 행동 항목을 체크리스트로 정리한 뒤 쉬운 한국어, 베트남어 번역, 음성 안내를 제공하는 서비스입니다.
+선생님이 가정통신문을 발송하면 학부모가 앱에서 수신하고, AI가 핵심 행동 항목을 체크리스트로 정리한 뒤 쉬운 한국어 + 8개국어(베트남어/영어/러시아어/말레이시아어/몽골어/중국어/태국어/일본어) 번역과 언어별 음성 안내를 제공하는 서비스입니다.
 
 이번 MVP의 목표는 완성형 서비스가 아니라, 아래 3가지를 보여 주는 것입니다.
 
@@ -19,12 +19,13 @@
 | 기능 | 설명 | 상태 |
 | --- | --- | --- |
 | 가정통신문 발송/수신 | 선생님 화면에서 발송, 학부모 화면에서 수신 | 완료 |
-| 분석 API | `POST /notice/analyze/{notice_id}` | 실제 모델 연결 완료 |
+| X-User-Id 헤더 인증 | 역할(teacher/parent) 기반 권한 검증 | 완료 |
+| 분석 API | `POST /notice/analyze/{notice_id}` (target_language) | 실제 모델 연결 완료 |
 | 체크리스트 표시 | 해야 할 일을 카테고리별로 보여 줌 | 실제 모델 결과 표시 |
 | 쉬운 한국어 | 학부모가 이해하기 쉬운 문장으로 요약 | 완료 |
-| 베트남어 번역 | NLLB 기반 번역 + 통화 오번역 후처리 | 완료 |
+| 다국어 번역 | NLLB 기반 8개국어 번역(vi/en/ru/ms/mn/zh/th/ja) + 통화 오번역 후처리 | 완료 |
 | 용어사전 검수 | 학교 안내 핵심 용어 누락 확인 | 완료 (용어 확장) |
-| TTS 재생 | Edge-TTS mp3 또는 앱 내장 mp3 재생 | 완료 |
+| TTS 재생 | 언어별 Edge-TTS 음성(9개) 또는 앱 내장 mp3 fallback | 완료 |
 | Android 실기기 데모 | Java 단일 Activity 앱 | 완료 |
 
 ### 제외
@@ -65,33 +66,39 @@
 ### 모델 C: 번역/TTS
 
 - [x] NLLB 모델 기준 확정: `facebook/nllb-200-distilled-600M`
-- [x] Edge-TTS 음성 기준 확정: `vi-VN-HoaiMyNeural`
+- [x] Edge-TTS 다국어 음성 매핑(9개): `vi-VN-HoaiMyNeural`, `en-US-JennyNeural`, `ru-RU-SvetlanaNeural`, `ms-MY-YasminNeural`, `mn-MN-YesuiNeural`, `zh-CN-XiaoxiaoNeural`, `th-TH-PremwadeeNeural`, `ja-JP-NanamiNeural`, `ko-KR-SunHiNeural`
 - [x] 용어사전 파일 구성: `model/translation_tts/term_glossary.csv`
 - [x] 고정 데모 산출물 생성: `demo/translation_tts/demo_case_01/`
 - [x] Android 앱에 데모 산출물 포함
-- [x] 서버 API에 번역/TTS 파이프라인 직접 연결
+- [x] 서버 API에 번역/TTS 파이프라인 직접 연결 (target_language 파라미터로 8개국어 동적 라우팅)
 
 ### Backend
 
 - [x] FastAPI 앱 구성
 - [x] Docker 실행 환경 구성
 - [x] 공통 응답 형식: `{ status, data, message }`
-- [x] `POST /notice/send`
-- [x] `GET /notice/inbox/{parent_id}`
-- [x] `POST /notice/analyze/{notice_id}`
-- [x] `POST /tts/generate`
+- [x] `POST /notice/send` (teacher 권한 + body.teacher_id 일치 검증)
+- [x] `GET /notice/inbox/{parent_id}` (parent 본인만)
+- [x] `DELETE /notice/inbox/{parent_id}` (parent 본인만, 시연용)
+- [x] `POST /notice/analyze/{notice_id}` (parent 본인만, target_language 동적)
+- [x] `POST /tts/generate` (언어별 Edge-TTS 보이스 자동 매핑)
 - [x] `GET /user/{id}`, `POST /user/`
 - [x] `GET /health`
+- [x] X-User-Id 헤더 인증 + 역할 기반 권한(teacher/parent) 검증
+- [x] 시연용 시드 계정: `teacher_001/002`, `parent_001/002/003`
 - [x] 실제 모델 서비스 연결
 
 ### Android
 
-- [x] 시작 화면
-- [x] 선생님 발송 화면
-- [x] 학부모 수신함 화면
-- [x] 분석 요청 버튼
-- [x] 분석 결과 표시
-- [x] 내장 데모 산출물 fallback
+- [x] 로그인 화면 (역할 선택 → ID 입력 → 들어가기)
+- [x] 선생님 화면: 가정통신문 작성/발송 (X-User-Id 자동 첨부)
+- [x] 학부모 화면: 수신함 카드 리스트
+- [x] 통신문 상세 화면 (우측 상단 ✨ AI 번역 버튼)
+- [x] AI 분석 화면: 체크리스트 + 쉬운 한국어 + 모국어 번역 + 학교 용어 + TTS
+- [x] 9개 언어 선택 드롭다운 (변경 시 자동 재분석)
+- [x] 글자 크기 조절(A−/A+)
+- [x] TTS 재생/정지 토글
+- [x] 내장 데모 산출물 fallback (서버 연결 실패 시)
 - [x] 내장 mp3 TTS 재생
 - [ ] `BASE_URL` 환경별 설정 방식 개선
 
@@ -110,7 +117,7 @@
 - [x] 선생님 화면에서 발송 성공
 - [x] 학부모 화면에서 수신함 조회 성공
 - [x] 분석 결과 화면 표시 (실제 모델 결과)
-- [x] 베트남어 TTS 재생 확인
+- [x] 선택 언어별 TTS 재생 확인 (vi/en/ru/ms/mn/zh/th/ja/ko_easy)
 - [x] 발표 시 mock 범위와 실제 구현 범위 구분 설명
 
 ---
