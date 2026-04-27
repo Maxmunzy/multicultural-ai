@@ -19,11 +19,11 @@
 | 기능 | 설명 | 상태 |
 | --- | --- | --- |
 | 가정통신문 발송/수신 | 선생님 화면에서 발송, 학부모 화면에서 수신 | 완료 |
-| 분석 API | `POST /notice/analyze/{notice_id}` | mock 완료 |
-| 체크리스트 표시 | 해야 할 일을 카테고리별로 보여 줌 | mock 완료 |
-| 쉬운 한국어 | 학부모가 이해하기 쉬운 문장으로 요약 | 데모 산출물 완료 |
-| 베트남어 번역 | NLLB 기반 번역 | 1차 산출물 완료 |
-| 용어사전 검수 | 학교 안내 핵심 용어 누락 확인 | 1차 산출물 완료 |
+| 분석 API | `POST /notice/analyze/{notice_id}` | 실제 모델 연결 완료 |
+| 체크리스트 표시 | 해야 할 일을 카테고리별로 보여 줌 | 실제 모델 결과 표시 |
+| 쉬운 한국어 | 학부모가 이해하기 쉬운 문장으로 요약 | 완료 |
+| 베트남어 번역 | NLLB 기반 번역 + 통화 오번역 후처리 | 완료 |
+| 용어사전 검수 | 학교 안내 핵심 용어 누락 확인 | 완료 (용어 확장) |
 | TTS 재생 | Edge-TTS mp3 또는 앱 내장 mp3 재생 | 완료 |
 | Android 실기기 데모 | Java 단일 Activity 앱 | 완료 |
 
@@ -36,7 +36,6 @@
 | 자동 문자/푸시 알림 | 앱 내 수신함 시연을 우선 |
 | 자동 일정 등록 | 핵심 안내 이해를 우선 |
 | iOS 앱 | Android 실기기 데모 우선 |
-| 완성형 추출/분류 모델 | 현재는 mock 응답으로 화면 흐름 검증 |
 
 ---
 
@@ -54,14 +53,14 @@
 - [x] baseline 추출 모델 구현 (KoELECTRA 하이브리드, `model/extraction/predict.py`)
 - [x] 평가 기준 정의 (confidence 임계값 0.4, importance 임계값 0.3, 카테고리별 기본 점수)
 - [x] 서버 연결용 `extract_todos_dict()` 인터페이스 설계
-- [ ] `POST /notice/analyze/{notice_id}` 응답에 실제 추출 결과 연결 (백엔드 연결 잔여)
+- [x] `POST /notice/analyze/{notice_id}` 응답에 실제 추출 결과 연결
 
 ### 모델 B: 분류/중요도
 
 - [x] 6개 카테고리 분류 baseline 구현 (numpy LR / sklearn / SBERT 멀티트랙, accuracy 0.857, macro F1 0.747)
 - [x] 중요도 점수 산출 기준 확정 (룰 기반 시급도 + Ridge 회귀 결합, MAE 0.038)
 - [x] 서버 연결용 `model/classification/src/api.py` 설계 (`POST /classify`, port 8001)
-- [ ] 메인 백엔드(`POST /notice/analyze`)와 실제 연결
+- [x] 메인 백엔드(`POST /notice/analyze`)와 실제 연결
 
 ### 모델 C: 번역/TTS
 
@@ -70,7 +69,7 @@
 - [x] 용어사전 파일 구성: `model/translation_tts/term_glossary.csv`
 - [x] 고정 데모 산출물 생성: `demo/translation_tts/demo_case_01/`
 - [x] Android 앱에 데모 산출물 포함
-- [ ] 서버 API에 번역/TTS 파이프라인 직접 연결
+- [x] 서버 API에 번역/TTS 파이프라인 직접 연결
 
 ### Backend
 
@@ -83,7 +82,7 @@
 - [x] `POST /tts/generate`
 - [x] `GET /user/{id}`, `POST /user/`
 - [x] `GET /health`
-- [ ] 실제 모델 서비스 연결
+- [x] 실제 모델 서비스 연결
 
 ### Android
 
@@ -106,13 +105,13 @@
 
 ## 최소 완료 기준
 
-- [ ] Android 실기기에서 앱 실행
-- [ ] PC FastAPI 서버의 Swagger UI 접속 확인: `http://localhost:8000/docs`
-- [ ] 선생님 화면에서 발송 성공
-- [ ] 학부모 화면에서 수신함 조회 성공
-- [ ] 분석 결과 화면 표시
-- [ ] 베트남어 TTS 재생 확인
-- [ ] 발표 시 mock 범위와 실제 구현 범위 구분 설명
+- [x] Android 실기기에서 앱 실행
+- [x] PC FastAPI 서버의 Swagger UI 접속 확인: `http://localhost:8000/docs`
+- [x] 선생님 화면에서 발송 성공
+- [x] 학부모 화면에서 수신함 조회 성공
+- [x] 분석 결과 화면 표시 (실제 모델 결과)
+- [x] 베트남어 TTS 재생 확인
+- [x] 발표 시 mock 범위와 실제 구현 범위 구분 설명
 
 ---
 
@@ -120,6 +119,7 @@
 
 | 리스크 | 영향 | 대응 |
 | --- | --- | --- |
-| 모델 A·B 백엔드 미연결 | 분석 API는 여전히 mock 응답 반환 중. 모델 자체는 구현 완료 | 발표에서 mock 범위 명시, 연결 작업 진행 중 |
-| Android `BASE_URL` 고정 | 네트워크가 바뀌면 앱 수정 필요 | 시연 전 PC IP 확인 |
-| NLLB 출력 품질 변동 | 자연스럽지 않은 번역 가능 | 용어사전 검수와 보정 번역으로 설명 |
+| NLLB 첫 실행 warmup | 모델 로드에 10~15분 소요 (2.4GB 다운로드) | 시연 30분 전 curl로 warmup 필수 |
+| Android `BASE_URL` 고정 | 네트워크가 바뀌면 앱 수정 후 재빌드 필요 | 시연 전 PC IP 확인 |
+| NLLB 출력 품질 변동 | 일부 문장 어색한 번역 가능 | 용어사전 검수와 교차검증 결과로 보완 설명 |
+| 체크리스트 인사말 포함 | "학부모님 안녕하세요" 등 인사말이 TODO로 분류될 수 있음 | 추출 모델 필터 개선 예정 |
