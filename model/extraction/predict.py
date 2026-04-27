@@ -312,7 +312,7 @@ def extract_todos(notice_text: str) -> list:
             category, confidence = classify_category(sent)
 
         # 신뢰도 너무 낮으면 노이즈
-        if confidence < 0.3 and not is_money:
+        if confidence < 0.25 and not is_money:
             continue
 
         importance = calc_importance(sent, category, due_date)

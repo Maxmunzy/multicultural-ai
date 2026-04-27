@@ -45,7 +45,7 @@ def _get_glossary():
     return _glossary
 
 
-def _translate(text: str, max_length: int = 256) -> str:
+def _translate(text: str, max_length: int = 512) -> str:
     tokenizer, model = _get_translator()
     target_id = tokenizer.convert_tokens_to_ids(TARGET_LANG)
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
@@ -55,6 +55,9 @@ def _translate(text: str, max_length: int = 256) -> str:
             forced_bos_token_id=target_id,
             max_length=max_length,
             num_beams=4,
+            no_repeat_ngram_size=3,
+            repetition_penalty=1.3,
+            early_stopping=True,
         )
     return tokenizer.batch_decode(out, skip_special_tokens=True)[0]
 
