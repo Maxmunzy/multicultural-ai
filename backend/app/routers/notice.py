@@ -1,8 +1,9 @@
 import uuid
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException, status
+from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
     ApiResponse, Notice, NoticeAnalyzeRequest,
-    NoticeSendRequest,
+    NoticeSendRequest, UserProfile,
 )
 from app.services.extractor import extract_todos
 from app.services.translator import translate_and_review
@@ -19,8 +20,26 @@ _notices: dict[str, Notice] = {}
 
 
 @router.post("/send", response_model=ApiResponse)
-async def send_notice(req: NoticeSendRequest):
-    """선생님이 가정통신문 발송 → 부모 수신함에 저장."""
+async def send_notice(
+    req: NoticeSendRequest,
+    user: UserProfile = Depends(require_teacher),
+):
+    """선생님이 가정통신문 발송 → 부모 수신함에 저장.
+
+    헤더의 X-User-Id가 teacher 역할이어야 하고, body의 teacher_id와 일치해야 한다.
+    parent_id에 해당하는 학부모 계정이 등록돼있는지도 확인.
+    """
+    if user.user_id != req.teacher_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 선생님 ID로만 발송 가능합니다",
+        )
+    parent = get_user(req.parent_id)
+    if parent is None or parent.role != "parent":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"학부모 계정을 찾을 수 없습니다: {req.parent_id}",
+        )
     notice_id = str(uuid.uuid4())
     notice = Notice(
         notice_id=notice_id,
@@ -34,15 +53,31 @@ async def send_notice(req: NoticeSendRequest):
 
 
 @router.get("/inbox/{parent_id}", response_model=ApiResponse)
-async def get_inbox(parent_id: str):
-    """부모가 수신된 가정통신문 목록 조회."""
+async def get_inbox(
+    parent_id: str,
+    user: UserProfile = Depends(require_user),
+):
+    """부모가 수신된 가정통신문 목록 조회. 본인 ID만 허용."""
+    if user.role != "parent" or user.user_id != parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 수신함만 조회할 수 있습니다",
+        )
     inbox = [n for n in _notices.values() if n.parent_id == parent_id]
     return ApiResponse.success(data=inbox)
 
 
 @router.delete("/inbox/{parent_id}", response_model=ApiResponse)
-async def clear_inbox(parent_id: str):
-    """parent_id 수신함 초기화 (시연용)."""
+async def clear_inbox(
+    parent_id: str,
+    user: UserProfile = Depends(require_user),
+):
+    """parent_id 수신함 초기화 (시연용). 본인 ID만 허용."""
+    if user.role != "parent" or user.user_id != parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 수신함만 삭제할 수 있습니다",
+        )
     targets = [nid for nid, n in _notices.items() if n.parent_id == parent_id]
     for nid in targets:
         del _notices[nid]
@@ -56,12 +91,24 @@ async def clear_inbox(parent_id: str):
 async def analyze_notice(
     notice_id: str,
     req: NoticeAnalyzeRequest = NoticeAnalyzeRequest(),
+    user: UserProfile = Depends(require_user),
 ):
-    """수신된 가정통신문 → 추출(윤정) + 검수(경이) + 번역(세종) + TTS 통합."""
+    """수신된 가정통신문 → 추출(윤정) + 검수(경이) + 번역(세종) + TTS 통합.
+
+    학부모 본인의 가정통신문만 분석 가능.
+    """
     if notice_id not in _notices:
-        return ApiResponse.error(message="가정통신문을 찾을 수 없습니다")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="가정통신문을 찾을 수 없습니다",
+        )
 
     notice = _notices[notice_id]
+    if user.role != "parent" or user.user_id != notice.parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인의 가정통신문만 분석할 수 있습니다",
+        )
     target_lang = req.target_language or "vi"
 
     # 1. 추출 (윤정 KoELECTRA): raw_text → todos[]
