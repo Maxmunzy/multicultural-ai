@@ -90,16 +90,29 @@ http://192.168.0.23:8000/docs
 
 현재 backend는 DB가 아니라 프로세스 메모리에 가정통신문을 저장합니다. 서버를 재시작하면 이전 발송 데이터는 사라집니다.
 
-### 분석 결과가 실제 모델 결과가 아님
+### 분석 결과가 실제 모델 결과가 아님 (해결됨)
 
-현재 `POST /notice/analyze/{notice_id}`는 `backend/app/services/mock.py`의 고정 `MOCK_TODOS`를 반환합니다.
+`POST /notice/analyze/{notice_id}`는 실제 모델 파이프라인과 연결되어 있습니다.
 
-모델 자체는 구현 완료 상태입니다.
+- 모델 A (추출): `backend/app/services/extractor.py` → `extract_todos()`
+- 모델 B (분류 교차검증): `backend/app/services/classifier.py` → `review_todos()`
+- 번역/TTS: `backend/app/services/translator.py` + `tts.py`
 
-- 모델 A (추출): `model/extraction/predict.py` — `extract_todos_dict()` 호출 가능
-- 모델 B (분류): `model/classification/src/api.py` — `POST /classify` (port 8001) 로컬 실행 가능
+결과가 고정 샘플처럼 보이는 경우: 추출 모델이 해당 텍스트에서 항목을 뽑지 못하면 `MOCK_TODOS`로 fallback됩니다. 실제 가정통신문 형식의 텍스트로 테스트하세요.
 
-현재 메인 백엔드(`backend/`)와 두 모델의 연결 작업이 마지막으로 남아 있습니다.
+### NLLB 첫 실행이 너무 오래 걸림
+
+첫 실행 시 HuggingFace Hub에서 모델(약 2.4GB)을 다운로드합니다. 10~15분 소요될 수 있습니다. 이후 `hf_cache` 볼륨에 캐시되어 재시작 시 빠르게 로드됩니다.
+
+시연 전 warmup 필수:
+
+```bash
+curl -s -X POST http://localhost:8000/notice/send \
+  -H "Content-Type: application/json" \
+  -d '{"teacher_id":"t1","parent_id":"p1","text":"6월 12일 수요일에 학부모 공개수업이 진행됩니다."}' | python -m json.tool
+```
+
+send 후 반환된 `notice_id`로 analyze 한 번 호출하면 모델이 메모리에 로드됩니다.
 
 ---
 
@@ -128,10 +141,47 @@ MVP의 중요한 관찰 지점입니다. NLLB 원번역은 자연스럽지 않�
 | 제한사항 | 설명 |
 | --- | --- |
 | DB 없음 | 가정통신문은 서버 메모리에 저장되므로 재시작 시 사라짐 |
-| 모델 A·B 백엔드 미연결 | 모델은 구현 완료. 메인 백엔드 `/notice/analyze`는 아직 mock 응답 사용 |
 | OCR 없음 | 이미지/PDF가 아니라 텍스트 입력 기준 |
 | 실제 학교 시스템 연동 없음 | MVP에서는 앱 내부 발송/수신 흐름만 시연 |
 | Android IP 수동 설정 | 네트워크가 바뀌면 `BASE_URL` 수정 필요 |
+
+---
+
+## E2E 테스트 후 발견된 이슈 (2026-04-27)
+
+### 이슈 1 — 인사말이 체크리스트에 포함됨
+
+**담당**: 윤정 (추출 모델)
+
+"학부모님 안녕하세요." 문장이 TODO로 추출됨. `NON_TODO_PATTERNS`에 `"안녕하십니까"`는 있으나 `"안녕하세요"` 변형이 누락된 것이 원인.
+
+수정 위치: `model/extraction/predict.py` — `NON_TODO_PATTERNS`에 아래 추가
+
+```python
+r"^학부모님\s*안녕하세요",
+r"^안녕하세요",
+```
+
+### 이슈 2 — 베트남어 첫 문장 어색
+
+**담당**: 세종 (번역 파이프라인)
+
+가정통신문 제목과 인사말이 구분 없이 하나의 텍스트 블록으로 NLLB에 입력되어 첫 문장이 혼합 번역됨. 번역 전처리에서 제목 헤더를 줄바꿈으로 분리하거나 제외하는 방식으로 개선 가능.
+
+### 이슈 3 — "원→won" 통화 치환 오탐
+
+**담당**: 세종 (번역 후처리)
+
+"원하시는", "원인" 등 통화와 무관한 단어의 "원"이 substring으로 잡혀 용어 검수 상세에 `원→won`이 표시됨.
+
+수정 위치: `backend/app/services/translator.py` — `_post_process()` 조건 변경
+
+```python
+# 기존
+if "원" in easy_ko:
+# 수정
+if re.search(r"\d+\s*원", easy_ko):
+```
 
 ---
 
