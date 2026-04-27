@@ -1,4 +1,4 @@
-# 📬 모델 A — 할 일 추출 & 분류 파이프라인
+# 모델 A — 할 일 추출 & 분류 파이프라인
 
 **담당: 윤정** · `model/extraction/` · KoELECTRA-base-v3 fine-tuned
 
