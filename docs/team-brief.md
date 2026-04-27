@@ -46,13 +46,13 @@ Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출�
 
 | 영역 | 상태 | 메모 |
 | --- | --- | --- |
-| Backend | 1차 구현 | FastAPI, Docker, `/notice`, `/tts`, `/user`, `/health` 라우터 구성 |
+| Backend | 1차 구현 | FastAPI, Docker, `/notice`, `/tts`, `/user`, `/health` 라우터 구성. 분석 API는 mock 유지 중 |
 | Android | 1차 구현 | Java 기반 단일 Activity 실기기 데모, `HttpURLConnection`, 내장 TTS fallback 포함 |
 | 데이터 | 1차 정리 | `notice_sample_v3.csv` 200개, 6개 카테고리 체계 |
 | 번역/TTS | 1차 MVP 산출물 있음 | NLLB 번역, 용어사전 검수, Edge-TTS mp3 산출물 |
-| 추출 모델 | 미완료 | 현재 서버 분석 응답은 mock 데이터 |
-| 분류 모델 | 미완료 | 현재 서버 분석 응답은 mock 데이터 |
-| 통합 E2E | 부분 완료 | Android 화면 흐름은 연결됨. 실제 모델 서버 연결은 남음 |
+| 추출 모델 | 1차 추출 | KoELECTRA 하이브리드 (`predict.py`), HuggingFace Hub 배포 (`yunjeong116/koelectra-extractor`). 백엔드 연결 잔여 |
+| 분류 모델 | 1차 추출 | numpy/sklearn/SBERT 멀티트랙, accuracy 0.857, MAE 0.038, `/classify` API (port 8001). 백엔드 연결 잔여 |
+| 통합 E2E | 부분 완료 | Android 화면 흐름 연결됨. 모델 A·B 메인 백엔드 연결이 잔여 과제 |
 
 ---
 
@@ -72,15 +72,15 @@ Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출�
 
 ---
 
-## 다음 미팅 전 우선 산출물
+## 다음 우선 과제
 
-1. Android 실기기에서 선생님 발송 -> 학부모 수신 -> 분석 결과 확인 -> TTS 재생까지 시연
-2. `demo/translation_tts/demo_case_01/` 산출물로 번역/TTS 검수 루프 설명
-3. `data/labeled/notice_sample_v3.csv` 기준 데이터셋과 6개 라벨 체계 설명
-4. 추출/분류 모델은 mock 상태임을 명확히 표시하고, 다음 연결 계획 제시
+1. 모델 A (`predict.py`)와 모델 B (`src/api.py`) → 메인 백엔드 `POST /notice/analyze/{notice_id}` 연결
+2. Android 실기기에서 선생님 발송 → 학부모 수신 → 실제 모델 분석 결과 확인 → TTS 재생까지 E2E 시연
+3. `demo/translation_tts/demo_case_01/` 산출물로 번역/TTS 검수 루프 설명
+4. 발표에서 mock 범위와 실제 모델 구현 범위를 명확히 구분하여 설명
 
 ---
 
 ## 발표용 핵심 문장
 
-선생님이 가정통신문을 보내면 학부모 앱에서 핵심 체크리스트와 쉬운 한국어, 베트남어 번역, 음성 안내를 확인할 수 있습니다. 현재 MVP는 실기기 화면 흐름과 번역/TTS 검수 산출물을 먼저 고정했고, 추출/분류 모델은 다음 단계에서 서버에 연결합니다.
+선생님이 가정통신문을 보내면 학부모 앱에서 핵심 체크리스트와 쉬운 한국어, 베트남어 번역, 음성 안내를 확인할 수 있습니다. 현재 MVP는 실기기 화면 흐름과 번역/TTS 검수 산출물을 먼저 고정했으며, 추출 모델(KoELECTRA)과 분류 모델(SBERT 기반)은 각각 구현이 완료된 상태입니다. 메인 백엔드 연결이 마지막 남은 단계입니다.
