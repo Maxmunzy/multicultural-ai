@@ -69,6 +69,14 @@ _CURRENCY_PATTERNS = [
     re.compile(r"\bdollars?\b", re.IGNORECASE),
     re.compile(r"\bUSD\b"),
 ]
+# 천단위 점(40.000) → 콤마(40,000). 베트남식 표기지만 한국 학부모는 "40원"으로 오인할 수 있음.
+_THOUSAND_DOT = re.compile(r"(\d{1,3}(?:\.\d{3})+)")
+
+
+def _normalize_thousand_separator(text: str) -> str:
+    def repl(m):
+        return m.group(1).replace(".", ",")
+    return _THOUSAND_DOT.sub(repl, text)
 
 
 def _post_process(easy_ko: str, vi_text: str) -> str:
@@ -77,6 +85,7 @@ def _post_process(easy_ko: str, vi_text: str) -> str:
     if "원" in easy_ko:
         for pat in _CURRENCY_PATTERNS:
             vi_text = pat.sub("won", vi_text)
+        vi_text = _normalize_thousand_separator(vi_text)
     return vi_text
 
 
