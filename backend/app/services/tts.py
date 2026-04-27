@@ -9,7 +9,7 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 
 
 async def generate_tts_file(text: str, voice: str = VOICE_VI) -> str:
-    """Generate a Vietnamese mp3 file and return the relative static URL."""
+    """베트남어 텍스트 → mp3 파일 생성. 안드가 BASE_URL과 합쳐 재생할 상대 경로 반환."""
     if not text or not text.strip():
         return ""
     filename = f"{uuid.uuid4()}.mp3"
