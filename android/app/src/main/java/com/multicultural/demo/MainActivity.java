@@ -86,6 +86,30 @@ public class MainActivity extends Activity {
 
     private void showStartScreen() {
         buildBase("가정통신문 AI", "다문화 가정 학교 알림 서비스");
+
+        // 접었다/폈다 언어 선택
+        Button langToggle = outlineButton("🌐 번역 언어: " + languageDisplayName(selectedLanguage) + " ▼", null);
+        content.addView(langToggle);
+
+        LinearLayout langGrid = new LinearLayout(this);
+        langGrid.setOrientation(LinearLayout.VERTICAL);
+        langGrid.setLayoutParams(spacedParams());
+        langGrid.setVisibility(View.GONE);
+        GradientDrawable gridBg = new GradientDrawable();
+        gridBg.setColor(Color.WHITE);
+        gridBg.setCornerRadius(dp(16));
+        gridBg.setStroke(dp(1), COLOR_BORDER);
+        langGrid.setBackground(gridBg);
+        langGrid.setPadding(dp(12), dp(12), dp(12), dp(12));
+        content.addView(langGrid);
+        populateLangSelector(langGrid, langToggle);
+
+        langToggle.setOnClickListener(v -> {
+            boolean showing = langGrid.getVisibility() == View.VISIBLE;
+            langGrid.setVisibility(showing ? View.GONE : View.VISIBLE);
+            langToggle.setText("🌐 번역 언어: " + languageDisplayName(selectedLanguage) + (showing ? " ▼" : " ▲"));
+        });
+
         content.addView(stepCard("1", "선생님", "가정통신문을 작성하고 학부모에게 발송합니다."));
         content.addView(stepCard("2", "학부모", "수신함에서 선택 언어로 통신문을 확인합니다."));
         content.addView(stepCard("3", "AI 분석", "번역 · 요약 · 용어 검수 · TTS를 제공합니다."));
@@ -225,7 +249,7 @@ public class MainActivity extends Activity {
             final int idx = i;
             buttons[i].setOnClickListener(v -> {
                 selectedLanguage = LANG_CODES[idx];
-                playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기");
+                if (playButton != null) playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기");
                 toggleBtn.setText("🌐 번역 언어: " + languageDisplayName(selectedLanguage) + " ▲");
                 for (int j = 0; j < LANG_CODES.length; j++) {
                     applyLangButtonStyle(buttons[j], LANG_CODES[j].equals(selectedLanguage));
@@ -331,17 +355,7 @@ public class MainActivity extends Activity {
         playButton = findViewById(R.id.btnPlay);
         playButton.setText(languageDisplayName(selectedLanguage) + "로 듣기");
 
-        // 언어 선택 토글
-        LinearLayout langSelector = findViewById(R.id.layoutLangSelector);
-        Button btnToggleLang = findViewById(R.id.btnToggleLang);
-        populateLangSelector(langSelector, btnToggleLang);
-        btnToggleLang.setOnClickListener(v -> {
-            boolean open = langSelector.getVisibility() == View.VISIBLE;
-            langSelector.setVisibility(open ? View.GONE : View.VISIBLE);
-            btnToggleLang.setText("🌐 번역 언어: " + languageDisplayName(selectedLanguage) + (open ? " ▼" : " ▲"));
-        });
-
-        findViewById(R.id.btnLoadInbox).setOnClickListener(v -> loadInbox());
+findViewById(R.id.btnLoadInbox).setOnClickListener(v -> loadInbox());
         findViewById(R.id.btnDemo).setOnClickListener(v -> showMockAnalysis());
         analyzeButton.setOnClickListener(v -> analyzeSelectedNotice());
         playButton.setOnClickListener(v -> playTts());
