@@ -13,7 +13,7 @@
 ## 반영한 작업
 
 1. 긴 통신문 번역 잘림 개선
-   - `translation/run_ab_compare.py`
+   - `model/translation_tts/run_ab_compare.py`
      - 기존: 입력과 출력 모두 `max_length=256` 기반이라 긴 통신문이 잘릴 수 있었음.
      - 변경: 문장 단위로 입력을 청크 분리한 뒤 각 청크를 번역하고 결과를 합치도록 수정.
      - 옵션 추가: `--max-input-tokens`, `--max-output-tokens`
@@ -28,7 +28,7 @@
      - after_translation이 평가자가 새로 만든 보정문이라 무조건 100점이 되는 문제를 줄이기 위해 after_score 상한을 95점으로 제한.
      - 평가 기준에 현지 상용 표현, 학교/학부모 안내문 문맥, 날짜/금액/시간/행동 정보 보존 여부를 추가.
      - 직역체, 현지에서 어색한 표현, 정보 누락, 문장 중간 끊김에 대한 감점 기준을 명시.
-   - `translation/run_ab_quality_eval.py`
+   - `model/translation_tts/run_ab_quality_eval.py`
      - 기존 300자 샘플만 평가하던 방식을 전체 입력/번역 평가로 변경.
      - 현지 언어권에서 실제로 쓰이는 표현인지, 학교 문맥의 상용어인지, 필수 행동 정보가 보존됐는지 평가하도록 프롬프트 강화.
      - 문장 중간 잘림, 날짜/시간/금액/준비물 누락, 직역체 반복에 대한 감점 기준 추가.
@@ -41,7 +41,7 @@
 ## 1차 검증 결과
 
 - 문법 확인:
-  - `python -m py_compile translation/run_ab_compare.py translation/run_ab_quality_eval.py translation/run_quality_eval.py translation/run_glossary_compare.py translation/run_mvp_pipeline.py`
+  - `python -m py_compile model/translation_tts/run_ab_compare.py model/translation_tts/run_ab_quality_eval.py model/translation_tts/run_quality_eval.py model/translation_tts/run_glossary_compare.py model/translation_tts/run_mvp_pipeline.py`
   - 통과.
 
 - `N02` 단건 A/B 평가:
@@ -61,7 +61,7 @@
     - B: 장난 사용 주의가 가구 사용 주의로 왜곡, 어깨끈이 손목끈으로 왜곡.
 
 - A/B 번역 19개 공지 전체 재생성:
-  - 출력 경로: `translation/outputs/ab_compare/vi/`
+  - 출력 경로: `model/translation_tts/outputs/ab_compare/vi/`
   - 전체 평균:
     - 입력 단축: -30.1%
     - 속도향상: x1.84
@@ -69,16 +69,58 @@
 
 - 새 기준 A/B 품질 평가 전체 재실행:
   - 실행 대상: 베트남어 18개 공지 (`N03`은 TODO 문장 없음으로 제외)
-  - 출력 경로: `translation/outputs/ab_quality_eval/vi/`
+  - 출력 경로: `model/translation_tts/outputs/ab_quality_eval/vi/`
   - 전체 평균:
-    - A: 45.8점
-    - B: 50.1점
-    - 차이: B +4.3점
+    - A: 50.1점
+    - B: 54.1점
+    - 차이: B +4.0점
   - 기존 결과(A 33.3점, B 45.1점, B +11.8점)보다 기준이 엄격해졌고, 현지 자연스러움과 정보 보존 기준을 함께 반영함.
   - 안내 공지류 일부는 B가 여전히 유리하지만, 원문 전체 맥락이 필요한 문서는 A가 더 높게 나오는 케이스가 확인됨.
+  - B 우세 6건, A 우세 6건, 동등 6건.
+
+- Round-trip 전수 상세 평가:
+  - `model/translation_tts/run_ab_quality_eval.py --lang vi`를 18개 공지 전체에 재실행.
+  - 각 `model/translation_tts/outputs/ab_quality_eval/vi/N*.md`에 한국어 역번역과 Round-trip 이슈 저장.
+  - 전수 요약 문서: `docs/roundtrip-full-eval-2026-04-28.md`
+  - 반복 왜곡 유형:
+    - 문장 중간 잘림/후반 누락
+    - 학생/초등학생 -> 대학생
+    - 리코더 -> 녹음기
+    - 우범지역 -> 좋은 지역
+    - 장난 사용 -> 가구 사용
+    - 수리력 -> 수선/수리
 
 ## 남은 확인
 
+완료:
+
 - 새 기준으로 `translation/run_quality_eval.py` 용어사전 전/후 평가 재실행.
-- 재평가 결과에서 100점 몰림이 사라졌는지 확인.
-- 발표 자료에는 "기존 100점은 평가 기준이 후한 1차 결과였고, 현지 상용 표현 기준을 추가해 재평가했다"고 설명 가능.
+- 100점 몰림이 사라졌는지 확인.
+  - 1차: NLLB 33.9점 -> 사전 적용 100.0점
+  - 보정 후: NLLB 39.0점 -> 사전 적용 89.6점
+- 개인 GitHub repo 반영 완료.
+  - `03402fd feat: 번역 품질평가 및 round-trip 검증 추가`
+  - `343d388 docs: 최신 번역 평가 흐름 정리`
+  - `ce3c162 docs: Round-trip 전수 평가 결과 반영`
+- 팀 프로젝트 repo에는 사용자가 직접 push/PR 진행하기로 함. Codex는 팀 repo push는 하지 않음.
+
+남은 작업:
+
+- 전수 Round-trip 결과를 바탕으로 `장난 사용`, `어깨끈`, `안심벨`, `학생/아동`, `리코더`, `우범지역`, `수리력` 등 실제 왜곡된 표현을 용어사전에 후보로 추가.
+- 발표 자료에는 "기존 100점은 평가 기준이 후한 1차 결과였고, 현지 상용 표현 + Round-trip 기준을 추가해 재평가했다"고 설명.
+- Android/백엔드 실제 시연에서 새 사전과 평가 결과가 문서화된 흐름과 맞는지 확인.
+
+## Claude 인계용 요약
+
+다음 작업자는 아래 파일부터 보면 된다.
+
+| 파일 | 용도 |
+|---|---|
+| `docs/share-summary-2026-04-28-quality-eval.md` | 팀 공유/PR/발표용 요약 |
+| `docs/worklog-2026-04-28-gemini-quality-length.md` | 상세 작업 로그 |
+| `model/translation_tts/run_ab_compare.py` | A/B 속도 및 입력 단축 측정 |
+| `model/translation_tts/run_ab_quality_eval.py` | A/B 품질평가 + Round-trip 검사 |
+| `model/translation_tts/run_quality_eval.py` | 용어사전 전/후 품질평가 |
+| `model/translation_tts/outputs/quality_eval/summary.md` | 용어사전 전/후 최종 결과 |
+| `model/translation_tts/outputs/ab_quality_eval/vi/N02.md` | Round-trip 검사 예시 |
+| `docs/roundtrip-full-eval-2026-04-28.md` | 18건 전수 Round-trip 요약 |

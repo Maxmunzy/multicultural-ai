@@ -57,7 +57,7 @@ python model/translation_tts/run_quality_eval.py
 |---|---:|
 | A/B 입력 단축 | -30.1% |
 | A/B 속도향상 | x1.84 |
-| A/B 품질평가 | A 45.8점 / B 50.1점 |
+| A/B 품질평가 | A 50.1점 / B 54.1점 |
 | 용어사전 전/후 품질평가 | 39.0점 -> 89.6점 |
 
 공유용 요약은 `../../docs/share-summary-2026-04-28-quality-eval.md`에 정리했다.
