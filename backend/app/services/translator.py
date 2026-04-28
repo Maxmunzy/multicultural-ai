@@ -102,6 +102,61 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
     return vi_text
 
 
+def translate_term(text: str, target_lang: str) -> str:
+    """glossary 직접 치환 (summary 슬롯용 — places, supplies, deadlines).
+
+    exact match 우선. 없으면 한국어 원문 그대로 반환 (빈 문자열 금지).
+    고유명사("서울숲 생태체험관")처럼 사전에 없으면 한국어 노출이 NLLB 오역보다 낫다.
+    """
+    if not text or not text.strip():
+        return text
+    if target_lang == "ko_easy":
+        return text
+
+    glossary = _get_glossary()
+    term = text.strip()
+    for row in glossary:
+        if row.get("korean", "").strip() == term:
+            translated = row.get(f"preferred_{target_lang}", "").strip()
+            if translated:
+                return translated
+    return text  # Korean passthrough
+
+
+def translate_short_sentence(text: str, target_lang: str) -> str:
+    """짧은 문장 NLLB 번역 (items[].title_translated용).
+
+    glossary injection → NLLB → vi post-process.
+    실패 시 빈 문자열 반환 (호출부가 fallback 처리).
+    """
+    if not text or not text.strip():
+        return ""
+    if target_lang == "ko_easy":
+        return text
+
+    glossary = _get_glossary()
+    hits = _sejong.find_glossary_hits(text, glossary, target_lang)
+
+    # 긴 용어 먼저 치환해야 부분 치환 충돌 방지
+    injected = text
+    for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
+        injected = injected.replace(
+            hit["korean"], f"{hit['korean']}({hit['preferred_term']})"
+        )
+
+    target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
+    try:
+        translated = _translate(injected, target_nllb=target_nllb)
+        if target_lang == "vi":
+            translated = _post_process_vi(text, translated)
+    except Exception as error:
+        print(f"[translator] translate_short_sentence failed: {error}")
+        return ""
+
+    return translated
+
+
+# DEPRECATED: 아래 함수는 단일 blob 번역 구조. 새 API(translate_term / translate_short_sentence)로 전환 후 제거 예정.
 def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
     """[DEPRECATED] 가정통신문 → easy_ko + 다국어 번역 + 용어 검수 결과.
 
@@ -175,44 +230,3 @@ def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
         "review_needed": note if label == "review_needed" else "",
     }
 
-
-# ── 슬롯 응답용 번역 (강사 처방 1·3 대응, 두 경로 분리) ──────────────
-# summary 슬롯 = 단어/짧은 구 → glossary 직접 치환 (translate_term)
-# items[].title = 짧은 문장 → NLLB (translate_short_sentence)
-#
-# ⚠️ 임시 구현 — 세종님 본 구현 머지되면 교체. 현재는 세종님이 합의한 정책에 맞춤:
-#   · translate_term: glossary miss → 한국어 원문 그대로 반환 (NLLB fallback 안 씀, 고유명사 오역 회피)
-#   · translate_short_sentence: NLLB 실패 → 빈 문자열, 호출부가 한국어 원문으로 fallback
-def translate_term(text: str, target_lang: str) -> str:
-    """summary 슬롯용 짧은 토큰 번역. glossary exact 매칭, miss 시 한국어 원문 passthrough."""
-    if not text or not text.strip():
-        return ""
-    if target_lang == "ko_easy":
-        return text
-
-    col = f"preferred_{target_lang}"
-    for row in _get_glossary():
-        if row.get("korean") == text.strip():
-            translated = (row.get(col) or "").strip()
-            if translated:
-                return translated
-
-    # miss → 한국어 원문 그대로. 안드에서 검색 가능, NLLB 오역 회피.
-    return text
-
-
-def translate_short_sentence(text: str, target_lang: str) -> str:
-    """items[].title 용 짧은 문장 번역. NLLB 직행 + vi 후처리. 실패 시 빈 문자열."""
-    if not text or not text.strip():
-        return ""
-    if target_lang == "ko_easy":
-        return text
-    target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
-    try:
-        translated = _translate(text, target_nllb=target_nllb, max_length=256)
-        if target_lang == "vi":
-            translated = _post_process_vi(text, translated)
-        return translated
-    except Exception as error:
-        print(f"[translator] translate_short_sentence failed: {error}")
-        return ""
