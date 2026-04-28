@@ -127,9 +127,10 @@ async def analyze_notice(
     except Exception as error:
         print(f"[analyze] classifier review failed: {error}")
 
-    # 3. 번역 + 검수 (세종 NLLB + glossary): raw_text → easy_ko + translation
+    # 3. 번역 + 검수 (세종 NLLB + glossary): todos 텍스트 → easy_ko + translation
+    todos_text = "\n".join(t.text_ko for t in todos) if todos else notice.text
     try:
-        review = translate_and_review(notice.text, target_lang=target_lang)
+        review = translate_and_review(todos_text, target_lang=target_lang)
         easy_ko_text = review["easy_ko_text"] or MOCK_EASY_KO
         translation = review["translation"]
         vi_text = review["vi_text"]
