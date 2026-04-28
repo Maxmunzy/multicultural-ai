@@ -88,6 +88,22 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 
 ---
 
+## 정량 검증 현황
+
+2026-04-28 기준, 강사 피드백에 맞춰 모델·번역 파이프라인의 주요 실험을 `docs/experiments/`에 정리했습니다.
+
+| 항목 | 결과 | 문서 |
+| --- | --- | --- |
+| KoELECTRA 베이스 vs 파인튜닝 | accuracy 0.17 → 0.75, macro F1 0.07 → 0.60 | `docs/experiments/2026-04-28-extraction-base-vs-finetune.md` |
+| TODO 피처 추출 번역 속도 | 청크 보정 후 평균 ×1.84, 입력 -30.1% | `docs/experiments/2026-04-28-translation-feature-extraction-speed.md` |
+| 용어사전 전/후 품질 | 엄격 재평가 NLLB 39.0점 → 사전 적용 89.6점 | `docs/experiments/2026-04-28-translation-glossary-quality.md` |
+| Round-trip 의미 검증 | 18개 공지 A 50.1점 / B 54.1점, 반복 왜곡 유형 도출 | `docs/roundtrip-full-eval-2026-04-28.md` |
+| 데이터/권한/사전 자동 테스트 | backend pytest 27개 + GitHub Actions PR 게이트 | `backend/tests/`, `.github/workflows/backend-tests.yml` |
+
+번역 품질평가는 단순 용어 포함 여부가 아니라 현지 상용 표현, 학교 문맥, 정보 보존, 한국어 의미 역번역(Round-trip)을 함께 봅니다.
+
+---
+
 ## 기술 스택
 
 | 이름 | 기술 스택 |
@@ -148,6 +164,8 @@ http://localhost:8000/docs
 | --- | --- | --- |
 | 번역/TTS 고정 데모 | `demo/translation_tts/demo_case_01/` | 번역, 용어사전 검수, TTS 결과 샘플 |
 | 번역/TTS 상세 설명 | `model/translation_tts/README.md` | 번역/TTS 실행 구조와 검수 루프 설명 |
+| 실험 노트 인덱스 | `docs/experiments/README.md` | 모델·번역·데이터 정량 실험 모음 |
+| 번역 품질 공유 요약 | `docs/share-summary-2026-04-28-quality-eval.md` | Gemini 평가 강화, 청크 번역, Round-trip 검사 요약 |
 | Android 데모 | `android/` | 선생님/학부모 실기기 데모 앱 |
 | 디자인 핸드오프 | `android/design_reference/` | UI 디자인 시안 HTML/CSS 산출물 — APK 빌드 미포함 |
 | 이미지 자료 | `docs/assets/` | 발표/공유용 이미지 자료 |
