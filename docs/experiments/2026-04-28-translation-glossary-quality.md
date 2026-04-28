@@ -84,11 +84,73 @@ A(원문 전체) 평균 33.3점 → B(TODO만) 평균 45.1점 (**+11.8점**)
 
 ---
 
-## 7. 재현 방법
+## 7. 보정 후 재측정 (2026-04-28 오후)
+
+1차 측정 이후 아래 두 가지를 보완해 재측정했다.
+
+- NLLB 입력/출력 길이 문제: 문장 단위 청크 번역 + `max_new_tokens` 기반 생성으로 중간 잘림 완화.
+- Gemini 평가 기준: 단순 용어 포함 여부가 아니라 현지 상용 표현, 학교 문맥 자연스러움, 정보 보존, 한국어 의미 역번역(Round-trip) 기준 추가.
+
+### 용어사전 전/후 품질 재평가
+
+| 항목 | 1차 측정 | 보정 후 |
+| --- | ---: | ---: |
+| NLLB 단독 평균 | 33.9 | 39.0 |
+| 사전 적용 평균 | 100.0 | 89.6 |
+| 향상폭 | +66.1 | +50.6 |
+
+보정 후에도 용어사전 적용 효과는 유지되지만, 100점 몰림은 사라졌다. 특히 `현지에서 실제로 쓰이는 표현인지`와 `역번역 시 원문 핵심 정보가 유지되는지`를 함께 보게 되어 더 현실적인 점수로 조정됐다.
+
+### 언어별 재평가 결과
+
+| 언어 | NLLB 단독 | 사전 적용 | 향상 |
+| --- | ---: | ---: | ---: |
+| vi | 42.5 | 91.3 | +48.8 |
+| en | 42.5 | 83.0 | +40.5 |
+| zh | 35.0 | 89.7 | +54.7 |
+| th | 45.3 | 91.7 | +46.4 |
+| ja | 27.5 | 90.7 | +63.2 |
+| ru | 37.5 | 92.0 | +54.5 |
+| ms | 36.7 | 89.5 | +52.8 |
+| mn | 45.0 | 89.3 | +44.3 |
+
+### A/B 품질 재평가
+
+| 항목 | 1차 측정 | 보정 후 |
+| --- | ---: | ---: |
+| A: 원문 전체 번역 | 33.3 | 45.8 |
+| B: TODO만 번역 | 45.1 | 50.1 |
+| B 우세 폭 | +11.8 | +4.3 |
+
+보정 후 평가는 더 엄격하다. B가 평균적으로는 여전히 높지만, 원문 전체 맥락이 필요한 문서에서는 A가 더 높게 나오는 케이스도 확인됐다.
+
+### Round-trip 검사 예시
+
+`N02 초등안심벨` 단건에 대해 번역문을 다시 한국어로 의미 역번역해 검사했다.
+
+| 항목 | 점수 | 역번역으로 잡힌 문제 |
+| --- | ---: | --- |
+| A: 원문 전체 | 45 | 본문 후반 누락, 안심벨 오역, 학생 대상 왜곡 |
+| B: TODO만 | 72 | `장난 사용 주의`가 `가구 사용 주의`로 왜곡, `어깨끈`이 `손목끈`으로 왜곡 |
+
+이 방식은 겉보기에는 외국어 문장처럼 보여도 실제 안내 의미가 틀어진 경우를 잡아낼 수 있다.
+
+---
+
+## 8. 재현 방법
 
 ```bash
-# Gemini API로 검수 (세종 도구)
-python model/translation_tts/glossary_review_with_gemini.py  # (세종 노션 참조)
+# A/B 속도 및 입력 단축 재측정
+python model/translation_tts/run_ab_compare.py --lang vi --device cpu
+
+# A/B 품질평가
+python model/translation_tts/run_ab_quality_eval.py --lang vi
+
+# 용어사전 반영률
+python model/translation_tts/run_glossary_compare.py --lang vi en zh th ja ru ms mn
+
+# 용어사전 전/후 품질평가
+python model/translation_tts/run_quality_eval.py
 
 # 백엔드에서는 다국어 사전이 자동 적용
 curl -X POST http://localhost:8000/notice/analyze/$NOTICE_ID \
@@ -100,8 +162,10 @@ curl -X POST http://localhost:8000/notice/analyze/$NOTICE_ID \
 
 ---
 
-## 8. 첨부
+## 9. 첨부
 
 - 세종 노션 — 144 × 8개 언어 사전 검수 결과
 - 백엔드 사전 다국어 적용 PR #37 (`2fbc420`)
-- 보정 후 재측정 결과 → 본 문서에 갱신 예정
+- 공유용 요약: `docs/share-summary-2026-04-28-quality-eval.md`
+- 상세 결과: `model/translation_tts/outputs/quality_eval/summary.md`
+- Round-trip 예시: `model/translation_tts/outputs/ab_quality_eval/vi/N02-roundtrip-example.md`
