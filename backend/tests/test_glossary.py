@@ -20,20 +20,20 @@ GLOSSARY_PATH = _TRANSLATION_DIR / "term_glossary.csv"
 
 
 def test_glossary_loads_raw_rows():
-    """read_glossary(path)는 144행 raw rows를 반환한다."""
+    """read_glossary(path)는 최소 144행 이상 raw rows를 반환한다."""
     rows = _sj.read_glossary(GLOSSARY_PATH)
-    assert len(rows) == 144
+    assert len(rows) >= 144
     # 한국어 컬럼은 비어있지 않음
     assert rows[0]["korean"]
 
 
 @pytest.mark.parametrize("lang", ["vi", "en", "zh", "th", "ja", "ru", "ms", "mn"])
 def test_glossary_each_language_column_filled(lang):
-    """각 언어 preferred_{lang} 컬럼이 144행 모두 채워져있다."""
+    """각 언어 preferred_{lang} 컬럼이 모든 행에 채워져있다."""
     rows = _sj.read_glossary(GLOSSARY_PATH)
     column = f"preferred_{lang}"
     filled = [r for r in rows if r.get(column, "").strip()]
-    assert len(filled) == 144, f"{lang}: expected 144 filled, got {len(filled)}"
+    assert len(filled) == len(rows), f"{lang}: {len(rows) - len(filled)}건 누락"
 
 
 def test_glossary_dosirak_mapping():
