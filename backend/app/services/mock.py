@@ -1,4 +1,8 @@
-"""모델 연결 전 mock 응답 데이터."""
+"""모델 연결 전 mock 응답 데이터.
+
+extract_todos 실패/빈결과 시 fallback. 슬롯 응답 전환 후엔 이 mock 도 슬롯
+파이프라인을 그대로 통과해 summary/items 가 채워진다.
+"""
 from app.models.schemas import Category, TodoItem
 
 MOCK_TODOS = [
@@ -38,23 +42,3 @@ MOCK_TODOS = [
         due_date=None,
     ),
 ]
-
-MOCK_EASY_KO = (
-    "4월 25일 금요일에 봄 소풍을 갑니다.\n"
-    "도시락, 물병, 돗자리를 준비해 주세요.\n"
-    "체험학습비 15,000원을 4월 22일까지 내주세요.\n"
-    "동의서를 내일까지 제출해 주세요."
-)
-
-MOCK_VI_TEXT = (
-    "Ngày 25 tháng 4, thứ Sáu, sẽ có chuyến dã ngoại mùa xuân.\n"
-    "Vui lòng chuẩn bị hộp cơm, bình nước và chiếu.\n"
-    "Vui lòng nộp phí học trải nghiệm 15.000 won trước ngày 22 tháng 4.\n"
-    "Vui lòng nộp giấy đồng ý trước ngày mai."
-)
-
-MOCK_QUALITY_NOTE = "ok: 권장 용어 모두 반영됨 (체험학습비, 동의서)"
-
-MOCK_REVIEW_NEEDED = ""
-
-MOCK_TTS_URL = ""  # 모델 연결 후 실제 URL 주입

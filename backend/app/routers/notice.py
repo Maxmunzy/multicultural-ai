@@ -2,17 +2,18 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
-    ApiResponse, Notice, NoticeAnalyzeRequest,
-    NoticeSendRequest, UserProfile,
+    AnalyzeItem, ApiResponse, Category, Notice, NoticeAnalyzeRequest,
+    NoticeSendRequest, SlotEntry, SummarySlots, TodoItem, UserProfile,
 )
 from app.services.extractor import extract_todos
-from app.services.translator import translate_and_review
+from app.services.translator import translate_short_sentence, translate_term
 from app.services.classifier import review_todos
 from app.services.tts import generate_tts_file
-from app.services.mock import (
-    MOCK_TODOS, MOCK_EASY_KO, MOCK_VI_TEXT,
-    MOCK_QUALITY_NOTE, MOCK_REVIEW_NEEDED,
+from app.services.slot_extractor import (
+    extract_summary_regex_slots, find_amount_in_text,
+    find_deadline_in_text, find_when_in_text, split_supply_tokens,
 )
+from app.services.mock import MOCK_TODOS
 
 router = APIRouter()
 
@@ -24,11 +25,7 @@ async def send_notice(
     req: NoticeSendRequest,
     user: UserProfile = Depends(require_teacher),
 ):
-    """선생님이 가정통신문 발송 → 부모 수신함에 저장.
-
-    헤더의 X-User-Id가 teacher 역할이어야 하고, body의 teacher_id와 일치해야 한다.
-    parent_id에 해당하는 학부모 계정이 등록돼있는지도 확인.
-    """
+    """선생님이 가정통신문 발송 → 부모 수신함에 저장."""
     if user.user_id != req.teacher_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -87,15 +84,89 @@ async def clear_inbox(
     )
 
 
+# ── 슬롯 기반 응답 빌더 ───────────────────────────────────────────
+# 강사 처방(2026-04-28):
+#   1. 템플릿 슬롯 출력 (summary)
+#   2. 정규식 + 모델 하이브리드 (regex source 표시)
+#   3. 핵심 명사(준비물·금액) 누락 가시화 (빈 슬롯 즉시 노출)
+def _build_item(todo: TodoItem, target_lang: str) -> AnalyzeItem:
+    text = todo.text_ko
+    when = find_when_in_text(text, target_lang)
+    amount_ko = find_amount_in_text(text, target_lang)
+    deadline_ko = find_deadline_in_text(text)
+
+    what: list[str] = []
+    if todo.category == Category.supplies:
+        what = split_supply_tokens(text)
+
+    # 짧은 문장 번역 실패 시 한국어 원문 fallback (세종님 정책: 안드에 한국어 노출이 NLLB 오역보다 안전).
+    title_translated = translate_short_sentence(text, target_lang) or text
+
+    return AnalyzeItem(
+        category=todo.category,
+        title_ko=text,
+        title_translated=title_translated,
+        when=when,
+        where=None,                # NER 영역 — 추후 윤정님 추출기와 연동
+        what=what,
+        amount=amount_ko,
+        deadline=deadline_ko,
+        importance=todo.importance,
+    )
+
+
+def _slot_entry(ko: str, target_lang: str, source: str = "model") -> SlotEntry:
+    return SlotEntry(ko=ko, translated=translate_term(ko, target_lang), source=source)
+
+
+def _build_summary(
+    regex_slots: dict[str, list[dict]],
+    items: list[AnalyzeItem],
+    target_lang: str,
+) -> SummarySlots:
+    """정규식 슬롯(dates/times/amounts) + items에서 모델 슬롯(supplies/deadlines) 집계."""
+    summary = SummarySlots(
+        dates=[SlotEntry(**s) for s in regex_slots["dates"]],
+        times=[SlotEntry(**s) for s in regex_slots["times"]],
+        amounts=[SlotEntry(**s) for s in regex_slots["amounts"]],
+    )
+
+    # supplies: category=supplies items의 what 토큰 집계 (중복 제거, 순서 보존)
+    supplies: list[SlotEntry] = []
+    seen_supplies: set[str] = set()
+    for item in items:
+        if item.category != Category.supplies:
+            continue
+        for token in item.what:
+            if token in seen_supplies:
+                continue
+            seen_supplies.add(token)
+            supplies.append(_slot_entry(token, target_lang, source="model"))
+    summary.supplies = supplies
+
+    # deadlines: items의 deadline 집계
+    deadlines: list[SlotEntry] = []
+    seen_deadlines: set[str] = set()
+    for item in items:
+        if not item.deadline or item.deadline in seen_deadlines:
+            continue
+        seen_deadlines.add(item.deadline)
+        deadlines.append(_slot_entry(item.deadline, target_lang, source="model+regex"))
+    summary.deadlines = deadlines
+
+    return summary
+
+
 @router.post("/analyze/{notice_id}", response_model=ApiResponse)
 async def analyze_notice(
     notice_id: str,
     req: NoticeAnalyzeRequest,
     user: UserProfile = Depends(require_user),
 ):
-    """수신된 가정통신문 → 추출(윤정) + 검수(경이) + 번역(세종) + TTS 통합.
+    """수신된 가정통신문 → 슬롯 기반 분석 응답.
 
-    학부모 본인의 가정통신문만 분석 가능. target_language는 필수.
+    파이프라인: 추출(윤정) → 검수(경이) → 정규식 슬롯(태수) → 슬롯 번역(세종) → TTS
+    학부모 본인의 가정통신문만 분석 가능. target_language 필수.
     """
     if notice_id not in _notices:
         raise HTTPException(
@@ -111,7 +182,7 @@ async def analyze_notice(
         )
     target_lang = req.target_language
 
-    # 1. 추출 (윤정 KoELECTRA): raw_text → todos[]
+    # 1. 추출 (윤정 KoELECTRA)
     try:
         todos = extract_todos(notice.text)
         if not todos:
@@ -120,61 +191,47 @@ async def analyze_notice(
         print(f"[analyze] extractor failed: {error}")
         todos = MOCK_TODOS
 
-    # 2. 분류 검수 (경이 모델): 윤정 todos를 재평가
+    # 2. 분류 검수 (경이 모델)
     classifier_review = ""
     try:
         classifier_review = review_todos(todos)
     except Exception as error:
         print(f"[analyze] classifier review failed: {error}")
 
-    # 3. 번역 + 검수 (세종 NLLB + glossary): todos 텍스트 → easy_ko + translation
-    todos_text = "\n".join(t.text_ko for t in todos) if todos else notice.text
-    try:
-        review = translate_and_review(todos_text, target_lang=target_lang)
-        easy_ko_text = review["easy_ko_text"] or MOCK_EASY_KO
-        translation = review["translation"]
-        vi_text = review["vi_text"]
-        quality_note = review["quality_note"] or MOCK_QUALITY_NOTE
-        review_needed = review["review_needed"] or MOCK_REVIEW_NEEDED
-    except Exception as error:
-        print(f"[analyze] translator failed: {error}")
-        easy_ko_text = MOCK_EASY_KO
-        translation = MOCK_VI_TEXT if target_lang == "vi" else ""
-        vi_text = MOCK_VI_TEXT if target_lang == "vi" else ""
-        quality_note = MOCK_QUALITY_NOTE
-        review_needed = MOCK_REVIEW_NEEDED
+    # 3. 정규식 슬롯 (태수): notice 원문 → dates/times/amounts (LLM 의존 없는 안전 데이터)
+    regex_slots = extract_summary_regex_slots(notice.text, target_lang)
 
-    # 경이 검수 결과를 review_needed에 합침
-    if classifier_review:
-        review_needed = (
-            f"{review_needed}\n\n[경이 모델 교차검증]\n{classifier_review}".strip()
-            if review_needed
-            else f"[경이 모델 교차검증]\n{classifier_review}"
-        )
+    # 4. items: TodoItem → AnalyzeItem (슬롯 분해 + 짧은 문장 번역)
+    items = [_build_item(t, target_lang) for t in todos]
 
-    # 4. TTS (Edge-TTS): 선택 언어 음성 → mp3
-    # ko_easy면 easy_ko_text 한국어 음성, 그 외엔 translation 해당 언어 음성
-    tts_text = easy_ko_text if target_lang == "ko_easy" else translation
+    # 5. summary 집계: 정규식 + 모델 슬롯 통합
+    summary = _build_summary(regex_slots, items, target_lang)
+
+    # 6. TTS: 슬롯 카드를 음성으로 (한국어 화자, ko_easy면 한국어 자체)
+    #    items title을 줄바꿈 연결 — 강사 지적 가독성 영역이라 1차 단순.
+    tts_text = "\n".join(
+        item.title_translated if target_lang != "ko_easy" else item.title_ko
+        for item in items if item.title_ko
+    )
     try:
         tts_url = await generate_tts_file(tts_text, target_lang=target_lang) if tts_text else ""
     except Exception as error:
         print(f"[analyze] TTS failed: {error}")
         tts_url = ""
 
-    # 안드 호환: target_language별 동적 키 (en_text, ru_text, vi_text 등)
+    # 7. 검수 노트
+    review_needed = (
+        f"[경이 모델 교차검증]\n{classifier_review}" if classifier_review else ""
+    )
+
     response = {
         "notice_id": notice_id,
         "raw_text": notice.text,
-        "todos": [t.model_dump() for t in todos],
-        "easy_ko_text": easy_ko_text,
-        "vi_text": vi_text,
-        "translation": translation,
         "target_language": target_lang,
-        "quality_note": quality_note,
-        "review_needed": review_needed,
+        "summary": summary.model_dump(),
+        "items": [item.model_dump() for item in items],
         "tts_url": tts_url,
+        "quality_note": "",
+        "review_needed": review_needed,
     }
-    if target_lang not in ("vi", "ko_easy") and translation:
-        response[f"{target_lang}_text"] = translation
-
     return ApiResponse.success(data=response)

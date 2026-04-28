@@ -103,7 +103,11 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
 
 
 def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
-    """가정통신문 → easy_ko + 다국어 번역 + 용어 검수 결과."""
+    """[DEPRECATED] 가정통신문 → easy_ko + 다국어 번역 + 용어 검수 결과.
+
+    슬롯 기반 응답(summary + items)으로 전환 후 호출부 없음. 다음 PR에서 제거 예정.
+    신규 호출은 translate_term / translate_short_sentence 사용.
+    """
     empty = {
         "easy_ko_text": "",
         "translation": "",
@@ -170,3 +174,45 @@ def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
         "quality_note": note if note else f"ok ({label})",
         "review_needed": note if label == "review_needed" else "",
     }
+
+
+# ── 슬롯 응답용 번역 (강사 처방 1·3 대응, 두 경로 분리) ──────────────
+# summary 슬롯 = 단어/짧은 구 → glossary 직접 치환 (translate_term)
+# items[].title = 짧은 문장 → NLLB (translate_short_sentence)
+#
+# ⚠️ 임시 구현 — 세종님 본 구현 머지되면 교체. 현재는 세종님이 합의한 정책에 맞춤:
+#   · translate_term: glossary miss → 한국어 원문 그대로 반환 (NLLB fallback 안 씀, 고유명사 오역 회피)
+#   · translate_short_sentence: NLLB 실패 → 빈 문자열, 호출부가 한국어 원문으로 fallback
+def translate_term(text: str, target_lang: str) -> str:
+    """summary 슬롯용 짧은 토큰 번역. glossary exact 매칭, miss 시 한국어 원문 passthrough."""
+    if not text or not text.strip():
+        return ""
+    if target_lang == "ko_easy":
+        return text
+
+    col = f"preferred_{target_lang}"
+    for row in _get_glossary():
+        if row.get("korean") == text.strip():
+            translated = (row.get(col) or "").strip()
+            if translated:
+                return translated
+
+    # miss → 한국어 원문 그대로. 안드에서 검색 가능, NLLB 오역 회피.
+    return text
+
+
+def translate_short_sentence(text: str, target_lang: str) -> str:
+    """items[].title 용 짧은 문장 번역. NLLB 직행 + vi 후처리. 실패 시 빈 문자열."""
+    if not text or not text.strip():
+        return ""
+    if target_lang == "ko_easy":
+        return text
+    target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
+    try:
+        translated = _translate(text, target_nllb=target_nllb, max_length=256)
+        if target_lang == "vi":
+            translated = _post_process_vi(text, translated)
+        return translated
+    except Exception as error:
+        print(f"[translator] translate_short_sentence failed: {error}")
+        return ""
