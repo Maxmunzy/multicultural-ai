@@ -1,0 +1,5 @@
+# 개발/테스트 전용 의존성. 운영 컨테이너에는 설치 안 함.
+# 사용: docker compose exec backend pip install -r requirements-dev.txt
+# 또는 GitHub Actions에서 별도 install
+pytest>=8.0
+httpx>=0.27

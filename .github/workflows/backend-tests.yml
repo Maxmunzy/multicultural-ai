@@ -1,0 +1,50 @@
+name: backend-tests
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - "model/translation_tts/**"
+      - ".github/workflows/backend-tests.yml"
+  push:
+    branches: [main, dev]
+    paths:
+      - "backend/**"
+      - "model/translation_tts/**"
+
+# 강사 피드백(2026-04-28): "단위테스트 끝나고 통합테스트 할 때 합의된 기준/절차에 의해 merge"
+# → PR 시 자동 실행되는 권한 검증 + 다국어 사전 로딩 게이트.
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install backend deps (CPU torch + dev)
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Symlink external_model (도커 마운트 경로 모사)
+        run: |
+          sudo mkdir -p /app
+          sudo ln -s "$GITHUB_WORKSPACE/backend/app" /app/app
+          sudo ln -s "$GITHUB_WORKSPACE/model" /app/external_model
+          sudo ln -s "$GITHUB_WORKSPACE/backend/static" /app/static
+          sudo mkdir -p /app/static/tts
+
+      - name: Run pytest
+        working-directory: backend
+        env:
+          PYTHONPATH: /app
+        run: |
+          pytest tests -v --tb=short
