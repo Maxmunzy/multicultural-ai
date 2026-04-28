@@ -30,9 +30,12 @@ def _seed_notice(client, teacher_id="teacher_001", parent_id="parent_001",
 # ─────────────────────────────────────────
 #  ANALYZE — 권한 게이트 (모델 호출 도달 X, mock 불필요)
 # ─────────────────────────────────────────
+_VI_BODY = {"target_language": "vi"}
+
+
 def test_analyze_unknown_notice(client, parent_headers):
     """존재하지 않는 notice_id → 404."""
-    r = client.post("/notice/analyze/ghost-id-xxx", json={}, headers=parent_headers)
+    r = client.post("/notice/analyze/ghost-id-xxx", json=_VI_BODY, headers=parent_headers)
     assert r.status_code == 404
     assert "찾을 수 없습니다" in r.json()["detail"]
 
@@ -40,7 +43,7 @@ def test_analyze_unknown_notice(client, parent_headers):
 def test_analyze_other_parent_blocked(client, teacher_headers, parent_headers, parent2_headers):
     """parent_002가 parent_001 통신문 분석 시도 → 403."""
     notice_id = _seed_notice(client)  # parent_001에게 발송
-    r = client.post(f"/notice/analyze/{notice_id}", json={}, headers=parent2_headers)
+    r = client.post(f"/notice/analyze/{notice_id}", json=_VI_BODY, headers=parent2_headers)
     assert r.status_code == 403
     assert "본인의 가정통신문" in r.json()["detail"]
 
@@ -48,9 +51,19 @@ def test_analyze_other_parent_blocked(client, teacher_headers, parent_headers, p
 def test_analyze_teacher_role_blocked(client, teacher_headers):
     """teacher 계정으로 분석 호출 → 403 (학부모 전용 엔드포인트)."""
     notice_id = _seed_notice(client)
-    r = client.post(f"/notice/analyze/{notice_id}", json={}, headers=teacher_headers)
+    r = client.post(f"/notice/analyze/{notice_id}", json=_VI_BODY, headers=teacher_headers)
     assert r.status_code == 403
     assert "본인의 가정통신문" in r.json()["detail"]
+
+
+def test_analyze_missing_target_language_rejected(client, teacher_headers, parent_headers):
+    """body에 target_language 없이 호출 → 422 (FastAPI body 검증).
+    default 자체를 없애 클라이언트가 항상 명시하도록 강제 — 서비스 정체성 변경
+    시점에 default 논쟁을 피하기 위함.
+    """
+    notice_id = _seed_notice(client)
+    r = client.post(f"/notice/analyze/{notice_id}", json={}, headers=parent_headers)
+    assert r.status_code == 422
 
 
 # ─────────────────────────────────────────
@@ -87,32 +100,6 @@ def test_analyze_smoke_with_mock(client, parent_headers, monkeypatch):
     assert data["target_language"] == "vi"
     assert data["translation"] == "Mang theo cơm hộp vào ngày mai."
     assert data["tts_url"] == "/static/tts/fake.mp3"
-
-
-def test_analyze_default_target_language_is_vi(client, parent_headers, monkeypatch):
-    """body 비어있으면 default vi."""
-    notice_id = _seed_notice(client)
-
-    captured = {}
-
-    def fake_translate(text, target_lang="vi"):
-        captured["target_lang"] = target_lang
-        return {
-            "easy_ko_text": "x", "translation": "y", "vi_text": "y",
-            "target_language": target_lang, "quality_note": "ok", "review_needed": "",
-        }
-
-    async def fake_tts(text, target_lang="vi"):
-        return ""
-
-    monkeypatch.setattr("app.routers.notice.extract_todos", lambda text: [])
-    monkeypatch.setattr("app.routers.notice.review_todos", lambda todos: "")
-    monkeypatch.setattr("app.routers.notice.translate_and_review", fake_translate)
-    monkeypatch.setattr("app.routers.notice.generate_tts_file", fake_tts)
-
-    r = client.post(f"/notice/analyze/{notice_id}", json={}, headers=parent_headers)
-    assert r.status_code == 200
-    assert captured["target_lang"] == "vi"
 
 
 # ─────────────────────────────────────────
