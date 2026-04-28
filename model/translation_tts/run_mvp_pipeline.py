@@ -179,13 +179,24 @@ def normalize_source(row):
     return source
 
 
-def read_glossary(path):
+def read_glossary(path, target_lang="vi"):
+    """다국어 용어사전 로딩. target_lang에 해당하는 preferred_{lang} 컬럼을 읽어
+    기존 호환성 위해 'preferred_vi' 키에 저장한다 (다른 헬퍼는 변경 없음).
+    지원 컬럼: preferred_vi, preferred_en, preferred_zh, preferred_th,
+              preferred_ms, preferred_mn, preferred_ru, preferred_ja
+    """
+    column = f"preferred_{target_lang}"
+    rows = []
     with path.open("r", encoding="utf-8-sig", newline="") as file:
-        return [
-            row
-            for row in csv.DictReader(file)
-            if row.get("korean", "").strip() and row.get("preferred_vi", "").strip()
-        ]
+        for row in csv.DictReader(file):
+            korean = row.get("korean", "").strip()
+            preferred = row.get(column, "").strip()
+            if not korean or not preferred:
+                continue
+            # 키 이름은 'preferred_vi' 유지 (다운스트림 헬퍼 호환).
+            # 실제 값은 target_lang 컬럼에서 가져온 것.
+            rows.append({"korean": korean, "preferred_vi": preferred})
+    return rows
 
 
 def build_baseline(source, glossary):
