@@ -9,11 +9,12 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
+from languages import DEFAULT_LANGUAGE, LANGUAGES
+from gemini_helper import suggest_missing_terms
+
 
 TRANSLATION_MODEL = "facebook/nllb-200-distilled-600M"
-EDGE_TTS_VOICE = "vi-VN-HoaiMyNeural"
 SOURCE_LANG = "kor_Hang"
-TARGET_LANG = "vie_Latn"
 MAX_EASY_KO_SENTENCES = 5
 DEFAULT_CATEGORIES = ("일정", "준비물", "제출", "비용", "건강·안전", "기타")
 CATEGORY_RULES = {
@@ -36,14 +37,16 @@ EASY_REPLACEMENTS = {
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Run one end-to-end MVP demo pipeline.")
-    parser.add_argument("--input", default="data/notice_sample_v3.csv")
+    parser.add_argument("--input", default="data/labeled/notice_sample_v3.csv")
     parser.add_argument("--row-id", default="")
     parser.add_argument("--glossary", default="model/translation_tts/term_glossary.csv")
-    parser.add_argument("--output-dir", default="outputs/mvp")
+    parser.add_argument("--output-dir", default="")
+    parser.add_argument("--lang", default=DEFAULT_LANGUAGE, choices=list(LANGUAGES.keys()))
     parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
-    parser.add_argument("--max-length", type=int, default=128)
+    parser.add_argument("--max-input-tokens", type=int, default=384)
+    parser.add_argument("--max-output-tokens", type=int, default=512)
     parser.add_argument("--skip-tts", action="store_true")
-    parser.add_argument("--tts-voice", default=EDGE_TTS_VOICE)
+    parser.add_argument("--tts-voice", default="")
     parser.add_argument("--save-demo-case", default="")
     return parser.parse_args()
 
@@ -51,7 +54,12 @@ def parse_args():
 def main():
     args = parse_args()
     device = resolve_device(args.device)
-    output_dir = Path(args.output_dir)
+
+    lang_config = LANGUAGES[args.lang]
+    nllb_code = lang_config["nllb_code"]
+    tts_voice = args.tts_voice or lang_config["tts_voice"]
+
+    output_dir = Path(args.output_dir or f"outputs/mvp/{args.lang}")
     output_dir.mkdir(parents=True, exist_ok=True)
     clear_error_files(output_dir)
 
@@ -66,7 +74,8 @@ def main():
 
     baseline = build_baseline(source, glossary)
     try:
-        easy_ko_text = prepare_easy_ko_text(build_easy_korean(source, baseline))
+        glossary_terms = [row["korean"] for row in glossary]
+        easy_ko_text = prepare_easy_ko_text(build_easy_korean(source, baseline), glossary_terms)
     except Exception as error:
         easy_ko_text = ""
         write_error(output_dir / "translation_error.txt", error)
@@ -77,19 +86,28 @@ def main():
 
     if easy_ko_text:
         try:
-            vi_text = translate(easy_ko_text, device, args.max_length)
+            if nllb_code is None:
+                translated_text = easy_ko_text
+            else:
+                translated_text = translate(
+                    easy_ko_text,
+                    device,
+                    args.max_input_tokens,
+                    args.max_output_tokens,
+                    nllb_code,
+                )
         except Exception as error:
-            vi_text = ""
+            translated_text = ""
             write_error(output_dir / "translation_error.txt", error)
     else:
-        vi_text = ""
-    (output_dir / "04_vi_translation.txt").write_text(vi_text + "\n", encoding="utf-8")
+        translated_text = ""
+    (output_dir / "04_translation.txt").write_text(translated_text + "\n", encoding="utf-8")
 
     try:
         if glossary_error:
             raise glossary_error
-        glossary_hits = find_glossary_hits(easy_ko_text, glossary)
-        glossary_check_rows = build_glossary_check_rows(easy_ko_text, vi_text, glossary_hits)
+        glossary_hits = find_glossary_hits(easy_ko_text, glossary, args.lang)
+        glossary_check_rows = build_glossary_check_rows(easy_ko_text, translated_text, glossary_hits)
         quality_label, quality_note = summarize_quality(glossary_check_rows)
     except Exception as error:
         glossary_hits = []
@@ -99,37 +117,47 @@ def main():
         write_error(output_dir / "glossary_error.txt", error)
     write_glossary_check(output_dir / "05_glossary_check.csv", glossary_check_rows)
 
+    gemini_rows = []
+    if quality_label == "review_needed":
+        missing_rows = [r for r in glossary_check_rows if r.get("quality_label") == "missing_term"]
+        try:
+            gemini_rows = suggest_missing_terms(missing_rows, args.lang, easy_ko_text)
+            write_gemini_suggestions(output_dir / "06_gemini_suggestions.csv", gemini_rows)
+        except Exception as error:
+            write_error(output_dir / "gemini_error.txt", error)
+
     tts_path = ""
     if not args.skip_tts:
-        if vi_text:
+        if translated_text:
             tts_path = str(output_dir / "05_tts_output.mp3")
             Path(tts_path).unlink(missing_ok=True)
             try:
-                generate_tts(vi_text, Path(tts_path), args.tts_voice)
+                generate_tts(translated_text, Path(tts_path), tts_voice)
             except Exception as error:
                 tts_path = ""
                 write_error(output_dir / "tts_error.txt", error)
         else:
-            write_error(output_dir / "tts_error.txt", ValueError("TTS skipped because Vietnamese translation is empty."))
+            write_error(output_dir / "tts_error.txt", ValueError("TTS skipped because translated text is empty."))
 
     write_mvp_csv(
         output_dir / "mvp_result.csv",
         {
+            "lang": args.lang,
             "source_text": source.get("original_text", ""),
             "category": baseline["category"],
             "keywords": "|".join(baseline["keywords"]),
             "easy_ko_text": easy_ko_text,
-            "vi_text": vi_text,
-            "glossary_hits": "; ".join(f"{item['korean']}->{item['preferred_vi']}" for item in glossary_hits),
+            "translated_text": translated_text,
+            "glossary_hits": "; ".join(f"{item['korean']}->{item['preferred_term']}" for item in glossary_hits),
             "quality_label": quality_label,
             "quality_note": quality_note,
             "tts_path": tts_path,
         },
     )
     if args.save_demo_case:
-        save_demo_case(output_dir, args.save_demo_case, easy_ko_text, vi_text, glossary_check_rows)
+        save_demo_case(output_dir, args.save_demo_case, easy_ko_text, translated_text, glossary_check_rows)
 
-    print(f"Saved MVP outputs to {output_dir}")
+    print(f"[{args.lang}] Saved MVP outputs to {output_dir}")
 
 
 def resolve_device(device):
@@ -179,24 +207,9 @@ def normalize_source(row):
     return source
 
 
-def read_glossary(path, target_lang="vi"):
-    """다국어 용어사전 로딩. target_lang에 해당하는 preferred_{lang} 컬럼을 읽어
-    기존 호환성 위해 'preferred_vi' 키에 저장한다 (다른 헬퍼는 변경 없음).
-    지원 컬럼: preferred_vi, preferred_en, preferred_zh, preferred_th,
-              preferred_ms, preferred_mn, preferred_ru, preferred_ja
-    """
-    column = f"preferred_{target_lang}"
-    rows = []
+def read_glossary(path):
     with path.open("r", encoding="utf-8-sig", newline="") as file:
-        for row in csv.DictReader(file):
-            korean = row.get("korean", "").strip()
-            preferred = row.get(column, "").strip()
-            if not korean or not preferred:
-                continue
-            # 키 이름은 'preferred_vi' 유지 (다운스트림 헬퍼 호환).
-            # 실제 값은 target_lang 컬럼에서 가져온 것.
-            rows.append({"korean": korean, "preferred_vi": preferred})
-    return rows
+        return [row for row in csv.DictReader(file) if row.get("korean", "").strip()]
 
 
 def build_baseline(source, glossary):
@@ -243,12 +256,26 @@ def build_easy_korean(source, baseline):
     return "\n".join(sentences) if sentences else text
 
 
-def prepare_easy_ko_text(text):
+def prepare_easy_ko_text(text, glossary_terms=None):
     text = validate_easy_ko_text(text)
     sentences = split_sentences(text)
-    if len(sentences) > MAX_EASY_KO_SENTENCES:
+    if len(sentences) <= MAX_EASY_KO_SENTENCES:
+        return "\n".join(sentences) if sentences else text
+
+    if not glossary_terms:
         return "\n".join(sentences[:MAX_EASY_KO_SENTENCES])
-    return "\n".join(sentences) if sentences else text
+
+    # 용어 포함 문장 인덱스 확보 (순서 유지)
+    must_idx = [i for i, s in enumerate(sentences) if any(term in s for term in glossary_terms)]
+    other_idx = [i for i in range(len(sentences)) if i not in must_idx]
+
+    slots = MAX_EASY_KO_SENTENCES - len(must_idx)
+    if slots <= 0:
+        selected = sorted(must_idx[:MAX_EASY_KO_SENTENCES])
+    else:
+        selected = sorted(must_idx + other_idx[:slots])
+
+    return "\n".join(sentences[i] for i in selected)
 
 
 def validate_easy_ko_text(text):
@@ -268,41 +295,62 @@ def split_sentences(text):
     return sentences if sentences else [normalized]
 
 
-def translate(text, device, max_length):
+def split_for_translation(text, tokenizer, max_input_tokens):
+    sentences = split_sentences(text)
+    chunks = []
+    current = []
+    for sentence in sentences:
+        candidate = " ".join(current + [sentence]).strip()
+        token_count = len(tokenizer(candidate, add_special_tokens=True).input_ids)
+        if current and token_count > max_input_tokens:
+            chunks.append(" ".join(current))
+            current = [sentence]
+        else:
+            current.append(sentence)
+    if current:
+        chunks.append(" ".join(current))
+    return chunks
+
+
+def translate(text, device, max_input_tokens, max_output_tokens, target_lang_code):
     tokenizer = AutoTokenizer.from_pretrained(TRANSLATION_MODEL, src_lang=SOURCE_LANG)
     model = AutoModelForSeq2SeqLM.from_pretrained(TRANSLATION_MODEL).to(device)
     model.eval()
-    target_lang_id = tokenizer.convert_tokens_to_ids(TARGET_LANG)
-    inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length).to(device)
-    with torch.no_grad():
-        output_tokens = model.generate(
-            **inputs,
-            forced_bos_token_id=target_lang_id,
-            max_length=max_length,
-            num_beams=4,
-        )
-    return tokenizer.batch_decode(output_tokens, skip_special_tokens=True)[0]
+    target_lang_id = tokenizer.convert_tokens_to_ids(target_lang_code)
+    outputs = []
+    for chunk in split_for_translation(text, tokenizer, max_input_tokens):
+        inputs = tokenizer(chunk, return_tensors="pt", truncation=True, max_length=max_input_tokens).to(device)
+        with torch.no_grad():
+            output_tokens = model.generate(
+                **inputs,
+                forced_bos_token_id=target_lang_id,
+                max_new_tokens=max_output_tokens,
+                num_beams=4,
+            )
+        outputs.append(tokenizer.batch_decode(output_tokens, skip_special_tokens=True)[0])
+    return "\n".join(outputs)
 
 
-def find_glossary_hits(text, glossary):
+def find_glossary_hits(text, glossary, lang="vi"):
+    preferred_col = f"preferred_{lang}"
     return [
-        {"korean": row["korean"], "preferred_vi": row["preferred_vi"]}
+        {"korean": row["korean"], "preferred_term": row[preferred_col]}
         for row in glossary
-        if row["korean"] in text
+        if row["korean"] in text and row.get(preferred_col, "").strip()
     ]
 
 
-def check_quality(vi_text, glossary_hits):
-    rows = build_glossary_check_rows("", vi_text, glossary_hits)
+def check_quality(translated_text, glossary_hits):
+    rows = build_glossary_check_rows("", translated_text, glossary_hits)
     return summarize_quality(rows)
 
 
-def build_glossary_check_rows(input_text, vi_text, glossary_hits):
+def build_glossary_check_rows(input_text, translated_text, glossary_hits):
     if not glossary_hits:
         return [
             {
                 "korean_term": "",
-                "preferred_vi": "",
+                "preferred_term": "",
                 "found_in_input": "N",
                 "found_in_translation": "N",
                 "quality_label": "unchecked",
@@ -313,11 +361,11 @@ def build_glossary_check_rows(input_text, vi_text, glossary_hits):
     rows = []
     for item in glossary_hits:
         found_in_input = item["korean"] in input_text if input_text else True
-        found_in_translation = item["preferred_vi"].lower() in vi_text.lower()
+        found_in_translation = item["preferred_term"].lower() in translated_text.lower()
         rows.append(
             {
                 "korean_term": item["korean"],
-                "preferred_vi": item["preferred_vi"],
+                "preferred_term": item["preferred_term"],
                 "found_in_input": "Y" if found_in_input else "N",
                 "found_in_translation": "Y" if found_in_translation else "N",
                 "quality_label": "ok" if found_in_translation else "missing_term",
@@ -331,7 +379,7 @@ def summarize_quality(glossary_check_rows):
     labels = [row["quality_label"] for row in glossary_check_rows]
     if "missing_term" in labels:
         notes = [
-            f"{row['korean_term']}->{row['preferred_vi']}"
+            f"{row['korean_term']}->{row['preferred_term']}"
             for row in glossary_check_rows
             if row["quality_label"] == "missing_term"
         ]
@@ -345,7 +393,7 @@ def build_glossary_error_rows(error):
     return [
         {
             "korean_term": "",
-            "preferred_vi": "",
+            "preferred_term": "",
             "found_in_input": "N",
             "found_in_translation": "N",
             "quality_label": "glossary_error",
@@ -360,7 +408,7 @@ def save_demo_case(output_dir, case_name, easy_ko_text, vi_text, glossary_check_
     clear_demo_case_dir(case_dir)
 
     copy_if_exists(output_dir / "03_easy_ko.txt", case_dir / "01_easy_ko_input.txt")
-    copy_if_exists(output_dir / "04_vi_translation.txt", case_dir / "02_vi_raw_translation.txt")
+    copy_if_exists(output_dir / "04_translation.txt", case_dir / "02_raw_translation.txt")
     copy_if_exists(output_dir / "05_glossary_check.csv", case_dir / "03_glossary_check.csv")
     copy_if_exists(output_dir / "05_tts_output.mp3", case_dir / "06_tts_output.mp3")
 
@@ -389,7 +437,7 @@ def clear_demo_case_dir(case_dir):
 
 
 def build_corrected_translation(easy_ko_text, vi_text, missing_rows):
-    missing_terms = {(row.get("korean_term", ""), row.get("preferred_vi", "")) for row in missing_rows}
+    missing_terms = {(row.get("korean_term", ""), row.get("preferred_term", "")) for row in missing_rows}
     if ("도시락", "cơm hộp") in missing_terms:
         return "\n".join(
             [
@@ -399,7 +447,7 @@ def build_corrected_translation(easy_ko_text, vi_text, missing_rows):
             ]
         )
     if missing_rows:
-        notes = ", ".join(f"{row.get('korean_term')} -> {row.get('preferred_vi')}" for row in missing_rows)
+        notes = ", ".join(f"{row.get('korean_term')} -> {row.get('preferred_term')}" for row in missing_rows)
         return f"{vi_text}\n\n[검수 필요: {notes}]"
     return vi_text
 
@@ -414,11 +462,11 @@ def build_review_needed_markdown(easy_ko_text, vi_text, missing_rows, corrected_
     if missing_rows:
         for row in missing_rows:
             korean = row.get("korean_term", "")
-            preferred_vi = row.get("preferred_vi", "")
+            preferred_term = row.get("preferred_term", "")
             source_sentence = find_sentence_with_term(easy_ko_text, korean)
             lines.extend(
                 [
-                    f"- {korean} -> {preferred_vi}",
+                    f"- {korean} -> {preferred_term}",
                     "",
                     "## 원문 쉬운 한국어에서 해당 용어가 등장한 문장",
                     "",
@@ -426,7 +474,7 @@ def build_review_needed_markdown(easy_ko_text, vi_text, missing_rows, corrected_
                     "",
                     "## 번역문에서 누락된 위치",
                     "",
-                    f"번역문 전체에서 권장 표현 `{preferred_vi}`가 발견되지 않았습니다.",
+                    f"번역문 전체에서 권장 표현 `{preferred_term}`가 발견되지 않았습니다.",
                     "",
                     "```text",
                     vi_text,
@@ -434,7 +482,7 @@ def build_review_needed_markdown(easy_ko_text, vi_text, missing_rows, corrected_
                     "",
                     "## 사람이 수정해야 할 권장 문장",
                     "",
-                    recommend_sentence(korean, preferred_vi),
+                    recommend_sentence(korean, preferred_term),
                     "",
                 ]
             )
@@ -461,15 +509,15 @@ def find_sentence_with_term(text, term):
     return ""
 
 
-def recommend_sentence(korean, preferred_vi):
-    if korean == "도시락" and preferred_vi == "cơm hộp":
+def recommend_sentence(korean, preferred_term):
+    if korean == "도시락" and preferred_term == "cơm hộp":
         return "Vui lòng cho trẻ mang theo một chai nước và cơm hộp."
-    return f"해당 문장에 `{preferred_vi}` 표현을 반영해 사람이 최종 수정합니다."
+    return f"해당 문장에 `{preferred_term}` 표현을 반영해 사람이 최종 수정합니다."
 
 
 def build_demo_summary_markdown(missing_rows):
     missing_terms = ", ".join(
-        f"{row.get('korean_term')} -> {row.get('preferred_vi')}" for row in missing_rows
+        f"{row.get('korean_term')} -> {row.get('preferred_term')}" for row in missing_rows
     )
     if not missing_terms:
         missing_terms = "없음"
@@ -498,7 +546,7 @@ def write_error(path, error):
 
 
 def clear_error_files(output_dir):
-    for name in ("translation_error.txt", "glossary_error.txt", "tts_error.txt"):
+    for name in ("translation_error.txt", "glossary_error.txt", "tts_error.txt", "gemini_error.txt"):
         path = output_dir / name
         if path.exists():
             path.unlink()
@@ -508,10 +556,18 @@ def write_json(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
+def write_gemini_suggestions(path, rows):
+    fieldnames = ["korean_term", "preferred_term", "gemini_suggestion", "quality_label", "note"]
+    with path.open("w", encoding="utf-8", newline="") as file:
+        writer = csv.DictWriter(file, fieldnames=fieldnames, extrasaction="ignore")
+        writer.writeheader()
+        writer.writerows(rows)
+
+
 def write_glossary_check(path, rows):
     fieldnames = [
         "korean_term",
-        "preferred_vi",
+        "preferred_term",
         "found_in_input",
         "found_in_translation",
         "quality_label",
@@ -525,11 +581,12 @@ def write_glossary_check(path, rows):
 
 def write_mvp_csv(path, row):
     fieldnames = [
+        "lang",
         "source_text",
         "category",
         "keywords",
         "easy_ko_text",
-        "vi_text",
+        "translated_text",
         "glossary_hits",
         "quality_label",
         "quality_note",
@@ -543,4 +600,3 @@ def write_mvp_csv(path, row):
 
 if __name__ == "__main__":
     main()
-
