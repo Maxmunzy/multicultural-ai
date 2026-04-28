@@ -90,12 +90,12 @@ async def clear_inbox(
 @router.post("/analyze/{notice_id}", response_model=ApiResponse)
 async def analyze_notice(
     notice_id: str,
-    req: NoticeAnalyzeRequest = NoticeAnalyzeRequest(),
+    req: NoticeAnalyzeRequest,
     user: UserProfile = Depends(require_user),
 ):
     """수신된 가정통신문 → 추출(윤정) + 검수(경이) + 번역(세종) + TTS 통합.
 
-    학부모 본인의 가정통신문만 분석 가능.
+    학부모 본인의 가정통신문만 분석 가능. target_language는 필수.
     """
     if notice_id not in _notices:
         raise HTTPException(
@@ -109,7 +109,7 @@ async def analyze_notice(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="본인의 가정통신문만 분석할 수 있습니다",
         )
-    target_lang = req.target_language or "vi"
+    target_lang = req.target_language
 
     # 1. 추출 (윤정 KoELECTRA): raw_text → todos[]
     try:

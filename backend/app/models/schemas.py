@@ -40,7 +40,7 @@ class NoticeSendRequest(BaseModel):
 
 
 class NoticeAnalyzeRequest(BaseModel):
-    target_language: str = "vi"   # vi/en/ru/ms/mn/zh/th/ja/ko_easy
+    target_language: str   # vi/en/ru/ms/mn/zh/th/ja/ko_easy — 필수, default 없음
 
 
 class NoticeAnalyzeResponse(BaseModel):
