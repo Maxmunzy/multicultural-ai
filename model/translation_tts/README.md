@@ -4,16 +4,37 @@
 
 ## 현재 상태
 
-Translation/TTS 파트는 쉬운 한국어 입력에서 다국어 번역, 학교 용어사전 검수, Edge-TTS 음성 출력까지 1차 MVP 실행을 완료했다.
+Translation/TTS 파트는 슬롯 기반 응답 구조(summary + items)로 전환됐다. 강사 처방(2026-04-28) 대응으로 번역을 세 경로로 분리해 품질과 신뢰도를 높였다.
 
-핵심은 단순 번역이 아니라 `번역 + 용어사전 검수 + TTS + 실패 안전장치` 흐름이다. 일반 번역 결과가 자연스럽더라도 `도시락 -> cơm hộp`처럼 학교 안내문에서 중요한 준비물 용어가 누락될 수 있으므로, glossary check로 검수 지점을 명확히 남긴다.
+### 번역 3경로 구조
 
-2026-04-28에는 품질평가 근거자료를 팀 repo에 반영했다. 기존 `max_length=256` 기반 번역 잘림을 문장 단위 청크 번역으로 줄였고, Gemini 평가에는 현지 상용 표현 여부와 한국어 의미 역번역(Round-trip) 검사를 추가했다.
+| 경로 | 대상 | 방식 |
+|---|---|---|
+| i18n 포매터 | summary.dates / times / amounts | 정규식 추출 → 언어별 룰 변환 (LLM 없음) |
+| glossary 치환 | summary.places / supplies / deadlines | term_glossary.csv exact 매칭, miss 시 한국어 노출 |
+| NLLB 번역 | items[].title_translated | glossary injection → NLLB → vi 후처리 |
+
+### 경이(B단계) → 세종(C단계) 확정 인터페이스
+
+```json
+{
+  "text": "4월 30일까지 체험학습 동의서를 제출해주세요.",
+  "category": "제출",
+  "importance": 1.0,
+  "due_date": "2026-04-30"
+}
+```
+
+카테고리 6종: `제출 / 준비물 / 일정 / 비용 / 건강·안전 / 기타`
+
+### term_glossary.csv
+
+총 156개 용어 (8개 언어). 2026-04-28에 12개 신규 추가: 학생, 초등학생, 전세버스, 생존수영, 리코더, 우범지역, 줄넘기, 간편복, 어깨끈, 횡단보도, 안심벨, 수리력
 
 ## 주요 파일
 
 - `run_mvp_pipeline.py`: MVP 파이프라인 실행 스크립트
-- `term_glossary.csv`: 학교 특화 한국어-다국어 용어사전
+- `term_glossary.csv`: 학교 특화 한국어-다국어 용어사전 (156개 용어, 8개 언어)
 - `languages.py`: NLLB target code 및 TTS voice 매핑
 - `run_ab_compare.py`: 원문 전체 번역(A)과 TODO 추출 번역(B) 속도/입력량 비교
 - `run_ab_quality_eval.py`: A/B 번역 품질 평가. 현지 자연스러움과 Round-trip 검사를 포함
@@ -23,6 +44,11 @@ Translation/TTS 파트는 쉬운 한국어 입력에서 다국어 번역, 학교
 - `../../data/translation_tts/easy_ko_text_sample.csv`: 샘플 입력
 - `../../demo/translation_tts/demo_case_01/`: 고정 데모 산출물
 - `outputs/`: 발표 근거용 평가 요약 결과
+
+## 백엔드 연동 파일 (backend/app/services/)
+
+- `translator.py`: `translate_term` (glossary 치환) / `translate_short_sentence` (NLLB 번역) 두 함수 제공
+- `slot_extractor.py`: 정규식 추출 + i18n 포매터 (태수님 작성, 세종 파트 연동)
 
 ## 실행 예시
 
@@ -61,3 +87,11 @@ python model/translation_tts/run_quality_eval.py
 | 용어사전 전/후 품질평가 | 39.0점 -> 89.6점 |
 
 공유용 요약은 `../../docs/share-summary-2026-04-28-quality-eval.md`에 정리했다.
+
+## 2026-04-28 구조 개편 (강사 처방 대응)
+
+- 번역 입력을 원문 전체 → 추출된 할 일 문장(text)으로 변경
+- 응답 구조 전환: 단일 translation 블롭 → summary(슬롯) + items(카드) 분리
+- 번역 3경로 분리: i18n 포매터 / glossary 직접 치환 / NLLB
+- term_glossary.csv 12개 신규 용어 추가 (총 156개)
+- 윤정(A) → 경이(B) → 세종(C) 역할 확정: 경이가 6분류 + 중요도 전담
