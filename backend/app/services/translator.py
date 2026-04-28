@@ -33,8 +33,8 @@ LANG_TO_NLLB = {
 
 _tokenizer = None
 _model = None
-# 언어별 사전 캐시. 같은 언어는 한 번만 로드.
-_glossary_cache: dict[str, list] = {}
+# 사전 raw rows 단일 캐시. 언어별 분기는 find_glossary_hits 호출 시 target_lang 인자로 처리.
+_glossary_rows: list | None = None
 
 
 def _get_translator():
@@ -46,22 +46,16 @@ def _get_translator():
     return _tokenizer, _model
 
 
-def _get_glossary(target_lang: str = "vi"):
-    """target_lang에 해당하는 preferred_{lang} 컬럼으로 사전을 로드한다.
-    ko_easy는 한국어 자체이므로 검수 의미 없음 → 빈 리스트.
-    """
-    if target_lang == "ko_easy":
-        return []
-    if target_lang not in _glossary_cache:
+def _get_glossary():
+    """raw 사전 rows를 1회 로드. 언어별 컬럼 선택은 find_glossary_hits에서 처리."""
+    global _glossary_rows
+    if _glossary_rows is None:
         try:
-            _glossary_cache[target_lang] = _sejong.read_glossary(
-                _TRANSLATION_DIR / "term_glossary.csv",
-                target_lang=target_lang,
-            )
+            _glossary_rows = _sejong.read_glossary(_TRANSLATION_DIR / "term_glossary.csv")
         except Exception as error:
-            print(f"[translator] glossary load failed for {target_lang}: {error}")
-            _glossary_cache[target_lang] = []
-    return _glossary_cache[target_lang]
+            print(f"[translator] glossary load failed: {error}")
+            _glossary_rows = []
+    return _glossary_rows
 
 
 def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) -> str:
@@ -135,8 +129,12 @@ def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
     if not easy_ko_text:
         return empty
 
-    glossary = _get_glossary(target_lang)
-    glossary_hits = _sejong.find_glossary_hits(easy_ko_text, glossary)
+    # ko_easy는 한국어 자체라 사전 검수 무의미 → 빈 hits
+    if target_lang == "ko_easy":
+        glossary_hits = []
+    else:
+        glossary = _get_glossary()
+        glossary_hits = _sejong.find_glossary_hits(easy_ko_text, glossary, target_lang)
 
     # ko_easy: 번역 없이 easy_ko_text를 그대로 사용
     if target_lang == "ko_easy":
