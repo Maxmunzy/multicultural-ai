@@ -35,7 +35,16 @@ _AMOUNT_KRW = re.compile(r"(?P<num>\d{1,3}(?:,\d{3})+|\d+)\s*원")
 _AMOUNT_KO = re.compile(r"(?P<num>\d+)\s*(?P<unit>만|천|억)\s*원")
 
 # 까지 마감 표현: "5월 9일까지", "내일까지", "5월 9일(금)까지 ... 제출"
-_DEADLINE_PHRASE = re.compile(r"([^.,\n]*?까지[^.,\n]*?)(?=[.,\n]|$)")
+# 콤마는 negation에서 제외 — "15,000원 (...까지...)" 같이 숫자 콤마에서 잘리는 버그 회피
+_DEADLINE_PHRASE = re.compile(r"([^.\n]*?까지[^.\n]*?)(?=[.\n]|$)")
+
+# 안내문 줄머리 장식 마크업 (■ ▶ ▸ etc.) — items/슬롯 추출 전 strip
+_MARKER_STRIP = re.compile(r"^[\s■▶▸◆●○*\-•]+")
+
+
+def strip_markers(text: str) -> str:
+    """줄머리 장식 마크업 제거. UI 표시·TTS 양쪽 노이즈 방지."""
+    return _MARKER_STRIP.sub("", text).strip()
 
 
 # ── 추출기 ────────────────────────────────────────────────────────

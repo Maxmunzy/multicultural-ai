@@ -83,6 +83,7 @@ class NoticeAnalyzeResponse(BaseModel):
     target_language: str
     summary: SummarySlots
     items: list[AnalyzeItem] = []
+    tts_text: str = ""        # 음성 변환 직전 텍스트 — 시연·디버그용 가시화
     tts_url: str = ""
     quality_note: str = ""
     review_needed: str = ""
