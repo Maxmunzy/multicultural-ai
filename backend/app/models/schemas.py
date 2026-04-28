@@ -43,17 +43,49 @@ class NoticeAnalyzeRequest(BaseModel):
     target_language: str   # vi/en/ru/ms/mn/zh/th/ja/ko_easy — 필수, default 없음
 
 
+# ── 슬롯 기반 응답 (강사 처방 1·3 대응) ──────────────────────────
+# source: "regex" | "model" | "model+regex" — 신뢰도 추적용
+# 정규식이 잡은 항목은 LLM 의존 없이 확보됐음을 안드/검수에서 표시 가능.
+class SlotEntry(BaseModel):
+    ko: str
+    translated: str = ""
+    source: str = "model"
+    conditional: bool = False  # "흐릴 경우 우산" 같은 조건부 항목
+
+
+class SummarySlots(BaseModel):
+    dates: list[SlotEntry] = []
+    times: list[SlotEntry] = []
+    places: list[SlotEntry] = []
+    supplies: list[SlotEntry] = []   # ⚠️ 강사 강조: 누락 금지
+    amounts: list[SlotEntry] = []    # ⚠️ 강사 강조: 누락 금지
+    deadlines: list[SlotEntry] = []
+
+
+class AnalyzeItem(BaseModel):
+    """카테고리별 할 일 — TodoItem(추출기 출력)을 슬롯 분해한 결과."""
+    category: Category
+    title_ko: str
+    title_translated: str = ""
+    when: str | None = None
+    where: str | None = None
+    what: list[str] = []
+    amount: str | None = None
+    deadline: str | None = None
+    importance: float = 0.5
+    note_ko: str | None = None         # 조건부 메모 (예: "날씨가 흐릴 경우")
+    note_translated: str | None = None
+
+
 class NoticeAnalyzeResponse(BaseModel):
     notice_id: str
     raw_text: str
-    todos: list[TodoItem]
-    easy_ko_text: str = ""        # 쉬운 한국어 (세종 파이프라인 산출물)
-    vi_text: str = ""             # 베트남어 번역 (호환 유지)
-    translation: str = ""         # 선택된 언어 번역
-    target_language: str = "vi"
-    quality_note: str = ""        # 용어 검수 결과 (ok / missing_term / review_needed)
-    review_needed: str = ""       # 검수 필요 항목 상세
-    tts_url: str = ""             # TTS 음성 파일 URL
+    target_language: str
+    summary: SummarySlots
+    items: list[AnalyzeItem] = []
+    tts_url: str = ""
+    quality_note: str = ""
+    review_needed: str = ""
 
 
 class TTSRequest(BaseModel):

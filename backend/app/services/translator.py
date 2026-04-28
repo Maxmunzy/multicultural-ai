@@ -102,8 +102,67 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
     return vi_text
 
 
+def translate_term(text: str, target_lang: str) -> str:
+    """glossary 직접 치환 (summary 슬롯용 — places, supplies, deadlines).
+
+    exact match 우선. 없으면 한국어 원문 그대로 반환 (빈 문자열 금지).
+    고유명사("서울숲 생태체험관")처럼 사전에 없으면 한국어 노출이 NLLB 오역보다 낫다.
+    """
+    if not text or not text.strip():
+        return text
+    if target_lang == "ko_easy":
+        return text
+
+    glossary = _get_glossary()
+    term = text.strip()
+    for row in glossary:
+        if row.get("korean", "").strip() == term:
+            translated = row.get(f"preferred_{target_lang}", "").strip()
+            if translated:
+                return translated
+    return text  # Korean passthrough
+
+
+def translate_short_sentence(text: str, target_lang: str) -> str:
+    """짧은 문장 NLLB 번역 (items[].title_translated용).
+
+    glossary injection → NLLB → vi post-process.
+    실패 시 빈 문자열 반환 (호출부가 fallback 처리).
+    """
+    if not text or not text.strip():
+        return ""
+    if target_lang == "ko_easy":
+        return text
+
+    glossary = _get_glossary()
+    hits = _sejong.find_glossary_hits(text, glossary, target_lang)
+
+    # 긴 용어 먼저 치환해야 부분 치환 충돌 방지
+    injected = text
+    for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
+        injected = injected.replace(
+            hit["korean"], f"{hit['korean']}({hit['preferred_term']})"
+        )
+
+    target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
+    try:
+        translated = _translate(injected, target_nllb=target_nllb)
+        if target_lang == "vi":
+            translated = _post_process_vi(text, translated)
+    except Exception as error:
+        print(f"[translator] translate_short_sentence failed: {error}")
+        return ""
+
+    return translated
+
+
+# DEPRECATED: 아래 함수는 단일 blob 번역 구조. 새 API(translate_term / translate_short_sentence)로 전환 후 제거 예정.
 def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
-    """가정통신문 → easy_ko + 다국어 번역 + 용어 검수 결과."""
+    """[DEPRECATED] 가정통신문 → easy_ko + 다국어 번역 + 용어 검수 결과.
+
+    슬롯 기반 응답(summary + items)으로 전환 후 호출부 없음. 다음 PR에서 제거 예정.
+    신규 호출은 translate_term / translate_short_sentence 사용.
+    """
     empty = {
         "easy_ko_text": "",
         "translation": "",
@@ -170,3 +229,4 @@ def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
         "quality_note": note if note else f"ok ({label})",
         "review_needed": note if label == "review_needed" else "",
     }
+
