@@ -1,18 +1,8 @@
 # 번역 품질평가 개선 공유 요약
 
 작업일: 2026-04-28  
-작업자: 모세종 / Codex 보조  
+작업자: 모세종
 목적: Gemini 평가 100점 몰림과 NLLB 번역 잘림 문제 개선
-
-최근 GitHub 반영:
-
-| Repo | Commit | 내용 |
-|---|---|---|
-| `mosejong/translation-tts-lab` | `03402fd` | 품질평가 스크립트, Round-trip 검증, 평가 결과 추가 |
-| `mosejong/translation-tts-lab` | `343d388` | README, `.gitignore`, 최신 실험 흐름 정리 |
-| `mosejong/translation-tts-lab` | `ce3c162` | 18건 Round-trip 전수 평가 결과 반영 |
-
----
 
 ## 한 줄 요약
 
@@ -50,7 +40,7 @@
 
 | 항목 | 결과 |
 |---|---:|
-| 대상 | 베트남어 18개 공지 |
+| 대상 | 베트남어 18개 공지 (`N03`은 TODO 문장 없음으로 제외) |
 | 입력 단축 | -30.1% |
 | 속도향상 | x1.84 |
 | 출력 위치 | `model/translation_tts/outputs/ab_compare/vi/` |
@@ -133,24 +123,21 @@
 
 ---
 
-## 남은 작업
+## 후속 작업
 
 | 우선순위 | 작업 |
 |---:|---|
-| 1 | 팀 프로젝트 PR에 본 요약과 실험 문서 반영 내용 설명 |
-| 2 | 전수 Round-trip 결과에서 용어사전 보강 후보를 실제 CSV로 반영 |
-| 3 | `장난 사용`, `어깨끈`, `안심벨`, `학생/아동`처럼 깨지는 표현을 용어사전에 추가 |
+| 1 | 전수 Round-trip 결과에서 용어사전 보강 후보를 CSV로 정리 |
+| 2 | 사전에 없는 고위험 표현(`장난 사용`, `어깨끈`, `안심벨`, `리코더`, `우범지역`, `수리력` 등) 우선 추가 |
+| 3 | 이미 사전에 있는 `돗자리`, `필통`, `학교종이`는 실제 번역 후처리에 적용되는지 회귀 테스트 |
 | 4 | Android/백엔드 실제 시연 흐름에서 새 사전/평가 결과 반영 여부 확인 |
 | 5 | 발표 자료에 기존 수치와 새 수치 차이를 “평가기준 강화”로 명확히 설명 |
 
----
+## 참고 파일
 
-## Claude에게 넘길 작업
-
-| 작업 | 참고 파일 |
+| 파일 | 용도 |
 |---|---|
-| 팀 프로젝트 PR 설명문 작성 | 이 문서 전체 |
-| 발표용 1~2장 요약 슬라이드 만들기 | 재측정 결과 표, Round-trip 예시 |
-| 추가 용어사전 보강 후보 정리 | `model/translation_tts/outputs/ab_quality_eval/vi/N02.md` |
-| 전체 Round-trip 상세 평가 자동화/재실행 | `model/translation_tts/run_ab_quality_eval.py` |
-| 팀 repo 문서와 중복/충돌 없는지 최종 확인 | `docs/experiments/*translation*.md` |
+| `docs/roundtrip-full-eval-2026-04-28.md` | 18건 Round-trip 전수 평가 요약 |
+| `docs/experiments/2026-04-28-translation-glossary-quality.md` | 사전 전후 품질 및 A/B 품질 재평가 |
+| `docs/experiments/2026-04-28-translation-feature-extraction-speed.md` | A/B 입력 단축 및 속도 비교 |
+| `model/translation_tts/outputs/ab_quality_eval/vi/summary.md` | A/B 품질평가 원본 요약 |

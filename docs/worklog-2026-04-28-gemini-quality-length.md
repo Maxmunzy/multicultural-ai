@@ -18,13 +18,13 @@
      - 변경: 문장 단위로 입력을 청크 분리한 뒤 각 청크를 번역하고 결과를 합치도록 수정.
      - 옵션 추가: `--max-input-tokens`, `--max-output-tokens`
      - 결과 저장에 A/B별 번역 청크 수 추가.
-   - `translation/run_mvp_pipeline.py`
+   - `model/translation_tts/run_mvp_pipeline.py`
      - MVP 파이프라인 번역도 동일하게 청크 번역 방식으로 변경.
-   - `translation/run_glossary_compare.py`
+   - `model/translation_tts/run_glossary_compare.py`
      - 생성 길이 제한을 `max_new_tokens` 중심으로 조정.
 
 2. Gemini 품질 평가 기준 강화
-   - `translation/run_quality_eval.py`
+   - `model/translation_tts/run_quality_eval.py`
      - after_translation이 평가자가 새로 만든 보정문이라 무조건 100점이 되는 문제를 줄이기 위해 after_score 상한을 95점으로 제한.
      - 평가 기준에 현지 상용 표현, 학교/학부모 안내문 문맥, 날짜/금액/시간/행동 정보 보존 여부를 추가.
      - 직역체, 현지에서 어색한 표현, 정보 누락, 문장 중간 끊김에 대한 감점 기준을 명시.
@@ -94,15 +94,11 @@
 
 완료:
 
-- 새 기준으로 `translation/run_quality_eval.py` 용어사전 전/후 평가 재실행.
+- 새 기준으로 `model/translation_tts/run_quality_eval.py` 용어사전 전/후 평가 재실행.
 - 100점 몰림이 사라졌는지 확인.
   - 1차: NLLB 33.9점 -> 사전 적용 100.0점
   - 보정 후: NLLB 39.0점 -> 사전 적용 89.6점
-- 개인 GitHub repo 반영 완료.
-  - `03402fd feat: 번역 품질평가 및 round-trip 검증 추가`
-  - `343d388 docs: 최신 번역 평가 흐름 정리`
-  - `ce3c162 docs: Round-trip 전수 평가 결과 반영`
-- 팀 프로젝트 repo에는 사용자가 직접 push/PR 진행하기로 함. Codex는 팀 repo push는 하지 않음.
+- 팀 프로젝트 문서에 공유 요약, 실험 노트, Round-trip 전수 결과를 정리.
 
 남은 작업:
 
@@ -110,7 +106,7 @@
 - 발표 자료에는 "기존 100점은 평가 기준이 후한 1차 결과였고, 현지 상용 표현 + Round-trip 기준을 추가해 재평가했다"고 설명.
 - Android/백엔드 실제 시연에서 새 사전과 평가 결과가 문서화된 흐름과 맞는지 확인.
 
-## Claude 인계용 요약
+## 참고 파일
 
 다음 작업자는 아래 파일부터 보면 된다.
 
