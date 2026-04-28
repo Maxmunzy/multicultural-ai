@@ -15,6 +15,7 @@ from app.services.slot_extractor import (
     format_date,
     format_time,
     split_supply_tokens,
+    strip_markers,
 )
 
 
@@ -142,6 +143,33 @@ def test_find_amount_returns_korean_surface():
 
 def test_find_deadline_phrase_with_까지():
     assert "5월 9일(금)까지" in find_deadline_in_text("5월 9일(금)까지 제출")
+
+
+def test_find_deadline_not_broken_by_number_comma():
+    """`15,000원 (...까지...)` 의 콤마에서 잘려서 '000원...'만 잡히던 회귀 방지."""
+    text = "참가비: 15,000원 (5월 9일(금)까지 스쿨뱅킹으로 납부)"
+    result = find_deadline_in_text(text)
+    assert result is not None
+    assert "5월 9일" in result
+    assert not result.lstrip().startswith("000")
+
+
+# ── 마크업 strip ────────────────────────────────────────────────
+def test_strip_markers_leading_bullet():
+    assert strip_markers("■ 준비물: 도시락") == "준비물: 도시락"
+
+
+def test_strip_markers_multiple_chars():
+    assert strip_markers("▶▸ 안내사항") == "안내사항"
+
+
+def test_strip_markers_preserves_inside():
+    """문장 내부의 기호는 보존 (시작 부분만 제거)."""
+    assert strip_markers("■ 5월 14일 - 출발") == "5월 14일 - 출발"
+
+
+def test_strip_markers_no_op_when_clean():
+    assert strip_markers("도시락을 준비하세요") == "도시락을 준비하세요"
 
 
 # ── 준비물 토큰 분해 ─────────────────────────────────────────────

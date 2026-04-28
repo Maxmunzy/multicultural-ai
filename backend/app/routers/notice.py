@@ -12,6 +12,7 @@ from app.services.tts import generate_tts_file
 from app.services.slot_extractor import (
     extract_summary_regex_slots, find_amount_in_text,
     find_deadline_in_text, find_when_in_text, split_supply_tokens,
+    strip_markers,
 )
 from app.services.mock import MOCK_TODOS
 
@@ -90,6 +91,8 @@ async def clear_inbox(
 #   2. 정규식 + 모델 하이브리드 (regex source 표시)
 #   3. 핵심 명사(준비물·금액) 누락 가시화 (빈 슬롯 즉시 노출)
 def _build_item(todo: TodoItem, target_lang: str) -> AnalyzeItem:
+    # 마크업(■) 등은 그대로 유지. 세종님 관찰: NLLB가 segmentation 힌트로 활용.
+    # 마크업 strip은 TTS 빌더에서만 (음성 노이즈 방지).
     text = todo.text_ko
     when = find_when_in_text(text, target_lang)
     amount_ko = find_amount_in_text(text, target_lang)
@@ -207,12 +210,8 @@ async def analyze_notice(
     # 5. summary 집계: 정규식 + 모델 슬롯 통합
     summary = _build_summary(regex_slots, items, target_lang)
 
-    # 6. TTS: 슬롯 카드를 음성으로 (한국어 화자, ko_easy면 한국어 자체)
-    #    items title을 줄바꿈 연결 — 강사 지적 가독성 영역이라 1차 단순.
-    tts_text = "\n".join(
-        item.title_translated if target_lang != "ko_easy" else item.title_ko
-        for item in items if item.title_ko
-    )
+    # 6. TTS: 슬롯 정보 합쳐 한 문장씩 + importance 우선 정렬
+    tts_text = _build_tts_text(summary, items, target_lang)
     try:
         tts_url = await generate_tts_file(tts_text, target_lang=target_lang) if tts_text else ""
     except Exception as error:
@@ -230,8 +229,49 @@ async def analyze_notice(
         "target_language": target_lang,
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
+        "tts_text": tts_text,
         "tts_url": tts_url,
         "quality_note": "",
         "review_needed": review_needed,
     }
     return ApiResponse.success(data=response)
+
+
+def _build_tts_text(
+    summary: SummarySlots,
+    items: list[AnalyzeItem],
+    target_lang: str,
+) -> str:
+    """items 한 건씩 title + 슬롯 정보를 합쳐 한 문장으로 — 음성 정보량 최대화.
+
+    슬롯 한국어 값(amount/deadline/what)은 summary의 translated 매핑으로 대상 언어 변환.
+    정렬은 importance 내림차순. 경이 분리 후엔 action_required="Y" 우선으로 교체 예정.
+    """
+    if not items:
+        return ""
+
+    # 한국어 슬롯 → 대상 언어 매핑 (summary가 이미 translated 보유)
+    supply_map = {s.ko: s.translated or s.ko for s in summary.supplies}
+    amount_map = {s.ko: s.translated or s.ko for s in summary.amounts}
+    deadline_map = {s.ko: s.translated or s.ko for s in summary.deadlines}
+
+    sorted_items = sorted(items, key=lambda i: -i.importance)
+    lines: list[str] = []
+    for item in sorted_items:
+        title = item.title_ko if target_lang == "ko_easy" else item.title_translated
+        if not title:
+            continue
+        # 음성에서 ■ 등 장식 마크업은 노이즈 — TTS 직전 strip
+        title = strip_markers(title)
+        extras: list[str] = []
+        if item.when:        # 이미 target_lang 포맷
+            extras.append(item.when)
+        if item.what:
+            extras.append(", ".join(supply_map.get(w, w) for w in item.what))
+        if item.amount:
+            extras.append(amount_map.get(item.amount, item.amount))
+        if item.deadline:
+            extras.append(strip_markers(deadline_map.get(item.deadline, item.deadline)))
+        line = title + (". " + ". ".join(extras) if extras else "")
+        lines.append(line)
+    return "\n".join(lines)
