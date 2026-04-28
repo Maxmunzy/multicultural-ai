@@ -22,6 +22,7 @@ import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -335,9 +336,11 @@ public class MainActivity extends Activity {
         bg.setCornerRadius(dp(999));
         if (!active) bg.setStroke(dp(1), COLOR_LINE);
         chip.setBackground(bg);
+        chip.setClickable(true);
         if (listener != null) {
-            chip.setClickable(true);
             chip.setOnClickListener(listener);
+        } else {
+            chip.setOnClickListener(v -> notImplementedToast(label));
         }
         LinearLayout wrap = new LinearLayout(this);
         wrap.addView(chip);
@@ -346,6 +349,14 @@ public class MainActivity extends Activity {
         p.setMargins(0, 0, dp(6), 0);
         wrap.setLayoutParams(p);
         return wrap;
+    }
+
+    private void notImplementedToast(String featureName) {
+        String label = featureName == null ? "" : featureName.trim();
+        String msg = label.isEmpty()
+                ? "기능 미구현 — 데모 베타"
+                : label + " — 기능 미구현 (데모 베타)";
+        Toast.makeText(this, msg, Toast.LENGTH_SHORT).show();
     }
 
     private LinearLayout formCard(String label, java.util.concurrent.Callable<View> bodyFactory) {
@@ -720,7 +731,8 @@ public class MainActivity extends Activity {
         bg.setStroke(dp(1), COLOR_LINE);
         b.setBackground(bg);
         b.setStateListAnimator(null);
-        // mock — 클릭 안 함
+        // mock — 누르면 "기능 미구현" 안내
+        b.setOnClickListener(v -> notImplementedToast(label));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, weight);
         b.setLayoutParams(p);
@@ -1403,6 +1415,13 @@ public class MainActivity extends Activity {
         lab.setGravity(Gravity.CENTER);
         lab.setPadding(0, dp(2), 0, 0);
         col.addView(lab);
+
+        // 비활성 탭만 클릭 시 안내 토스트. 활성 탭은 현재 화면이라 동작 X.
+        if (!active) {
+            col.setClickable(true);
+            col.setFocusable(true);
+            col.setOnClickListener(v -> notImplementedToast(label));
+        }
         return col;
     }
 
