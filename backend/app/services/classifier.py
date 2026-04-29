@@ -15,13 +15,20 @@ _CLF_DIR = Path("/app/external_model/classification")
 if str(_CLF_DIR) not in sys.path:
     sys.path.insert(0, str(_CLF_DIR))
 
-from src.predict import predict_one  # noqa: E402
+# 외부 마운트가 없는 환경(CI/테스트)에선 import 가드 — 모듈 로드만큼은 안전하게.
+try:
+    from src.predict import predict_one  # noqa: E402
+except ImportError as error:
+    print(f"[classifier] predict_one unavailable: {error}")
+    predict_one = None
 
 
 def classify_category(text: str, today: date | None = None) -> Category:
     """문장 → 6-class 카테고리. 실패/미정 시 Category.other."""
     if not text or not text.strip():
         return Category.other
+    if predict_one is None:
+        return Category.other  # 모델 부재 (CI 등) — 안전한 기본값
 
     try:
         result = predict_one(text, model="simple", today=today, explain=False)
