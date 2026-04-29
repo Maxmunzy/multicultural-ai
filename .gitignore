@@ -20,11 +20,8 @@ data/raw/
 *.bin
 *.onnx
 
-# Android
-android/.gradle/
-android/build/
-android/local.properties
-android/app/build/
+# Android (전체 로컬 전용 — OCR 실험 포함)
+android/
 *.apk
 *.aab
 *.keystore
