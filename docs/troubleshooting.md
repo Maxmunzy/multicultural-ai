@@ -314,6 +314,96 @@ if re.search(r"\d+\s*원", easy_ko):
 
 ---
 
+## 런타임 파이프라인 v2 (2026-04-29)
+
+윤정·경이 v2 역할 재분담 + 호스트 입력 다양성(HWP/PDF/text) 지원으로 백엔드 갈아엎음.
+
+초기 소통 오류로 윤정·경이 모델이 같은 6-class 카테고리 분류를 *중복* 학습 중이었음. 정리:
+
+- **윤정 v2** = 할일 추출 (binary 분류, BINARY_THRESHOLD=0.5)
+- **경이 v2** = 6-class 카테고리 분류 (일정/준비물/제출/비용/건강·안전/기타)
+
+분리 후 직렬 흐름 깨끗해짐 ([3] 윤정 → [4] 경이).
+
+### 응답 구조 변경
+
+기존 단일 blob 응답 (`translation`, `easy_ko_text`, `vi_text`)이 슬롯 구조로 바뀜.
+
+```json
+{
+  "summary": {
+    "dates": [], "times": [], "places": [],
+    "supplies": [], "amounts": [], "deadlines": [],
+    "urls": [], "phones": []
+  },
+  "items": [
+    {
+      "category": "준비물",
+      "action_hint": "준비",
+      "title_ko": "...",
+      "title_translated": "...",
+      "amount": "15,000원",
+      "deadline": "...",
+      "importance": 0.9
+    }
+  ],
+  "tts_url": "...",
+  "raw_text": "..."
+}
+```
+
+→ 안드 화면이 옛 필드(`translation`, `easy_ko_text`)를 찾으면 비어있음. PR #54로 안드는 새 구조 대응 완료.
+
+### 새 엔드포인트 — `POST /notice/upload`
+
+선생님이 HWP/PDF/text 파일 직접 업로드. multipart form-data.
+
+```
+form fields:
+  teacher_id: str    (X-User-Id 헤더와 일치해야 함)
+  parent_id:  str
+  file:       File   (.pdf/.hwp/.hwpx/.txt — 화이트리스트 외엔 거부)
+
+응답:
+  200 → {"data": {"notice_id": "...", "char_count": 1234}}
+  400 → 파일 변환 실패 / 빈 텍스트 / 미지원 확장자
+  403 → teacher_id 불일치
+  404 → parent_id 없음
+```
+
+내부 흐름: HWP는 LibreOffice + H2Orestart로 PDF 변환 → pdfplumber. PDF는 직접 pdfplumber. `services/parser.py`가 통합 진입점.
+
+### URL/전화 보호
+
+NLLB가 `031-627-7916` 같은 전화나 `https://apply.kr` 같은 URL을 토큰화하면서 깨먹는 문제. 두 단계로 방어:
+
+- **슬롯 단위**: `summary.urls`, `summary.phones`에 한국어 그대로 노출 (번역 안 거침)
+- **본문 단위**: NLLB 호출 *전에* `⟦P0⟧` 같은 unicode bracket 토큰으로 치환 → 번역 통과 → 토큰 복원
+
+### Dockerfile 영구화
+
+PR #52로 LibreOffice + 한글 폰트 + H2Orestart가 `backend/Dockerfile`에 박힘. **머지 후 백엔드 띄우는 사람은 1회 재빌드 필요**:
+
+```bash
+docker compose build backend     # ~6분 (LibreOffice 설치 150초 + pip 210초)
+```
+
+이후엔 코드 수정만으로는 layer cache 덕분에 수초.
+
+### 윤정 v2 모델 첫 로드 ~30초
+
+PR #53으로 `_BASE_MODEL_ID = "yunjeong116/koelectra-extractor"`. 컨테이너 첫 호출 시 HF Hub에서 fine-tuned 가중치 자동 다운로드. 이후 `hf_cache` 볼륨에 캐시되어 재기동해도 유지.
+
+### LibreOffice 변환 타임아웃
+
+기본 300초. 큰 HWP에서 부족하면 환경변수로 늘림:
+
+```bash
+docker compose run -e PARSER_LIBREOFFICE_TIMEOUT=600 backend
+```
+
+---
+
 ## 설계 결정
 
 ### 왜 알림장 앱 전체가 아니라 AI 도우미 모듈인가
