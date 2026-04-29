@@ -1,183 +1,211 @@
-"""numpy로 직접 구현한 다항 Logistic Regression + TF-IDF 분류기.
+"""
+베이스라인 분류기: TF-IDF + Logistic Regression
+=================================================
+담당: 경이
+역할: 라벨 데이터(notice_sample_v3.csv + notices_labeled_v2.csv)로 학습한
+      6-class 텍스트 분류기.
+      GPU 불필요. CPU에서 수십 ms 이내 추론 가능.
+      KcELECTRA 파인튜닝과 성능 비교할 베이스라인.
 
-왜 이런 가벼운 구현이 필요한가?
-- 샌드박스(scikit-learn 미설치)에서도 학습/평가/추론을 즉시 보여 주기 위함.
-- 사용자가 자기 환경에 transformers/sklearn을 깔지 못하는 즉시 운영
-  상황에서도 의존성 없이 동작하는 안전망 백업.
-- 같은 데이터로 SBERT 모델과 성능을 직접 비교할 수 있다.
-
-알고리즘
---------
-- 다항 로지스틱 회귀 (softmax cross-entropy)
-- L2 정규화 (`weight_decay`)
-- 미니배치 SGD (배치 32, lr=0.5, 200 epoch이면 200~300건에서 수렴)
-- bias 항 포함
-
-성능 가이드
------------
-char n-gram TF-IDF + 다항 LR은 한국어 짧은 안내문에서 macro F1 0.70~0.80에
-도달하는 강력한 베이스라인이다. 이 환경에서 SBERT를 못 돌릴 때 첫 번째
-실전 모델로 삼아도 충분하다.
+사용법:
+    python classifier_simple.py          # 학습 + 저장
+    python classifier_simple.py --eval   # 저장된 모델 평가
 """
 
-from __future__ import annotations
-
-import json
 import pickle
-from dataclasses import dataclass, field
+import argparse
 from pathlib import Path
-from typing import Iterable
 
-import numpy as np
+import pandas as pd
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report, confusion_matrix
 
-from .config import LABEL2ID, LABELS, MODEL_DIR, RANDOM_STATE
-from .feature_engineering import extract_features
-from .text_features import TfidfVectorizer
+# 경로 기준: model/classification/
+_BASE = Path(__file__).parent.parent
+DATA_CSV    = _BASE / "data" / "notice_sample_v3.csv"
+LEGACY_CSV  = _BASE / "data" / "notices_labeled_v2.csv"   # 기존 라벨 데이터
+SPLIT_CSV   = _BASE / "data" / "split_v1.csv"
+MODEL_PKL   = _BASE / "checkpoints" / "simple_tfidf_logreg.pkl"
+
+LABELS = ["일정", "준비물", "제출", "비용", "건강·안전", "기타"]
+
+# 기존 CSV는 컬럼명이 'original_text'이므로 통일 처리
+_TEXT_COLS = ["text", "original_text", "sentence"]
 
 
-@dataclass
-class SoftmaxClassifier:
-    """다항 로지스틱 회귀.
+def _normalize_df(df: pd.DataFrame) -> pd.DataFrame:
+    """컬럼명이 다른 여러 데이터 소스를 text/category 형식으로 통일."""
+    for col in _TEXT_COLS:
+        if col in df.columns and "text" not in df.columns:
+            df = df.rename(columns={col: "text"})
+            break
+    return df
 
-    가중치 W: (n_features, n_classes), bias b: (n_classes,)
-    예측 확률: softmax(x @ W + b)
+
+# ─────────────────────────────────────────────────────────────
+# 데이터 로드
+# ─────────────────────────────────────────────────────────────
+def load_data(split: str = "train") -> tuple[list[str], list[str]]:
+    """split_v1.csv → 없으면 원본 CSV (+ legacy CSV 병합)에서 텍스트·라벨 로드.
+
+    split: "train" | "val" | "test" | "all"
     """
+    if SPLIT_CSV.exists():
+        df = pd.read_csv(SPLIT_CSV)
+        df = _normalize_df(df)
+        if split != "all":
+            df = df[df["split"] == split]
+    else:
+        frames = [pd.read_csv(DATA_CSV)]
+        if LEGACY_CSV.exists():
+            legacy = pd.read_csv(LEGACY_CSV)
+            legacy = _normalize_df(legacy)
+            frames.append(legacy)
+        df = pd.concat(frames, ignore_index=True)
+        df = _normalize_df(df)
 
-    n_classes: int
-    learning_rate: float = 0.5
-    weight_decay: float = 1e-4
-    epochs: int = 250
-    batch_size: int = 32
-    seed: int = RANDOM_STATE
-
-    W: np.ndarray = field(default_factory=lambda: np.zeros(0))
-    b: np.ndarray = field(default_factory=lambda: np.zeros(0))
-
-    def _softmax(self, z: np.ndarray) -> np.ndarray:
-        z = z - z.max(axis=1, keepdims=True)  # 수치 안정성
-        e = np.exp(z)
-        return e / e.sum(axis=1, keepdims=True)
-
-    def fit(self, X: np.ndarray, y: np.ndarray, *, class_weight: np.ndarray | None = None) -> "SoftmaxClassifier":
-        rng = np.random.default_rng(self.seed)
-        n, d = X.shape
-        self.W = rng.normal(0, 0.01, size=(d, self.n_classes)).astype(np.float32)
-        self.b = np.zeros(self.n_classes, dtype=np.float32)
-        # 클래스 불균형 보정 가중치 (예: '비용' 18건처럼 적은 클래스 부스팅)
-        if class_weight is None:
-            counts = np.bincount(y, minlength=self.n_classes).astype(np.float32)
-            class_weight = (counts.max() / np.clip(counts, 1, None)).astype(np.float32)
-
-        for epoch in range(self.epochs):
-            idx = rng.permutation(n)
-            for start in range(0, n, self.batch_size):
-                batch = idx[start : start + self.batch_size]
-                xb, yb = X[batch], y[batch]
-                # forward
-                logits = xb @ self.W + self.b
-                probs = self._softmax(logits)
-                # cross-entropy gradient
-                ohe = np.zeros_like(probs)
-                ohe[np.arange(len(yb)), yb] = 1
-                grad_logits = (probs - ohe) * class_weight[yb][:, None] / len(yb)
-                grad_W = xb.T @ grad_logits + self.weight_decay * self.W
-                grad_b = grad_logits.sum(axis=0)
-                # decay learning rate (느린 코사인 형태)
-                lr = self.learning_rate * (0.5 + 0.5 * np.cos(np.pi * epoch / self.epochs))
-                self.W -= lr * grad_W
-                self.b -= lr * grad_b
-        return self
-
-    def predict_proba(self, X: np.ndarray) -> np.ndarray:
-        return self._softmax(X @ self.W + self.b)
-
-    def predict(self, X: np.ndarray) -> np.ndarray:
-        return np.argmax(self.predict_proba(X), axis=1)
+    df = df.dropna(subset=["text", "category"])
+    df = df[df["category"].isin(LABELS)]
+    return df["text"].tolist(), df["category"].tolist()
 
 
-# ------------------------------------------------------------------------------
-# 통합 분류 파이프라인
-# ------------------------------------------------------------------------------
-class SimpleNoticeClassifier:
-    """TF-IDF + numpy LR + 룰 기반 카테고리 키워드 보조.
+# ─────────────────────────────────────────────────────────────
+# 파이프라인 정의
+# ─────────────────────────────────────────────────────────────
+def build_pipeline() -> Pipeline:
+    """TF-IDF + Logistic Regression 파이프라인.
 
-    피처 구성:
-        [tfidf | urgency | submit_verb | money | health_urgent | length |
-         kw_per_label * 6]
-    이렇게 의미 신호(tfidf)와 명시적 룰 신호를 함께 주면, 적은 데이터에서도
-    성능이 안정된다.
+    TF-IDF 파라미터:
+      - analyzer="char_wb": 한국어는 글자 단위 n-gram이 어절 단위보다 OOV에 강함
+      - ngram_range=(2, 4): 2~4글자 조합으로 형태소 정보 간접 포착
+      - max_features=30000: 메모리·속도 균형
+      - sublinear_tf=True: log(1+tf)로 빈도 폭발 억제
+    LogReg 파라미터:
+      - C=1.0: 기본 정규화 (오버피팅 방지)
+      - max_iter=1000: 수렴 보장
+      - class_weight="balanced": 클래스 불균형 대응
     """
-
-    def __init__(self, *, epochs: int = 250, lr: float = 0.5):
-        self.vectorizer = TfidfVectorizer(min_df=1, max_features=20000)
-        self.clf = SoftmaxClassifier(
-            n_classes=len(LABELS), epochs=epochs, learning_rate=lr
-        )
-        self._extra_keys: list[str] = []  # 추가 피처 컬럼 이름
-
-    # --- 피처 구성 ----------------------------------------------------------
-    def _extra_features(self, texts: list[str]) -> np.ndarray:
-        rows: list[list[float]] = []
-        keys: list[str] = []
-        for t in texts:
-            f = extract_features(t)
-            d = f.as_dict()
-            # NaN을 0으로 (학습 안정)
-            if np.isnan(d.get("days_to_deadline", float("nan"))):
-                d["days_to_deadline"] = 14.0  # "마감 정보 없음" 디폴트
-            d["text_length"] = min(d["text_length"], 200) / 200.0  # 정규화
-            rows.append(list(d.values()))
-            if not keys:
-                keys = list(d.keys())
-        self._extra_keys = keys
-        return np.array(rows, dtype=np.float32)
-
-    def _build_X(self, texts: list[str], *, fit: bool) -> np.ndarray:
-        tfidf = (
-            self.vectorizer.fit_transform(texts)
-            if fit
-            else self.vectorizer.transform(texts)
-        )
-        extra = self._extra_features(texts)
-        return np.hstack([tfidf, extra]).astype(np.float32)
-
-    # --- 학습/평가/추론 ----------------------------------------------------
-    def fit(self, texts: list[str], labels: list[str]) -> "SimpleNoticeClassifier":
-        X = self._build_X(texts, fit=True)
-        y = np.array([LABEL2ID[l] for l in labels], dtype=np.int64)
-        self.clf.fit(X, y)
-        return self
-
-    def predict(self, texts: list[str]) -> list[str]:
-        X = self._build_X(texts, fit=False)
-        ids = self.clf.predict(X)
-        return [LABELS[i] for i in ids]
-
-    def predict_proba(self, texts: list[str]) -> np.ndarray:
-        X = self._build_X(texts, fit=False)
-        return self.clf.predict_proba(X)
-
-    # --- 영속화 -------------------------------------------------------------
-    def save(self, path: Path | None = None) -> Path:
-        path = path or MODEL_DIR / "simple_classifier.pkl"
-        with path.open("wb") as f:
-            pickle.dump(self, f)
-        return path
-
-    @classmethod
-    def load(cls, path: Path | None = None) -> "SimpleNoticeClassifier":
-        path = path or MODEL_DIR / "simple_classifier.pkl"
-        with path.open("rb") as f:
-            return pickle.load(f)
+    return Pipeline([
+        ("tfidf", TfidfVectorizer(
+            analyzer="char_wb",
+            ngram_range=(2, 4),
+            max_features=30_000,
+            sublinear_tf=True,
+        )),
+        ("clf", LogisticRegression(
+            C=1.0,
+            max_iter=1000,
+            class_weight="balanced",
+            random_state=42,
+            multi_class="multinomial",
+            solver="lbfgs",
+        )),
+    ])
 
 
+# ─────────────────────────────────────────────────────────────
+# 학습
+# ─────────────────────────────────────────────────────────────
+def train() -> Pipeline:
+    texts, labels = load_data("train")
+    if not texts:
+        texts, labels = load_data("all")
+
+    pipe = build_pipeline()
+    pipe.fit(texts, labels)
+
+    MODEL_PKL.parent.mkdir(parents=True, exist_ok=True)
+    with open(MODEL_PKL, "wb") as f:
+        pickle.dump(pipe, f)
+    print(f"[simple] 모델 저장 완료: {MODEL_PKL}")
+    print(f"[simple] 학습 데이터 수: {len(texts)}개")
+    return pipe
+
+
+# ─────────────────────────────────────────────────────────────
+# 로드 (캐시)
+# ─────────────────────────────────────────────────────────────
+_pipeline: Pipeline | None = None
+
+
+def load_pipeline() -> Pipeline:
+    global _pipeline
+    if _pipeline is not None:
+        return _pipeline
+
+    if not MODEL_PKL.exists():
+        print("[simple] 저장된 모델 없음 → 학습 시작")
+        _pipeline = train()
+    else:
+        with open(MODEL_PKL, "rb") as f:
+            _pipeline = pickle.load(f)
+    return _pipeline
+
+
+# ─────────────────────────────────────────────────────────────
+# 추론
+# ─────────────────────────────────────────────────────────────
+def predict_simple(text: str) -> dict:
+    """텍스트 → 카테고리 + 신뢰도(각 클래스 확률).
+
+    반환:
+        {
+            "category": str,          # 예측 라벨
+            "confidence": float,      # 예측 클래스 확률
+            "probs": dict[str, float] # 전체 클래스 확률 (explain 용)
+        }
+    """
+    pipe = load_pipeline()
+    proba = pipe.predict_proba([text])[0]
+    classes = pipe.classes_
+
+    idx = proba.argmax()
+    return {
+        "category":   classes[idx],
+        "confidence": float(proba[idx]),
+        "probs":      {c: float(p) for c, p in zip(classes, proba)},
+    }
+
+
+# ─────────────────────────────────────────────────────────────
+# 평가
+# ─────────────────────────────────────────────────────────────
+def evaluate(split: str = "test") -> dict:
+    texts, true_labels = load_data(split)
+    if not texts:
+        texts, true_labels = load_data("all")
+
+    pipe = load_pipeline()
+    pred_labels = pipe.predict(texts)
+
+    report = classification_report(
+        true_labels, pred_labels,
+        labels=LABELS,
+        output_dict=True,
+        zero_division=0,
+    )
+    cm = confusion_matrix(true_labels, pred_labels, labels=LABELS)
+
+    print("\n[simple] 분류 리포트")
+    print(classification_report(true_labels, pred_labels, labels=LABELS, zero_division=0))
+    print("[simple] Confusion Matrix")
+    print(cm)
+
+    return {"report": report, "confusion_matrix": cm.tolist(), "model": "simple"}
+
+
+# ─────────────────────────────────────────────────────────────
+# CLI
+# ─────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # 빠른 동작 확인
-    from .data_loader import build_dataset
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--eval", action="store_true", help="저장된 모델 평가")
+    args = parser.parse_args()
 
-    split = build_dataset()
-    clf = SimpleNoticeClassifier(epochs=100)
-    clf.fit(split.train["original_text"].tolist(), split.train["category"].tolist())
-    preds = clf.predict(split.val["original_text"].tolist())
-    correct = sum(p == y for p, y in zip(preds, split.val["category"].tolist()))
-    print(f"validation accuracy={correct}/{len(preds)} = {correct/len(preds):.3f}")
+    if args.eval:
+        evaluate()
+    else:
+        train()
+        evaluate("test")

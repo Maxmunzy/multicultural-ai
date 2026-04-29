@@ -1,208 +1,210 @@
-# 모델 B — 가정통신문 분류 + 중요도 (경이)
+전체 파이프라인 (확정 버전)
 
-다문화 가정 학부모 알림 AI 파이프라인의 두 번째 단계 모델이다.
+┌──────────────────────────────────────────────────────────────────┐
+│ 호스트 앱 → POST /notice/analyze                                  │
+│   body: HWP/PDF (multipart) or text (json)                        │
+└──────────────────────────────────────────────────────────────────┘
+            ↓
+[1] 텍스트 변환  (services/parser.py — 신설)
+    · text     → passthrough
+    · PDF      → pdfplumber + table 분리
+    · HWP/HWPX → LibreOffice + pdfplumber
+    · 이미지   → 세종님 OCR (연휴 후 합류)
+    → output: clean_text (str)
 
-```
-가정통신문 텍스트
-        ↓ 모델 A (윤정) — 추출
-할 일 문장 (예: "내일까지 동의서를 제출해 주세요")
-        ↓ 모델 B (경이) — 본 모듈
-{ category: "제출", importance: 0.98, action_required: "Y" }
-        ↓ 모델 C (세종) — 번역 + TTS
-베트남어 음성 안내
-```
+            ↓
+[2] 정규식 슬롯 추출  (services/slot_extractor.py — 이미 구현)
+    · dates / times / amounts (이미 있음)
+    · urls / phones (NEW — 추가 필요)
+    · 통신문 전체 단위. summary용 재료.
+    → output: regex_slots (dict)
 
-## 핵심 설계
+            ↓
+[3] 할일 추출  (services/extractor.py — 윤정님 v2 wrapper)
+    입력:  clean_text
+    내부:  문장분리 → binary 분류(0.5컷) → 정규식(due_date/amount/action_hint)
+    출력:  list[YunjeongTodo]
+           각 항목: { text, source, due_date, amount,
+                     confidence, action_hint }
+    빈 리스트면 items 없음.
 
-| 컴포넌트 | 역할 | 기본 구현 | Production 옵션 |
-| --- | --- | --- | --- |
-| 분류기 | 추출 문장 → 6개 카테고리 | numpy LR + TF-IDF (의존성 0) | sklearn LR / SBERT+LightGBM / KoELECTRA fine-tune / Qwen2.5 LoRA |
-| 시급도 룰 | 시간 표현·키워드로 0~1 점수 | `feature_engineering.py` (정규식 기반) | 동일 |
-| 중요도 회귀 | 학습된 회귀 + 룰 점수 가중 결합 | numpy Ridge | sklearn / LightGBM Regressor |
-| API | 백엔드 연결 (`/classify`) | FastAPI | 동일 |
+            ↓
+[4] 카테고리 분류  (services/classifier.py — 경이님 6-class wrapper)
+    입력:  각 todo.text
+    출력:  category ∈ {일정, 준비물, 제출, 비용, 건강·안전, 기타}
 
-### 카테고리 (`config.LABELS`)
+            ↓
+[5] 번역  (services/translator.py — 이미 구현, 보강 필요)
+    슬롯 단위:
+      · dates/times/amounts → i18n formatter (deterministic, NLLB 안 거침)
+      · urls/phones        → ko 그대로 (NEW)
+      · places/supplies    → glossary lookup → 없으면 NLLB
+    본문 단위 (todo.text):
+      · URL/전화 ⟦P0⟧ 토큰 치환 → NLLB → 토큰 복원 (NEW, 보호)
+      · glossary injection → NLLB
+
+            ↓
+[6] 응답 빌드  (routers/notice.py)
+    summary = SummarySlots(
+        dates, times, amounts, urls, phones,    # 정규식
+        places, supplies, deadlines              # items에서 집계
+    )
+    items = [
+        AnalyzeItem(
+            text_ko        = todo.text,
+            title_translated = ...번역...,
+            category       = 경이(todo.text),    # 주제 (6-class)
+            action_hint    = todo.action_hint,   # 행동 (신청/제출/...)
+            due_date       = todo.due_date,
+            amount         = todo.amount,
+            importance     = todo.confidence,
+            ...
+        )
+        for todo in yunjeong_todos
+    ]
+
+            ↓
+[7] TTS  (services/tts.py — 이미 구현)
+    슬롯 + 할일 합쳐 문장별 mp3 생성.
+    importance 내림차순 정렬.
+
+            ↓
+JSON 응답 → 호스트 앱
+{
+    "summary": SummarySlots,
+    "items":   [AnalyzeItem, ...],
+    "tts_url": "...",
+    ...
+}
+
+
+### 카테고리 분류-경이님
 
 `일정`, `준비물`, `제출`, `비용`, `건강·안전`, `기타`
 
-### 중요도 (0~1)
 
-- `1.0` — 즉시 행동 필요 (내일 마감, 감염병 확진 등)
-- `0.85~0.95` — 놓치면 문제 (주중 마감 제출/납부)
-- `0.7~0.85` — 일정 확인 / 가정 지도 필요
-- `0.5~0.7` — 참고성 정보
-- `< 0.5` — 일반 공지 (행동 불필요)
+# 가장 중요한 핵심과제: 모델 성능 비교 (베이스라인 VS. 파인튜닝)
+1. 조건: 베이스라인 모델, 파인튜닝한 모델에 들어가는 input data가 동일한 데이터셋 및 동일한 조건에서 두 모델의 성능을 비교. 다시 말해서, 기존에 있던 모델을 가지고 동일한 조건을 맞춰서 일정, 준비물, 제출, 비용, 건강·안전, 기타에 대한 분류 성능 점수가 나와야하고 파인튜닝한 모델을 동일한 조건으로 6가지 분류 성능 점수가 나와야 비교가 가능. 그래서 파인튜닝된 모델이 베이스라인모델보다 성능이 좋다라는 지표가 나와야 성능의 우수함을 입증할 수 있음. 근거 자료를 만들어야 함. 
 
-## 폴더 구조
+2. 두 모델(베이스라인 모델, 파인튜닝한 모델)에 들어가는 데이터는 답안지가 없기 때문에 accuracy가 아닌 그 모델의 맞는 평가 방식 및 성능 지표를 뽑아야 함. 사용하고자 하는 모델들의 기능을 자세한 설명 듣기.
 
-```
-model/classification/
-├── README.md
-├── requirements.txt
-├── src/
-│   ├── config.py                      # 라벨/경로/하이퍼파라미터
-│   ├── data_loader.py                 # 두 출처 통합 + stratified split
-│   ├── feature_engineering.py         # 시급도 룰 + 키워드 피처
-│   ├── text_features.py               # numpy TF-IDF
-│   ├── classifier_simple.py           # numpy 기반 (의존성 0, 데모/백업)
-│   ├── classifier_sklearn.py          # sklearn LR (production 베이스라인)
-│   ├── classifier_sbert.py            # SBERT + LightGBM (메인 권장)
-│   ├── classifier_kobert.py           # KoBERT/KoELECTRA fine-tune + Qwen2.5
-│   ├── importance_scorer.py           # 룰 + Ridge 회귀 결합
-│   ├── train.py                       # 학습 진입점
-│   ├── predict.py                     # 추론·CSV 빈 칸 채우기
-│   ├── evaluate.py                    # F1·MAE·Spearman 평가
-│   ├── fill_yunjeong_extracted.py     # 모델 A 출력 → 모델 B로 채우기
-│   └── api.py                         # FastAPI 서버
-├── data/                              # 입력 데이터
-└── outputs/
-    ├── models/                        # 학습된 가중치
-    ├── reports/                       # 평가 보고서 (md+json)
-    └── predictions/                   # 채운 결과 CSV/JSON
-```
+예시로, Precision이라고 하면 10개 단어 중에 2개 단어만 맞췄다. 그래서 그 모델로 해서 모든 텍스트 데이터 돌아서 몇 프로 맞췄으니까 얘는 성능이 얼마다 라고 얘기하는 것도 있다.
 
-## 빠른 시작
+==> 파인튜닝의 성능이 베이스라인 성능보다 좋은 쪽으로 모델이 나와야하고 그 모델에 맞는 평가 지표가 나와야 한다. 글씨로 정리하는 것 뿐만아니라 시각적인 도구를 활용해서 그래프 혹은 직선 사용 등으로 제시할 근거 자료가 필요.
 
-### 1) 의존성 0으로 (numpy + pandas만)
 
-```bash
-python -m src.train --model simple
-python -m src.predict --text "내일까지 동의서를 제출해 주세요" --today 2026-04-27
-```
+# 윤정님 데이터 정보들
 
-### 2) sklearn 베이스라인
+-원본 데이터 : \data\galsan_txt 
+-전처리 파일 : file/preprocess_txt_to_jsonl.py
+-전처리 후 데이터 : data/v2.1_notices_galsan.jsonl
 
-```bash
-pip install scikit-learn joblib
-python -m src.train --model sklearn
-```
+-윤정님이 전처리 후 데이터로 모델 학습 시켰고 실 서비스에서
+데이터 넣고 나오는 아웃풋을 보려면 predict.py를 돌려봐야
+하고 그 predict.py의 아웃풋이 경이님 모델로 들어감. 
 
-### 3) SBERT + LightGBM (메인 권장)
+-predict.py를 경이님 모델의 인풋으로 해서 넣어야 함.
+results.append({
+            "text":        sentence,
+            "source":      source,
+            "due_date":    extract_due_date(sentence),
+            "amount":      extract_amount(sentence),
+            "confidence":  round(confidence, 4),
+            "action_hint": extract_action_hint(sentence),
+        })
+[
+  {
+    "text": "모국어를 사용하는 강사가 단계별로 친절히 가르치는 동영상 강의(VOD)를 PC나 모바일 기기로 접속하여 언제든지 원하는 장소에서 편리하게 학습할 수 있는 좋은 기회이오니, 한국어 학습이 필요한 다문화가정 학생 및 학부모(보호자) 모두 기한 내 신청하여 주시기 바랍니다.",
+    "source": "sample_pdfplumber.txt",
+    "due_date": null,
+    "amount": null,
+    "confidence": 0.9946,
+    "action_hint": "신청"
+  }
+]
 
-```bash
-pip install sentence-transformers lightgbm joblib torch --index-url https://download.pytorch.org/whl/cpu
-python -m src.train --model sbert
-```
+# 추천된 모델 및 기술 스택
 
-처음 실행 시 `paraphrase-multilingual-MiniLM-L12-v2`(50MB)를 자동 다운로드한다.
-실패 시 `jhgan/ko-sroberta-multitask`로 fallback.
+추천1. KcELECTRA fine-tune
 
-### 4) KoBERT/KoELECTRA fine-tune
+이유:
+1. 데이터 양 충분 (700~1400 sentence) — KcELECTRA fine-tune 권장 sweet spot
+2. 학교 도메인 어휘 OOV 문제 해결 (subword tokenization)
+3. 윤정님 base 모델과 같은 koelectra-small ─ backbone 공유 가능
+   → 백엔드 RAM 중복 로드 회피 (둘 다 base는 같고 head만 다름)
+4. CPU 추론 가능 (small 변형이라 ~50ms/문장)
+5. 윤정님이 이미 같은 모델로 학습 환경 셋업 완료 — 학습 코드 재활용
+메모리 효율 트릭
 
-```bash
-pip install torch transformers
-python -m src.train --model kobert --epochs 5
-```
+두 모델이 같은 backbone 공유하면 RAM 중복 0
+shared_encoder = AutoModel.from_pretrained("monologg/koelectra-small-v3-discriminator")
 
-CPU에서 epoch당 2~3분 (300건 기준). Colab 무료 GPU 사용 권장.
+윤정_head = BinaryHead(shared_encoder)        # 할일 추출 (binary)
+경이_head = MulticlassHead(shared_encoder, 6)  # 카테고리 (6-class)
+이렇게 짜면 경이 모델 추가에 따른 RAM 증가가 head만큼(~수MB)으로 줄어듦. 이상적.
 
-### 5) Qwen2.5 zero-shot (학습 없이)
+단계적 권장안
 
-```python
-from src.classifier_kobert import qwen_zero_shot_predict
-qwen_zero_shot_predict("내일까지 동의서를 제출해 주세요")  # → '제출'
-```
+1주차: 경이님이 KcELECTRA fine-tune 시도
+   
+데이터: notice_sample_v3.csv + notices_galsan.jsonl 라벨 부분
+GPU: Colab T4 무료로 충분 (~20분 학습)
+검증: 갈산초 holdout F1 + cross-validation
 
-## CSV 빈 칸 채우기 (이미지 시나리오)
+2주차: 정확도 비교
+   
+simple (현재) vs KcELECTRA fine-tune
+5%+ F1 향상 → KcELECTRA 채택, 그 미만 → simple 유지
+simple은 항상 fallback으로 유지
 
-```bash
-python -m src.predict --input data/new_notices.csv \
-                     --output outputs/predictions/filled.csv \
-                     --today 2026-04-27
-```
+3주차: 시연 통합
+   
+더 좋은 쪽으로 교체
+선생님께 학습 코드/모델 공유로 재현성 보장
+주의
+시연 4주 임박이라 무리하면 안 됨:
 
-- 입력 CSV의 `category`/`importance`가 비어 있는 행만 채운다 (사람 라벨 보호).
-- `--overwrite`로 모든 행 덮어쓰기 가능.
+KcELECTRA fine-tune 학습 자체는 빠르지만 검증 + 디버깅 시간 필요
+simple v1이 이미 75% 정확도라 시연 박살 안 남
+실패하면 simple 그대로 — 백업 명확히
+경이님 부담:
 
-### 모델 A 출력 채우기
+학습 환경 셋업 (윤정님 코드 빌려쓰기로 부담 경감)
+라벨 데이터 정제 (현재 v3.csv 라벨 품질 확인)
+검증셋 분리 (갈산초 holdout)
+한 줄 요약
+데이터 충분 → KcELECTRA fine-tune 시도가 정답. 다만 simple v1을 fallback으로 항상 유지. 윤정님 backbone 공유하면 RAM 효율 + 학습 환경 재활용 가능.
 
-윤정님이 보낸 `extracted_results.json`처럼 todo 단위 JSON을 그대로 넣으면 카테고리/중요도가 채워져 나온다:
+경이님이 비교 실험 의지 있는 건 좋음. 다만 제대로 비교해야 가치 있고, 시연 4주 안 압박도 있으니 셋업이 중요.
 
-```bash
-python -m src.fill_yunjeong_extracted --today 2026-04-27
-# → outputs/predictions/extracted_results_filled.json
-```
+비교 실험 설계 가이드
+후보 모델 선정 (3~4개가 최대)
+모델    카테고리    학습 시간    강점    약점
+TF-IDF + LogReg    베이스라인 (필수)    수초    빠름, 가벼움    OOV·문맥 약
+SBERT + LightGBM    임베딩 ML    분    의미 유사도    도메인 적응 약
+KcELECTRA-small fine-tune    한국어 BERT    20~30분    도메인 학습    base 한국 일반
+KoBERT fine-tune    한국어 BERT    20~30분    한국어 특화    KcELECTRA와 비슷
+→ 3개 권장: TF-IDF (baseline) + SBERT + KcELECTRA. 4개는 시간 박살.
 
-## API 서버 (태수님 백엔드 연결용)
+2. 공정 비교를 위한 절대 규칙
+(a) 동일 train/val/test 분할 강제
 
-```bash
-pip install fastapi uvicorn
-uvicorn src.api:app --host 0.0.0.0 --port 8001
-```
 
-```bash
-curl -XPOST http://localhost:8001/classify \
-  -H 'content-type: application/json' \
-  -d '{"text":"내일까지 동의서를 제출해 주세요","today":"2026-04-27"}'
-```
+scripts/split_dataset.py 만들어서 ONE TIME 실행:
+random.seed(42)  # 무조건 고정
+labels = stratified_split(data, train=0.8, val=0.1, test=0.1)
 
-응답:
-```json
-{
-  "category": "제출",
-  "importance": 0.98,
-  "action_required": "Y",
-  "urgency_score": 0.93,
-  "days_to_deadline": 1,
-  "has_deadline": false,
-  "has_submit_verb": true
-}
-```
+split_v1.csv 라는 단일 파일로 저장 → 모든 모델이 같은 분할 사용
+(b) Metric 통일
 
-## 성능 (test=61, simple 트랙 기준)
+Macro F1 (메인) — 클래스 불균형 대비
+Per-class F1 — "비용은 잘 잡는데 건강·안전은 못 잡는다" 같은 진단
+Confusion matrix — 어디서 헷갈리는지 시각화
+(c) Seed 고정 — numpy, torch, random 모두 42
 
-| 항목 | 값 | MVP 목표 | 결과 |
-| --- | --- | --- | --- |
-| accuracy | **0.803** | ≥ 0.80 | 달성 |
-| macro F1 | **0.784** | ≥ 0.75 | 달성 |
-| weighted F1 | **0.806** | — | — |
-| importance MAE | **0.082** | < 0.10 | 달성 |
-| importance Spearman | **0.690** | — | — |
-| 고중요(≥0.85) precision | **0.900** | — | "내일 마감" 안내 90% 정확 |
+추천2.  모델: klue/roberta-base
 
-SBERT/KoELECTRA 사용 시 +3~7%p 추가 향상이 일반적이다.
+KoELECTRA(A단계)와 겹치지 않고, KLUE 벤치마크에서 한국어 분류 SOTA. 파인튜닝이 안정적이고 허깅페이스에서 바로 쓸 수 있음.
 
-## 시급도 룰의 핵심 (importance 정확도의 비결)
 
-`feature_engineering.py`가 텍스트에서 직접 다음을 추출:
 
-| 신호 | 패턴 예 | 영향 |
-| --- | --- | --- |
-| 즉시성 | "오늘", "당일", "내일" | urgency ≥ 0.93 |
-| 절대 마감 | "4월 30일까지", "5월 1일까지" | days_to_deadline 정확히 계산 |
-| 요일 마감 | "이번 주 금요일까지" | 다가오는 그 요일까지 일수 |
-| 상대 일수 | "5일 이내" | days_to_deadline = 5 |
-| 행동 불필요 | "자동이체", "배부됩니다" | importance × 0.6 |
-| 건강 위급 | "감염병 확진", "발열", "즉시 연락" | importance + 0.05 |
-| 카테고리 키워드 | "동의서/신청서/조사서/체육복/..." | 분류 보조 피처 |
-
-`days_to_deadline`은 지수 감쇠(τ=10)로 시급도로 변환한다.
-
-## 다른 팀과의 인터페이스
-
-### 입력 (모델 A → 모델 B)
-
-```json
-{"text": "내일까지 동의서를 제출해 주세요"}
-```
-
-### 출력 (모델 B → 모델 C)
-
-```json
-{
-  "category": "제출",
-  "importance": 0.98,
-  "action_required": "Y",
-  "urgency_score": 0.93,
-  "days_to_deadline": 1
-}
-```
-
-`action_required`는 모델 C의 TTS 우선순위 결정에 사용된다.
-
-## 향후 개선 포인트
-
-1. **데이터 증강**: 윤정 jsonl 비-todo 문장을 negative `기타` 샘플로 추가 → '기타' 클래스 F1 0.50 → 0.70+ 가능
-2. **SBERT 도메인 어댑테이션**: ko-sroberta를 가정통신문에 simCSE로 추가 학습
-3. **importance 라벨 일관성**: 0.05 단위 라벨이 사람마다 ±0.10 흔들림 → 라벨링 가이드 보강 필요
-4. **다국어 zero-shot**: 베트남어 입력에서도 직접 분류 (NLLB embedding 활용)

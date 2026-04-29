@@ -1,188 +1,136 @@
-"""저장된 분류기 + 중요도 모델로 빈 칸을 채우는 추론 스크립트.
+"""
+경이님 6-class 카테고리 분류 — 백엔드 진입점
+==============================================
+담당: 경이
+파이프라인: [4] 카테고리 분류 단계
 
-이미지 시나리오 그대로:
-    notice_sample_vN.csv (category, importance가 비어있는 행 포함)
-            ↓
-    predict.py 실행
-            ↓
-    notice_sample_vN_filled.csv (모델이 채운 결과)
+백엔드(backend/app/services/classifier.py)가 이 파일의 predict_one()을 호출함:
+    from src.predict import predict_one
+    result = predict_one(text, model="simple", today=today, explain=False)
 
-사용법
-------
-1) 단일 문장:
-    python -m src.predict --text "내일까지 동의서를 제출해 주세요"
+지원 모델:
+    "simple"    → TF-IDF + LogReg (베이스라인, 빠름, CPU)
+    "kcelectra" → KcELECTRA 파인튜닝 (파인튜닝 완료 후 사용 가능)
+    "auto"      → kcelectra 체크포인트 있으면 사용, 없으면 simple fallback
 
-2) CSV 일괄 채우기:
-    python -m src.predict --input data/new_notices.csv --output outputs/predictions/filled.csv
-
-3) 모델 선택 (기본 simple):
-    python -m src.predict --model sbert --input ...
-
-4) 추론 시 오늘 날짜 지정 (시급도 룰의 절대 일자 계산용):
-    python -m src.predict --today 2026-04-27 --text "5월 1일까지 신청해 주세요"
+출력 형식:
+    {
+        "text":       str,
+        "category":   str,   # "일정" | "준비물" | "제출" | "비용" | "건강·안전" | "기타"
+        "confidence": float, # 0.0 ~ 1.0
+        "model_used": str,   # 실제 사용된 모델명
+        "probs":      dict   # explain=True일 때만 채워짐
+    }
 """
 
 from __future__ import annotations
 
-import argparse
-import json
-from datetime import date, datetime
-from pathlib import Path
+import datetime
+from typing import Optional
 
-import numpy as np
-import pandas as pd
+from .classifier_simple import predict_simple
+from .classifier_kcelectra import predict_kcelectra, is_ready as kcelectra_ready
 
-from .config import EMPTY_SENTINELS, LABELS, MODEL_DIR, PRED_DIR
-from .feature_engineering import extract_features
-from .importance_scorer import ImportanceScorer
-
-
-def _is_empty(v) -> bool:
-    if v is None:
-        return True
-    if isinstance(v, float) and np.isnan(v):
-        return True
-    return str(v).strip() in EMPTY_SENTINELS
-
-
-def _load_classifier(model: str):
-    if model == "simple":
-        from .classifier_simple import SimpleNoticeClassifier
-        return SimpleNoticeClassifier.load()
-    if model == "sklearn":
-        from .classifier_sklearn import load_sklearn_model
-        pipe = load_sklearn_model()
-
-        class _Wrap:
-            def predict(self, texts):
-                return list(pipe.predict(texts))
-
-        return _Wrap()
-    if model == "sbert":
-        from .classifier_sbert import SbertLgbmClassifier
-        return SbertLgbmClassifier.load()
-    if model == "kobert":
-        from .classifier_kobert import predict_kobert
-        d = MODEL_DIR / "kobert_classifier"
-
-        class _Wrap:
-            def predict(self, texts):
-                return predict_kobert(d, texts)
-
-        return _Wrap()
-    raise ValueError(model)
+VALID_CATEGORIES = {"일정", "준비물", "제출", "비용", "건강·안전", "기타"}
 
 
 def predict_one(
     text: str,
-    *,
     model: str = "simple",
-    today: date | None = None,
-    explain: bool = True,
+    today: Optional[datetime.date] = None,
+    explain: bool = False,
 ) -> dict:
-    """문장 하나 → category / importance / 설명."""
-    clf = _load_classifier(model)
-    scorer = ImportanceScorer.load()
-    cat = clf.predict([text])[0]
-    imp = float(scorer.predict([text], [cat], today=today)[0])
-    out = {"text": text, "category": cat, "importance": round(imp, 3)}
+    """문장 1개 → 6-class 카테고리 예측.
+
+    Args:
+        text:    분류할 문장 (윤정님 모델 출력의 "text" 필드)
+        model:   "simple" | "kcelectra" | "auto"
+        today:   사용 안 함 (날짜 의존 분류 대비 인터페이스 호환)
+        explain: True → probs 딕셔너리 포함
+
+    Returns:
+        {
+            "text":       str,
+            "category":   str,
+            "confidence": float,
+            "model_used": str,
+            "probs":      dict (explain=True 시),
+        }
+    """
+    if not text or not text.strip():
+        return _empty_result(text, model)
+
+    model = model.lower()
+    result: dict
+    used: str
+
+    if model == "kcelectra":
+        result = predict_kcelectra(text)
+        used = "kcelectra"
+    elif model == "auto":
+        if kcelectra_ready():
+            result = predict_kcelectra(text)
+            used = "kcelectra"
+        else:
+            result = predict_simple(text)
+            used = "simple"
+    else:
+        result = predict_simple(text)
+        used = "simple"
+
+    category = result.get("category", "기타")
+    if category not in VALID_CATEGORIES:
+        category = "기타"
+
+    out = {
+        "text":       text,
+        "category":   category,
+        "confidence": result.get("confidence", 0.0),
+        "model_used": used,
+    }
     if explain:
-        f = extract_features(text, today=today).as_dict()
-        out["urgency_score"] = round(f["urgency_score"], 3)
-        out["days_to_deadline"] = (
-            None if np.isnan(f["days_to_deadline"]) else int(f["days_to_deadline"])
-        )
-        out["has_deadline"] = bool(f["has_deadline"])
-        out["has_submit_verb"] = bool(f["has_submit_verb"])
-        out["action_required"] = "Y" if imp >= 0.7 and not bool(f["has_no_action"]) else "N"
+        out["probs"] = result.get("probs", {})
     return out
 
 
-def fill_csv(
-    input_path: Path,
-    output_path: Path,
-    *,
+def predict_batch(
+    texts: list[str],
     model: str = "simple",
-    today: date | None = None,
-    overwrite: bool = False,
-) -> pd.DataFrame:
-    """CSV의 빈 category/importance를 채워 새 CSV 저장.
-
-    overwrite=True면 이미 라벨이 있는 행도 모델 예측으로 덮어쓴다.
-    기본은 빈 칸만 채움 (사람 라벨 보호).
-    """
-    df = pd.read_csv(input_path)
-    if "original_text" not in df.columns:
-        raise ValueError("입력 CSV에 'original_text' 컬럼이 필요합니다.")
-    if "category" not in df.columns:
-        df["category"] = pd.Series([pd.NA] * len(df), dtype="object")
-    else:
-        df["category"] = df["category"].astype("object")
-    if "importance" not in df.columns:
-        df["importance"] = pd.Series([pd.NA] * len(df), dtype="float64")
-
-    # 채울 행 식별
-    if overwrite:
-        mask = pd.Series([True] * len(df))
-    else:
-        mask = df["category"].apply(_is_empty) | df["importance"].apply(_is_empty)
-
-    if not mask.any():
-        print("[predict] 채울 빈 칸이 없습니다.")
-        df.to_csv(output_path, index=False)
-        return df
-
-    clf = _load_classifier(model)
-    scorer = ImportanceScorer.load()
-    target_texts = df.loc[mask, "original_text"].astype(str).tolist()
-
-    cats = clf.predict(target_texts)
-    imps = scorer.predict(target_texts, cats, today=today)
-
-    # 빈 칸인 컬럼만 쓰기
-    cat_mask = mask & df["category"].apply(_is_empty)
-    imp_mask = mask & df["importance"].apply(_is_empty)
-    pred_idx = df.index[mask].tolist()
-    cat_map = dict(zip(pred_idx, cats))
-    imp_map = dict(zip(pred_idx, imps))
-    for i in pred_idx:
-        if cat_mask.loc[i] or overwrite:
-            df.at[i, "category"] = cat_map[i]
-        if imp_mask.loc[i] or overwrite:
-            df.at[i, "importance"] = round(float(imp_map[i]), 2)
-
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    df.to_csv(output_path, index=False)
-    print(f"[predict] {len(target_texts)}개 행 채움 → {output_path}")
-    return df
+    today: Optional[datetime.date] = None,
+    explain: bool = False,
+) -> list[dict]:
+    """여러 문장 일괄 예측. 윤정님 결과 전체를 한 번에 처리할 때 사용."""
+    return [predict_one(t, model=model, today=today, explain=explain) for t in texts]
 
 
-def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--model", default="simple",
-                    choices=["simple", "sklearn", "sbert", "kobert"])
-    ap.add_argument("--text", help="단일 문장 추론")
-    ap.add_argument("--input", type=Path, help="입력 CSV")
-    ap.add_argument("--output", type=Path, help="출력 CSV")
-    ap.add_argument("--today", help="기준일 YYYY-MM-DD (시급도 절대 날짜 계산용)")
-    ap.add_argument("--overwrite", action="store_true",
-                    help="이미 라벨이 있어도 예측으로 덮어쓰기")
-    args = ap.parse_args()
-
-    today = datetime.strptime(args.today, "%Y-%m-%d").date() if args.today else None
-
-    if args.text:
-        out = predict_one(args.text, model=args.model, today=today)
-        print(json.dumps(out, ensure_ascii=False, indent=2))
-        return
-
-    if args.input:
-        out_path = args.output or (PRED_DIR / f"{args.input.stem}_filled.csv")
-        fill_csv(args.input, out_path, model=args.model, today=today, overwrite=args.overwrite)
-        return
-
-    ap.print_help()
+def _empty_result(text: str, model: str) -> dict:
+    return {
+        "text":       text,
+        "category":   "기타",
+        "confidence": 0.0,
+        "model_used": model,
+    }
 
 
+# ─────────────────────────────────────────
+# 직접 실행 테스트
+# ─────────────────────────────────────────
 if __name__ == "__main__":
-    main()
+    samples = [
+        "현장체험학습 비용 20,000원을 3월 20일까지 납부해 주세요.",
+        "체험학습 당일 도시락과 물을 준비해 주세요.",
+        "동의서를 작성하여 담임선생님께 제출해 주세요.",
+        "운동회는 10월 5일 오전 9시 30분에 열립니다.",
+        "발열·기침 증상이 있는 경우 등교를 자제해 주세요.",
+        "궁금한 사항은 담임선생님께 문의해 주세요.",
+    ]
+    print("=" * 60)
+    print("predict_one 테스트 (model=simple)")
+    print("=" * 60)
+    for s in samples:
+        r = predict_one(s, model="simple", explain=True)
+        print(f"\n문장: {r['text']}")
+        print(f"  → 카테고리: {r['category']}  (신뢰도: {r['confidence']:.3f})")
+        probs = r.get("probs", {})
+        top3 = sorted(probs.items(), key=lambda x: -x[1])[:3]
+        print(f"  → Top3: {top3}")
