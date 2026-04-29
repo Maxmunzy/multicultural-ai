@@ -8,15 +8,24 @@
   - HWP/HWPX → LibreOffice + H2Orestart로 PDF 변환 → pdfplumber
 
 이미지(.jpg/.png) OCR은 별도 단계 (세종님 OCR 합류 시 추가).
+
+보안 모델:
+  - 원본 filename은 .suffix 추출에만 사용. 추출된 suffix는 화이트리스트 검사
+    (TEXT_EXTS / PDF_EXTS / HWP_EXTS) 통과 못 하면 ParserError로 즉시 거부.
+  - 디스크 저장 경로는 tempfile.TemporaryDirectory + 고정 이름 input{suffix}.
+    원본 filename은 어떤 경로/명령에도 사용되지 않음.
+  - subprocess 호출은 list 인자 형태(쉘 미사용) → 명령 주입 표면 없음.
 """
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import tempfile
 from pathlib import Path
 
 # pdfplumber는 외부 의존이라 CI/테스트 안전하게 가드.
+# 운영에선 requirements.txt + Dockerfile로 보장. 부재면 첫 PDF 호출 시점에 명확한 메시지.
 try:
     import pdfplumber  # type: ignore
 except ImportError as error:
@@ -27,6 +36,10 @@ except ImportError as error:
 PDF_EXTS = {".pdf"}
 HWP_EXTS = {".hwp", ".hwpx"}
 TEXT_EXTS = {".txt", ".md"}
+ALLOWED_EXTS = PDF_EXTS | HWP_EXTS | TEXT_EXTS
+
+# LibreOffice 변환 타임아웃 (초). 큰 HWP는 ENV로 오버라이드 가능.
+LIBREOFFICE_TIMEOUT_SECONDS = int(os.environ.get("PARSER_LIBREOFFICE_TIMEOUT", "300"))
 
 
 class ParserError(RuntimeError):
@@ -53,7 +66,10 @@ def normalize(text: str) -> str:
 def _pdf_to_text(pdf_path: Path) -> str:
     """본문 텍스트(표 영역 제외) + 표(행 단위 정리) 분리."""
     if pdfplumber is None:
-        raise ParserError("pdfplumber 미설치")
+        raise ParserError(
+            "pdfplumber 미설치. backend 컨테이너 재빌드(docker compose build backend) "
+            "또는 pip install pdfplumber 필요."
+        )
 
     body_pages: list[str] = []
     table_blocks: list[str] = []
@@ -99,17 +115,27 @@ def _pdf_to_text(pdf_path: Path) -> str:
 
 
 def _hwp_to_pdf(hwp_path: Path, out_dir: Path) -> Path:
-    """LibreOffice headless로 HWP → PDF. 실패하면 ParserError."""
+    """LibreOffice headless로 HWP → PDF. 실패하면 ParserError.
+
+    타임아웃: PARSER_LIBREOFFICE_TIMEOUT 환경변수로 오버라이드 가능 (기본 300초).
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
-    result = subprocess.run(
-        [
-            "libreoffice", "--headless",
-            "--convert-to", "pdf",
-            "--outdir", str(out_dir),
-            str(hwp_path),
-        ],
-        capture_output=True, text=True, timeout=120,
-    )
+    try:
+        result = subprocess.run(
+            [
+                "libreoffice", "--headless",
+                "--convert-to", "pdf",
+                "--outdir", str(out_dir),
+                str(hwp_path),
+            ],
+            capture_output=True, text=True,
+            timeout=LIBREOFFICE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise ParserError(
+            f"LibreOffice 변환 타임아웃 ({LIBREOFFICE_TIMEOUT_SECONDS}초 초과). "
+            "큰 HWP면 PARSER_LIBREOFFICE_TIMEOUT 환경변수로 늘릴 수 있음."
+        )
     pdf_path = out_dir / f"{hwp_path.stem}.pdf"
     if result.returncode != 0 or not pdf_path.exists():
         raise ParserError(
@@ -128,11 +154,17 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
 
     suffix = Path(filename).suffix.lower()
 
+    # 화이트리스트 검사: 알 수 없는 suffix는 일찍 거부.
+    # (subprocess는 어차피 list-form이라 명령 주입은 불가능하지만 표면을 줄임)
+    if suffix and suffix not in ALLOWED_EXTS:
+        raise ParserError(f"지원하지 않는 파일 형식: {suffix}")
+
     if suffix in TEXT_EXTS or suffix == "":
         return normalize(data.decode("utf-8", errors="replace"))
 
     with tempfile.TemporaryDirectory() as tmp:
         tmp_dir = Path(tmp)
+        # 디스크 경로는 항상 tempdir 안의 고정 이름. 원본 filename은 어디에도 안 들어감.
         src_path = tmp_dir / f"input{suffix}"
         src_path.write_bytes(data)
 

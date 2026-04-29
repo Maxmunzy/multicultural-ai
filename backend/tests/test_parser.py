@@ -56,6 +56,63 @@ def test_parse_unsupported_extension_raises():
         parse_bytes_to_text(b"x", "image.heic")
 
 
+def test_parse_unknown_extension_rejected():
+    """알 수 없는 suffix는 화이트리스트(ALLOWED_EXTS)에서 거부."""
+    with pytest.raises(ParserError):
+        parse_bytes_to_text(b"x", "../../etc/passwd.exe")
+    with pytest.raises(ParserError):
+        parse_bytes_to_text(b"x", "weird.bin")
+
+
+def test_parse_filename_metachars_safe(monkeypatch):
+    """쉘 메타문자가 들어간 .hwp 파일명도 LibreOffice 호출에 안전.
+
+    원본 filename은 어떤 경로/명령에도 들어가지 않고 tempdir/input.hwp로만 저장.
+    subprocess 호출 시 list 인자 형태라 명령 주입 표면 자체가 없음.
+    """
+    captured_args = {}
+
+    def fake_run(cmd, **kwargs):
+        captured_args["cmd"] = cmd
+        # 메타문자 흔적이 cmd 어디에도 안 보임을 검증
+        for arg in cmd:
+            assert "rm" not in arg
+            assert ";" not in arg
+            assert "$(" not in arg
+        # 가짜 PDF 만들어서 변환 성공처럼
+        out_dir = Path(cmd[cmd.index("--outdir") + 1])
+        (out_dir / "input.pdf").write_bytes(b"%PDF-fake")
+
+        class Result:
+            returncode = 0
+            stderr = ""
+        return Result()
+
+    monkeypatch.setattr("app.services.parser.subprocess.run", fake_run)
+    monkeypatch.setattr(
+        "app.services.parser._pdf_to_text",
+        lambda p: "ok",
+    )
+
+    parse_bytes_to_text(b"HWP-data", "$(rm -rf /).hwp")
+    # 명령 주입은커녕 원본 filename이 cmd에 등장조차 안 함
+    assert all("$(rm" not in arg for arg in captured_args["cmd"])
+
+
+def test_parse_libreoffice_timeout_raises_with_message(monkeypatch):
+    """타임아웃 발생 시 ParserError + 환경변수 안내 메시지."""
+    import subprocess as sp
+
+    def boom(*args, **kwargs):
+        raise sp.TimeoutExpired(cmd=args[0], timeout=kwargs.get("timeout", 0))
+
+    monkeypatch.setattr("app.services.parser.subprocess.run", boom)
+    with pytest.raises(ParserError) as exc:
+        parse_bytes_to_text(b"HWP", "x.hwp")
+    assert "타임아웃" in str(exc.value)
+    assert "PARSER_LIBREOFFICE_TIMEOUT" in str(exc.value)
+
+
 # ── parse_bytes_to_text — HWP (LibreOffice 모킹) ──────────────
 def test_parse_hwp_calls_libreoffice_and_pdfplumber(monkeypatch, tmp_path):
     """HWP 입력 → LibreOffice 변환 호출 + pdfplumber 호출 확인."""
