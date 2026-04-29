@@ -2,6 +2,9 @@
 
 run_mvp_pipeline.py의 가벼운 함수들(easy_korean, glossary)은 직접 호출.
 NLLB 번역은 매번 모델 새로 로드하지 않게 캐싱.
+
+URL/전화는 NLLB가 토큰화하면서 깨먹는 패턴이라 placeholder 치환 + 복원으로 보호.
+세종님 요청(2026-04-29).
 """
 import re
 import sys
@@ -9,6 +12,8 @@ from pathlib import Path
 
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
+
+from app.services.slot_extractor import _PHONE, _URL
 
 _TRANSLATION_DIR = Path("/app/external_model/translation_tts")
 if str(_TRANSLATION_DIR) not in sys.path:
@@ -111,15 +116,51 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
     return vi_text
 
 
+# URL/전화 보호 — NLLB가 깨먹는 패턴 방어. 한국어 입력에 안 등장하는 unicode bracket으로
+# 치환하고 번역 후 복원. ⟦…⟧는 NLLB가 분해하지 않는 안전 토큰.
+_PROTECT_TOKEN = re.compile(r"⟦P(\d+)⟧")
+
+
+def _mask_protected_entities(text: str) -> tuple[str, list[str]]:
+    """URL/전화 → ⟦P0⟧ 등 토큰. (masked, originals) 반환."""
+    placeholders: list[str] = []
+
+    def stash(match: re.Match) -> str:
+        placeholders.append(match.group(0))
+        return f"⟦P{len(placeholders) - 1}⟧"
+
+    masked = _URL.sub(stash, text)
+    masked = _PHONE.sub(stash, masked)
+    return masked, placeholders
+
+
+def _restore_protected_entities(text: str, placeholders: list[str]) -> str:
+    if not placeholders:
+        return text
+
+    def restore(match: re.Match) -> str:
+        idx = int(match.group(1))
+        return placeholders[idx] if idx < len(placeholders) else match.group(0)
+
+    return _PROTECT_TOKEN.sub(restore, text)
+
+
+def _is_url_or_phone(text: str) -> bool:
+    """슬롯 단위 번역 시 URL/전화면 NLLB 안 거치고 ko 그대로 반환하기 위한 가드."""
+    s = text.strip()
+    return bool(_URL.fullmatch(s) or _PHONE.fullmatch(s))
+
+
 def translate_term(text: str, target_lang: str) -> str:
     """glossary 직접 치환 (summary 슬롯용 — places, supplies, deadlines).
 
     exact match 우선. 없으면 한국어 원문 그대로 반환 (빈 문자열 금지).
     고유명사("서울숲 생태체험관")처럼 사전에 없으면 한국어 노출이 NLLB 오역보다 낫다.
+    URL/전화는 어떤 언어든 ko 그대로 (방어적 가드).
     """
     if not text or not text.strip():
         return text
-    if target_lang == "ko_easy":
+    if target_lang == "ko_easy" or _is_url_or_phone(text):
         return text
 
     glossary = _get_glossary()
@@ -135,7 +176,7 @@ def translate_term(text: str, target_lang: str) -> str:
 def translate_short_sentence(text: str, target_lang: str) -> str:
     """짧은 문장 NLLB 번역 (items[].title_translated용).
 
-    glossary injection → NLLB → vi post-process.
+    URL/전화 보호 → glossary injection → NLLB → 보호 토큰 복원 → vi post-process.
     실패 시 빈 문자열 반환 (호출부가 fallback 처리).
     """
     if not text or not text.strip():
@@ -143,11 +184,13 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
     if target_lang == "ko_easy":
         return text
 
-    glossary = _get_glossary()
-    hits = _sejong.find_glossary_hits(text, glossary, target_lang) if _sejong else []
+    # 1) URL/전화 placeholder 치환 — NLLB가 깨먹지 못하게 격리
+    masked, placeholders = _mask_protected_entities(text)
 
-    # 긴 용어 먼저 치환해야 부분 치환 충돌 방지
-    injected = text
+    # 2) glossary injection (긴 용어 먼저 치환해야 부분 치환 충돌 방지)
+    glossary = _get_glossary()
+    hits = _sejong.find_glossary_hits(masked, glossary, target_lang) if _sejong else []
+    injected = masked
     for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
         injected = injected.replace(
             hit["korean"], f"{hit['korean']}({hit['preferred_term']})"
@@ -162,7 +205,8 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         print(f"[translator] translate_short_sentence failed: {error}")
         return ""
 
-    return translated
+    # 3) 보호 토큰 복원
+    return _restore_protected_entities(translated, placeholders)
 
 
 # DEPRECATED: 아래 함수는 단일 blob 번역 구조. 새 API(translate_term / translate_short_sentence)로 전환 후 제거 예정.
