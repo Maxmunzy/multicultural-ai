@@ -47,8 +47,35 @@ if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
 _HERE = Path(__file__).resolve().parent          # .../file/
 _DATA = _HERE.parent / "data"                    # .../data/
 
-DEFAULT_INPUT  = _DATA / "sample_pdfplumber.txt"
-DEFAULT_OUTPUT = _DATA / "notices_original2.jsonl"
+DEFAULT_INPUT     = _DATA / "sample_pdfplumber.txt"
+DEFAULT_INPUT_DIR = _DATA / "galsan_txt"
+DEFAULT_OUTPUT    = _DATA / "notices_original2.jsonl"
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 0. 급식 파일 감지 — 파일명 또는 내용 기반
+# ─────────────────────────────────────────────────────────────────────────────
+# 파일명 기반 스킵 없음 — 내용 기반 패턴만 사용
+# (파일명에 '급식'이 있어도 정보 전달 목적 파일은 처리해야 하므로)
+_MEAL_NAME_KEYWORDS: list[str] = []
+
+# 내용에 이 패턴 중 하나라도 있으면 급식표로 판단 → 스킵
+# 모두 실제 식단표에만 등장하는 패턴 (공사 안내·의견조사·알레르기 조사 등에는 없음)
+_MEAL_CONTENT_PATTERNS: list[re.Pattern] = [
+    re.compile(r"에너지/단백질"),       # 급식 영양표 헤더
+    re.compile(r"①난류\s*②우유"),      # 알레르기 번호 리스트
+    re.compile(r"무상급식비\s*:"),      # 급식비 안내
+    re.compile(r"\d+회\s*무상급식"),    # "20회 무상급식비"
+]
+
+
+def is_meal_schedule(path: Path, content: str) -> bool:
+    """파일명 또는 내용 기반으로 급식 파일 여부 판별"""
+    # 1차: 파일명 확인 (빠름)
+    name = path.stem  # 확장자 제외 파일명
+    if any(kw in name for kw in _MEAL_NAME_KEYWORDS):
+        return True
+    # 2차: 내용 확인 (파일명에 '급식'이 없어도 내용에 급식 표가 있는 경우)
+    return any(pat.search(content) for pat in _MEAL_CONTENT_PATTERNS)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -100,7 +127,7 @@ def clean_text(text: str) -> str:
 # ─────────────────────────────────────────────────────────────────────────────
 def _split_with_predict(text: str) -> list[str]:
     """predict.py 의 split_sentences 를 가져와서 사용"""
-    predict_path = _HERE.parent / "predict.py"
+    predict_path = _HERE / "predict.py"
     import importlib.util
     spec = importlib.util.spec_from_file_location("predict", predict_path)
     mod = importlib.util.module_from_spec(spec)
@@ -146,28 +173,31 @@ def preprocess_to_custom_schema(
     input_path: Path,
     output_path: Path,
     append: bool = False,
-) -> None:
-    print(f"입력: {input_path}")
+) -> int:
+    """
+    단일 txt 파일을 처리해 JSONL 에 추가.
+
+    Returns:
+        추가된 문장 수. 급식 파일이면 -1 반환.
+    """
     raw = input_path.read_text(encoding="utf-8")
 
-    print("  줄 끊김 복원 중...")
-    joined = join_broken_lines(raw)
+    if is_meal_schedule(input_path, raw):
+        print(f"  [스킵] 급식 파일 감지: {input_path.name}")
+        return -1
+
+    joined  = join_broken_lines(raw)
     cleaned = clean_text(joined)
 
-    sentences = split_into_sentences(cleaned)
-    sentences = [s for s in sentences if len(s.strip()) > 3]
+    sentences = [s for s in split_into_sentences(cleaned) if len(s.strip()) > 3]
 
     mode = "a" if append else "w"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open(mode, encoding="utf-8") as f:
         for sent in sentences:
-            record = build_record(sent)
-            f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            f.write(json.dumps(build_record(sent), ensure_ascii=False) + "\n")
 
-    print(f"\n완료: {len(sentences)}개 문장 -> {output_path}")
-    print("  TIP: is_todo 필드를 채워야 학습 라벨이 생성됩니다.")
-    print("       할 일 문장: is_todo = true")
-    print("       노이즈 문장: is_todo = false (기본값, 수정 불필요)")
+    return len(sentences)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -175,13 +205,19 @@ def preprocess_to_custom_schema(
 # ─────────────────────────────────────────────────────────────────────────────
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="PDF 추출 텍스트 -> notices_original2.jsonl 스키마 변환"
+        description="PDF 추출 텍스트 -> JSONL 변환 (급식 파일 자동 스킵)"
     )
     parser.add_argument(
         "--input",
         type=Path,
-        default=DEFAULT_INPUT,
-        help=f"입력 텍스트 파일 (기본: {DEFAULT_INPUT})",
+        default=None,
+        help="단일 txt 파일 처리",
+    )
+    parser.add_argument(
+        "--input_dir",
+        type=Path,
+        default=None,
+        help=f"폴더 내 모든 txt 파일 일괄 처리 (기본: {DEFAULT_INPUT_DIR})",
     )
     parser.add_argument(
         "--output",
@@ -196,15 +232,51 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if not args.input.exists():
-        print(f"[오류] 입력 파일이 없습니다: {args.input}", file=sys.stderr)
-        sys.exit(1)
+    # ── 입력 파일 목록 결정 ────────────────────────────────────────────────────
+    if args.input:
+        if not args.input.exists():
+            print(f"[오류] 파일 없음: {args.input}", file=sys.stderr)
+            sys.exit(1)
+        txt_files = [args.input]
+    else:
+        target_dir = args.input_dir or DEFAULT_INPUT_DIR
+        if not target_dir.exists():
+            print(f"[오류] 폴더 없음: {target_dir}", file=sys.stderr)
+            sys.exit(1)
+        txt_files = sorted(target_dir.glob("*.txt"))
+        print(f"폴더: {target_dir}  ({len(txt_files)}개 txt 파일 발견)\n")
 
-    preprocess_to_custom_schema(
-        input_path=args.input,
-        output_path=args.output,
-        append=args.append,
-    )
+    # ── 일괄 처리 ──────────────────────────────────────────────────────────────
+    total_sentences = 0
+    skipped         = []
+
+    for i, txt_path in enumerate(txt_files):
+        # 첫 파일은 append 여부를 그대로 사용, 이후는 항상 이어쓰기
+        use_append = args.append if i == 0 else True
+
+        result = preprocess_to_custom_schema(
+            input_path=txt_path,
+            output_path=args.output,
+            append=use_append,
+        )
+
+        if result == -1:
+            skipped.append(txt_path.name)
+        else:
+            print(f"  [완료] {txt_path.name}  ({result}개 문장)")
+            total_sentences += result
+
+    # ── 최종 요약 ──────────────────────────────────────────────────────────────
+    print("\n" + "=" * 55)
+    print(f"처리 완료: {len(txt_files) - len(skipped)}개 파일  |  {total_sentences}개 문장")
+    print(f"스킵 (급식): {len(skipped)}개 파일")
+    if skipped:
+        for name in skipped:
+            print(f"  - {name}")
+    print(f"저장 위치: {args.output}")
+    print("=" * 55)
+    print("TIP: is_todo 필드를 채워야 학습 라벨이 생성됩니다.")
+    print("     할 일 문장 -> is_todo = true")
 
 
 if __name__ == "__main__":
