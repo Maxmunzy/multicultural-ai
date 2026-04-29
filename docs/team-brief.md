@@ -44,33 +44,45 @@ Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출�
 
 ---
 
-## 현재 구현 상태
+## 현재 구현 상태 (2026-04-29 갱신)
 
 | 영역 | 상태 | 메모 |
 | --- | --- | --- |
-| Backend | 완료 | FastAPI, Docker, `/notice`, `/tts`, `/user`, `/health` 라우터 구성. X-User-Id 헤더 + 역할 권한 검증. 분석 API 다국어(9개) 실제 모델 연결 완료 |
-| Android | 완료 | Java 단일 Activity 실기기 데모. 로그인→역할 탭→통신문 상세→AI 오버레이 4단 흐름. ReadTimeout 60초, 내장 TTS fallback 포함 |
-| 데이터 | 완료 | `notice_sample_v3.csv` 200개, 6개 카테고리 체계 |
-| 번역/TTS | 완료 | NLLB 다국어 번역(vi/en/ru/ms/mn/zh/th/ja), 용어사전 검수(확장), Edge-TTS 언어별 음성 매핑(9개), 통화 오번역 후처리 포함 |
-| 추출 모델 | 연결 완료 | KoELECTRA 하이브리드 (`predict.py`), HuggingFace Hub 배포 (`yunjeong116/koelectra-extractor`). 백엔드 연결 완료 |
-| 분류 모델 | 연결 완료 | numpy/sklearn/SBERT 멀티트랙, accuracy 0.857, MAE 0.038. 백엔드 교차검증 연결 완료 |
-| 통합 E2E | 완료 | 전체 파이프라인 실기기 동작 확인. 초기 warmup 후 약 30초 내 응답 |
+| Backend | 완료 | FastAPI, Docker, `/notice`, `/tts`, `/user`, `/health` 라우터. X-User-Id 헤더 + 역할 권한 검증. v2 분업 응답 구조(`summary` 8슬롯 + `items`) 적용 완료 |
+| Android | 완료 | Java 단일 Activity. 선생님 화면에 PDF/HWP 파일 업로드 버튼 추가, 학부모 화면은 새 슬롯 응답(action_hint, urls/phones 칩 포함) 렌더링 |
+| 데이터 | 진행 중 | 갈산초 281장 .txt 변환 완료 (`data/raw/galsan_txt/`), 윤정님께 전달. 학습 라벨링 진행 중 |
+| 파일 입력 | 완료 | `services/parser.py` — HWP/PDF/text → clean_text 통합. LibreOffice + H2Orestart + 한글폰트 Dockerfile 영구 설치. `POST /notice/upload` multipart 엔드포인트 |
+| URL/전화 보호 | 완료 | NLLB가 깨먹는 패턴 방어 — 슬롯 단위 ko 그대로 + 본문은 `⟦P0⟧` placeholder 마스킹 |
+| 번역/TTS | 완료 | NLLB 다국어 번역(vi/en/ru/ms/mn/zh/th/ja), 용어사전 검수, Edge-TTS 9개 보이스 매핑, 통화 오번역 후처리 포함 |
+| 추출 모델 | v2 연결 완료 | 윤정 KoELECTRA binary 추출 (`yunjeong116/koelectra-extractor`). 첫 호출 시 HF Hub 자동 다운로드 |
+| 분류 모델 | v1 연결 완료, v2 학습 중 | 경이 simple TF-IDF (git에 pkl 직접). v2는 비교 실험 진행 중 (TF-IDF baseline + SBERT + KcELECTRA 후보) |
+| 통합 E2E | 완료 | 백엔드 `/notice/upload` → 분석 → 슬롯 응답 → 안드 카드 UI 흐름 코드 검증. 실기기 테스트는 LAN IP 셋업 후 |
 
 ---
 
-## 모델 파이프라인 기준
+## 모델 파이프라인 기준 (v2 — 2026-04-29)
 
 ```text
-가정통신문 텍스트 + target_language
-  -> 모델 A: 중요 문장 추출 (윤정 KoELECTRA)
-  -> 모델 B: 6개 카테고리 분류 + 중요도 산출 (경이) → 교차검증 결과 review_needed에 합침
-  -> 모델 C: 쉬운 한국어 + 선택 언어 번역(NLLB, 8개국어)
-  -> 용어사전 검수: 학교 안내 핵심 용어 누락 확인
-  -> Edge-TTS: 선택 언어 음성 mp3 생성 (9개 보이스 매핑)
-  -> Android 출력
+호스트 앱 → POST /notice/upload (HWP/PDF/text) 또는 /notice/send (text)
+        ↓
+[1] services/parser.py — HWP/PDF/text → clean_text
+        ↓
+[2] slot_extractor — 정규식 dates/times/amounts/urls/phones (summary 재료)
+        ↓
+[3] 윤정 KoELECTRA binary → list[YunjeongTodo] (할일 문장 + due_date/amount/action_hint)
+        ↓
+[4] 경이 6-class 분류 → 각 todo의 카테고리 (일정/준비물/제출/비용/건강·안전/기타)
+        ↓
+[5] 세종 NLLB + 용어사전 + URL/전화 placeholder 보호 → 슬롯별 번역
+        ↓
+[6] _build_summary + _build_item — AnalyzeItem 결합 (summary 8슬롯 + items 리스트)
+        ↓
+[7] Edge-TTS → 선택 언어 mp3 생성
+        ↓
+Android 출력 (슬롯 칩 + 할일 카드 + TTS 재생)
 ```
 
-현재 `model/translation_tts/run_mvp_pipeline.py`는 번역/TTS 파트의 독립 실행 스크립트입니다. 기본 NLLB 모델은 `facebook/nllb-200-distilled-600M`, TTS는 언어별 보이스 매핑(`vi-VN-HoaiMyNeural`, `en-US-JennyNeural`, `ru-RU-SvetlanaNeural`, `ms-MY-YasminNeural`, `mn-MN-YesuiNeural`, `zh-CN-XiaoxiaoNeural`, `th-TH-PremwadeeNeural`, `ja-JP-NanamiNeural`, `ko-KR-SunHiNeural`)을 사용합니다.
+기본 NLLB 모델은 `facebook/nllb-200-distilled-600M`, TTS는 언어별 보이스 매핑(`vi-VN-HoaiMyNeural`, `en-US-JennyNeural`, `ru-RU-SvetlanaNeural`, `ms-MY-YasminNeural`, `mn-MN-YesuiNeural`, `zh-CN-XiaoxiaoNeural`, `th-TH-PremwadeeNeural`, `ja-JP-NanamiNeural`, `ko-KR-SunHiNeural`)을 사용합니다.
 
 ---
 

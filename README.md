@@ -94,7 +94,6 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 
 | 항목 | 결과 | 문서 |
 | --- | --- | --- |
-| KoELECTRA 베이스 vs 파인튜닝 | accuracy 0.17 → 0.75, macro F1 0.07 → 0.60 | `docs/experiments/2026-04-28-extraction-base-vs-finetune.md` |
 | TODO 피처 추출 번역 속도 | 청크 보정 후 평균 ×1.84, 입력 -30.1% | `docs/experiments/2026-04-28-translation-feature-extraction-speed.md` |
 | 용어사전 전/후 품질 | 엄격 재평가 NLLB 39.0점 → 사전 적용 89.6점 | `docs/experiments/2026-04-28-translation-glossary-quality.md` |
 | Round-trip 의미 검증 | 18개 공지 A 50.1점 / B 54.1점, 반복 왜곡 유형 도출 | `docs/roundtrip-full-eval-2026-04-28.md` |
