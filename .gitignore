@@ -23,8 +23,12 @@ data/raw/
 # 컨테이너 작업 영역 (학습 데이터·OCR·임시 변환물)
 backend/data/
 
-# Android (전체 로컬 전용 — OCR 실험 포함)
-android/
+# Android build outputs and local settings
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
+android/local.properties
 *.apk
 *.aab
 *.keystore
