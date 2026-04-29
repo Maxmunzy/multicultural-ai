@@ -128,19 +128,14 @@ def split_into_sentences(text: str) -> list[str]:
 # ─────────────────────────────────────────────────────────────────────────────
 # 4. JSONL 레코드 생성
 # ─────────────────────────────────────────────────────────────────────────────
-def build_record(record_id: int, source_type: str, sentence: str) -> dict:
-    """notices_original2.jsonl 스키마와 1:1 대응"""
+def build_record(sentence: str) -> dict:
+    """
+    train_koelectra.ipynb 의 문장 단위 포맷 (text + is_todo) 으로 반환.
+    is_todo 기본값은 false — 라벨링 시 할 일 문장만 true 로 바꾸면 됩니다.
+    """
     return {
-        "id":             record_id,
-        "source_type":    source_type,
-        "original_text":  sentence,
-        "category":       "",
-        "keywords":       "",   # 할 일 문장이면 문장 텍스트를 그대로 복사
-        "importance":     "",
-        "action_required": "",
-        "easy_korean":    "",
-        "vietnamese":     "",
-        "tts_target":     "",
+        "text":    sentence,
+        "is_todo": False,   # 할 일 문장이면 True 로 수정
     }
 
 
@@ -150,7 +145,6 @@ def build_record(record_id: int, source_type: str, sentence: str) -> dict:
 def preprocess_to_custom_schema(
     input_path: Path,
     output_path: Path,
-    source_type: str,
     append: bool = False,
 ) -> None:
     print(f"입력: {input_path}")
@@ -163,28 +157,17 @@ def preprocess_to_custom_schema(
     sentences = split_into_sentences(cleaned)
     sentences = [s for s in sentences if len(s.strip()) > 3]
 
-    # 이어쓰기 시 마지막 id 파악
-    start_id = 1
-    if append and output_path.exists():
-        for line in output_path.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line:
-                try:
-                    start_id = json.loads(line).get("id", start_id - 1) + 1
-                except json.JSONDecodeError:
-                    pass
-
     mode = "a" if append else "w"
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with output_path.open(mode, encoding="utf-8") as f:
-        for i, sent in enumerate(sentences, start=start_id):
-            record = build_record(i, source_type, sent)
+        for sent in sentences:
+            record = build_record(sent)
             f.write(json.dumps(record, ensure_ascii=False) + "\n")
 
     print(f"\n완료: {len(sentences)}개 문장 -> {output_path}")
-    print("  TIP: keywords 필드를 채워야 학습 라벨이 생성됩니다.")
-    print("       할 일 문장: keywords = 해당 문장 텍스트 복사")
-    print("       노이즈 문장: keywords = 빈 문자열")
+    print("  TIP: is_todo 필드를 채워야 학습 라벨이 생성됩니다.")
+    print("       할 일 문장: is_todo = true")
+    print("       노이즈 문장: is_todo = false (기본값, 수정 불필요)")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -207,14 +190,9 @@ def main() -> None:
         help=f"출력 JSONL 파일 (기본: {DEFAULT_OUTPUT})",
     )
     parser.add_argument(
-        "--source_type",
-        default="초등학교",
-        help="문서 출처 (예: 유치원, 초등학교). 기본값: 초등학교",
-    )
-    parser.add_argument(
         "--append",
         action="store_true",
-        help="기존 JSONL 파일에 이어쓰기 (id 자동 증가)",
+        help="기존 JSONL 파일에 이어쓰기",
     )
     args = parser.parse_args()
 
@@ -225,7 +203,6 @@ def main() -> None:
     preprocess_to_custom_schema(
         input_path=args.input,
         output_path=args.output,
-        source_type=args.source_type,
         append=args.append,
     )
 
