@@ -2,11 +2,15 @@ package com.multicultural.demo;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Intent;
+import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.media.MediaPlayer;
+import android.net.Uri;
 import android.os.Bundle;
+import android.provider.OpenableColumns;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -28,6 +32,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
@@ -44,6 +50,9 @@ public class MainActivity extends Activity {
     private static final String BASE_URL = "http://192.168.x.x:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
+
+    // SAF 파일 픽커 요청 코드 (legacy startActivityForResult 사용 — minSdk 23 호환).
+    private static final int REQUEST_PICK_FILE = 1001;
 
     // ── Daon design tokens ──
     private static final int COLOR_PEACH        = Color.parseColor("#FFD9C2");
@@ -321,6 +330,8 @@ public class MainActivity extends Activity {
 
         // 발송 CTA (full width primary)
         content.addView(bigPrimaryButton("📤  통신문 발송", v -> sendNotice()));
+        // 파일 업로드 (HWP/PDF/TXT) — 선택 시 SAF 픽커 → 백엔드 /notice/upload
+        content.addView(outlineButton("📎  PDF/HWP 파일 업로드", v -> launchFilePicker()));
         content.addView(outlineButton("← 로그아웃", v -> showLoginScreen()));
     }
 
@@ -912,67 +923,55 @@ public class MainActivity extends Activity {
     }
 
     private void applyAnalysis(JSONObject data) {
-        // 체크리스트
-        JSONArray todos = data.optJSONArray("todos");
-        StringBuilder cb = new StringBuilder();
-        if (todos != null && todos.length() > 0) {
-            for (int i = 0; i < todos.length(); i++) {
-                JSONObject t = todos.optJSONObject(i);
-                if (t == null) continue;
-                cb.append("✓  ").append(t.optString("text_ko", t.toString())).append('\n');
+        // === items: 할일 카드 (한국어 체크리스트 + 번역 본문) ===
+        // 새 응답 구조: items[i] = {category, action_hint, title_ko, title_translated,
+        //                          amount, deadline, importance, ...}
+        JSONArray items = sortItemsByImportance(data.optJSONArray("items"));
+
+        StringBuilder koBuilder = new StringBuilder();
+        StringBuilder trBuilder = new StringBuilder();
+        if (items != null) {
+            for (int i = 0; i < items.length(); i++) {
+                JSONObject item = items.optJSONObject(i);
+                if (item == null) continue;
+                appendItemLine(koBuilder, item, true);
+                appendItemLine(trBuilder, item, false);
             }
         }
-        String checklist = cb.toString().trim();
+        String checklist = koBuilder.toString().trim();
+        String translation = trBuilder.toString().trim();
+
         if (checklistText != null && !checklist.isEmpty()) {
             checklistText.setText(checklist);
             ((View) checklistText.getParent()).setVisibility(View.VISIBLE);
         }
-
-        // 쉬운 한국어
-        String easyKo = optStringDeep(data, "easy_ko_text", "easy_korean");
-        if (easyKoText != null && !easyKo.isEmpty()) {
-            easyKoText.setText(easyKo);
-            ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
-        }
-
-        // 모국어 번역
-        String translation = getTranslationForLanguage(data, selectedLanguage);
         if (translationText != null) {
-            String quality = data.optString("quality_note", "");
             if (selectedLanguage.equals("ko_easy")) {
-                translationText.setText("(쉬운 한국어 모드입니다 — 위 카드를 참고하세요)");
+                translationText.setText("(쉬운 한국어 모드 — 위 카드를 참고하세요)");
                 translationText.setTextColor(COLOR_INK3);
             } else if (!translation.isEmpty()) {
-                translationText.setText(highlightGlossary(translation, quality));
+                translationText.setText(translation);
                 translationText.setTextColor(COLOR_INK);
                 ((View) translationText.getParent()).setVisibility(View.VISIBLE);
             }
         }
 
-        // 학교 용어 chips
-        String quality = data.optString("quality_note", "");
-        if (glossaryChipsBox != null && !TextUtils.isEmpty(quality)) {
-            glossaryChipsBox.removeAllViews();
-            int added = 0;
-            for (String pair : quality.split("[;\n]")) {
-                String[] parts = pair.split("->");
-                if (parts.length < 2) continue;
-                String ko = parts[0].trim();
-                String tgt = parts[1].trim();
-                if (ko.isEmpty() || tgt.isEmpty()) continue;
-                glossaryChipsBox.addView(glossaryChipRow(ko, tgt));
-                added++;
-                if (added >= 5) break;
-            }
-            if (added > 0) {
-                ((View) glossaryChipsBox.getParent()).setVisibility(View.VISIBLE);
-                ((View) glossaryChipsBox.getParent().getParent()).setVisibility(View.VISIBLE);
+        // === 원문 미리보기 (쉬운 한국어 카드 자리 — 새 응답엔 raw_text만 있음) ===
+        if (easyKoText != null) {
+            String raw = data.optString("raw_text", "");
+            if (!raw.isEmpty()) {
+                String preview = raw.length() > 300 ? raw.substring(0, 300) + "..." : raw;
+                easyKoText.setText(preview);
+                ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
             }
         }
 
-        // TTS
+        // === summary 슬롯: 카테고리별 칩 (urls/phones 포함) ===
+        renderSummarySlots(data.optJSONObject("summary"));
+
+        // === TTS ===
         currentTtsUrl = optStringDeep(data, "tts_url", "tts_path", "audio_url");
-        if (playButton != null) {
+        if (playButton != null && !currentTtsUrl.isEmpty()) {
             playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
             playButton.setVisibility(View.VISIBLE);
         }
@@ -982,6 +981,86 @@ public class MainActivity extends Activity {
             View statusCard = (View) analysisStatusText.getParent();
             statusCard.setVisibility(View.GONE);
         }
+    }
+
+    private JSONArray sortItemsByImportance(JSONArray items) {
+        if (items == null || items.length() <= 1) return items;
+        List<JSONObject> list = new ArrayList<>();
+        for (int i = 0; i < items.length(); i++) {
+            JSONObject it = items.optJSONObject(i);
+            if (it != null) list.add(it);
+        }
+        // importance 내림차순 (없으면 0.5)
+        list.sort((a, b) -> Double.compare(
+                b.optDouble("importance", 0.5),
+                a.optDouble("importance", 0.5)));
+        JSONArray out = new JSONArray();
+        for (JSONObject it : list) out.put(it);
+        return out;
+    }
+
+    private void appendItemLine(StringBuilder sb, JSONObject item, boolean korean) {
+        String title = item.optString(korean ? "title_ko" : "title_translated", "");
+        if (title.isEmpty()) return;
+        String actionHint = item.optString("action_hint", "");
+        String amount = item.optString("amount", "");
+        String deadline = item.optString("deadline", "");
+        if (!actionHint.isEmpty()) sb.append("[").append(actionHint).append("] ");
+        sb.append(title);
+        List<String> meta = new ArrayList<>();
+        if (!amount.isEmpty()) meta.add(amount);
+        if (!deadline.isEmpty()) meta.add(deadline);
+        if (!meta.isEmpty()) sb.append(" · ").append(TextUtils.join(" · ", meta));
+        sb.append('\n');
+    }
+
+    private void renderSummarySlots(JSONObject summary) {
+        if (summary == null || glossaryChipsBox == null) return;
+        glossaryChipsBox.removeAllViews();
+        int added = 0;
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("dates"),    "📅");
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("times"),    "⏰");
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("amounts"),  "💰");
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("places"),   "📍");
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("supplies"), "📦");
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("deadlines"),"⌛");
+        // urls/phones는 NLLB 번역 안 거치고 한국어 그대로 — 신뢰도 표시용
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("urls"),     "🔗");
+        added += addSlotChips(glossaryChipsBox, summary.optJSONArray("phones"),   "☎");
+        if (added > 0) {
+            ((View) glossaryChipsBox.getParent()).setVisibility(View.VISIBLE);
+            ((View) glossaryChipsBox.getParent().getParent()).setVisibility(View.VISIBLE);
+        }
+    }
+
+    private int addSlotChips(LinearLayout box, JSONArray slots, String icon) {
+        if (slots == null || slots.length() == 0) return 0;
+        int count = 0;
+        for (int i = 0; i < slots.length() && count < 4; i++) {  // 슬롯 종류당 최대 4개
+            JSONObject slot = slots.optJSONObject(i);
+            if (slot == null) continue;
+            String ko = slot.optString("ko", "");
+            String translated = slot.optString("translated", "");
+            if (ko.isEmpty()) continue;
+            String tgt = translated.equals(ko) ? "" : translated;  // 같으면 한국어만 표시
+            box.addView(slotChipRow(icon, ko, tgt));
+            count++;
+        }
+        return count;
+    }
+
+    private LinearLayout slotChipRow(String icon, String ko, String translated) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(4), 0, dp(4));
+        TextView ic = text(icon, 14, COLOR_LEMON_INK, true);
+        ic.setPadding(0, 0, dp(8), 0);
+        row.addView(ic);
+        String label = translated.isEmpty() ? ko : ko + "  →  " + translated;
+        TextView t = text(label, 13, COLOR_INK, false);
+        row.addView(t);
+        return row;
     }
 
     private LinearLayout glossaryChipRow(String ko, String tgt) {
@@ -1117,6 +1196,180 @@ public class MainActivity extends Activity {
         if (titleInput != null) titleInput.setText("현장학습 안내");
         if (bodyInput != null)  bodyInput.setText(sampleNotice());
         if (parentIdInput != null) parentIdInput.setText(DEFAULT_PARENT_ID);
+    }
+
+    // ============================================================
+    //  파일 업로드 (HWP/PDF/TXT → /notice/upload)
+    //  선생님 단말의 파일을 SAF로 선택해 multipart로 백엔드에 송신.
+    // ============================================================
+    private void launchFilePicker() {
+        if (parentIdInput == null) return;
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                "application/pdf",
+                "application/x-hwp",
+                "application/haansofthwp",
+                "application/vnd.hancom.hwp",
+                "application/octet-stream",
+                "text/plain",
+        });
+        try {
+            startActivityForResult(intent, REQUEST_PICK_FILE);
+        } catch (Exception error) {
+            setSendResult("❌ 파일 선택기를 열 수 없습니다: " + error.getMessage(), false);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != REQUEST_PICK_FILE) return;
+        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+        Uri uri = data.getData();
+        String filename = queryDisplayName(uri);
+        long sizeBytes = querySize(uri);
+        uploadSelectedFile(uri, filename, sizeBytes);
+    }
+
+    private void uploadSelectedFile(Uri uri, String filename, long sizeBytes) {
+        String parentIdRaw = parentIdInput == null ? "" : safe(parentIdInput.getText().toString());
+        final String parentId = parentIdRaw.isEmpty() ? DEFAULT_PARENT_ID : parentIdRaw;
+        final String teacherId = currentUserId;
+
+        String sizeLabel = sizeBytes > 0 ? " (" + (sizeBytes / 1024) + " KB)" : "";
+        setSendResult("📤 업로드 중... " + filename + sizeLabel, true);
+
+        executor.execute(() -> {
+            byte[] bytes;
+            try (InputStream is = getContentResolver().openInputStream(uri)) {
+                if (is == null) throw new IOException("InputStream null");
+                bytes = readAllBytes(is);
+            } catch (Exception error) {
+                String msg = error.getMessage() == null ? error.toString() : error.getMessage();
+                runOnUiThread(() -> setSendResult("❌ 파일 읽기 실패: " + msg, false));
+                return;
+            }
+
+            ApiResult result = postMultipartUpload(teacherId, parentId, filename, bytes);
+            runOnUiThread(() -> {
+                if (!result.error.isEmpty()) {
+                    setSendResult("❌ 업로드 실패: " + result.error, false);
+                    return;
+                }
+                try {
+                    JSONObject json = new JSONObject(result.body);
+                    JSONObject d = json.optJSONObject("data");
+                    String noticeId = d == null ? "" : d.optString("notice_id", "");
+                    int charCount = d == null ? 0 : d.optInt("char_count", 0);
+                    setSendResult(
+                            "✅ 업로드 완료\n→ " + parentId + " · #" + shorten(noticeId, 8)
+                                    + " · 추출 " + charCount + "자",
+                            true);
+                } catch (Exception error) {
+                    setSendResult("응답 파싱 실패\n" + result.body, false);
+                }
+            });
+        });
+    }
+
+    private ApiResult postMultipartUpload(String teacherId, String parentId,
+                                          String filename, byte[] fileBytes) {
+        ApiResult result = new ApiResult();
+        HttpURLConnection conn = null;
+        String boundary = "----DaonBoundary" + System.currentTimeMillis();
+        try {
+            URL url = new URL(BASE_URL + "/notice/upload");
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(180000);  // LibreOffice 변환은 시간 걸릴 수 있음
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type",
+                    "multipart/form-data; boundary=" + boundary);
+            if (!currentUserId.isEmpty()) {
+                conn.setRequestProperty("X-User-Id", currentUserId);
+            }
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                writeMultipartField(os, boundary, "teacher_id", teacherId);
+                writeMultipartField(os, boundary, "parent_id", parentId);
+                writeMultipartFile(os, boundary, "file", filename, fileBytes);
+                os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+            }
+
+            int code = conn.getResponseCode();
+            InputStream stream = code >= 200 && code < 300
+                    ? conn.getInputStream() : conn.getErrorStream();
+            result.body = readStream(stream);
+            if (code < 200 || code >= 300) {
+                result.error = "HTTP " + code + "\n" + result.body;
+            }
+        } catch (Exception error) {
+            result.error = error.getMessage() == null ? error.toString() : error.getMessage();
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+        return result;
+    }
+
+    private void writeMultipartField(OutputStream os, String boundary,
+                                     String name, String value) throws IOException {
+        os.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        os.write(("Content-Disposition: form-data; name=\"" + name + "\"\r\n\r\n")
+                .getBytes(StandardCharsets.UTF_8));
+        os.write(value.getBytes(StandardCharsets.UTF_8));
+        os.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private void writeMultipartFile(OutputStream os, String boundary,
+                                    String name, String filename, byte[] data)
+            throws IOException {
+        os.write(("--" + boundary + "\r\n").getBytes(StandardCharsets.UTF_8));
+        os.write(("Content-Disposition: form-data; name=\"" + name + "\"; filename=\""
+                + filename + "\"\r\n").getBytes(StandardCharsets.UTF_8));
+        os.write("Content-Type: application/octet-stream\r\n\r\n"
+                .getBytes(StandardCharsets.UTF_8));
+        os.write(data);
+        os.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private byte[] readAllBytes(InputStream is) throws IOException {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int n;
+        while ((n = is.read(buf)) != -1) baos.write(buf, 0, n);
+        return baos.toByteArray();
+    }
+
+    private String queryDisplayName(Uri uri) {
+        String name = "upload.bin";
+        try (Cursor c = getContentResolver().query(uri, null, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int idx = c.getColumnIndex(OpenableColumns.DISPLAY_NAME);
+                if (idx >= 0) {
+                    String value = c.getString(idx);
+                    if (value != null && !value.isEmpty()) name = value;
+                }
+            }
+        } catch (Exception ignored) {
+            // ContentResolver query 실패는 무시하고 기본 파일명 사용
+        }
+        return name;
+    }
+
+    private long querySize(Uri uri) {
+        try (Cursor c = getContentResolver().query(uri, null, null, null, null)) {
+            if (c != null && c.moveToFirst()) {
+                int idx = c.getColumnIndex(OpenableColumns.SIZE);
+                if (idx >= 0 && !c.isNull(idx)) return c.getLong(idx);
+            }
+        } catch (Exception ignored) {
+            // 일부 ContentProvider는 SIZE 컬럼을 노출 안 함 — 라벨에서 빠져도 OK
+        }
+        return 0;
     }
 
     private String sampleNotice() {
