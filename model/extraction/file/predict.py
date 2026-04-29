@@ -34,6 +34,7 @@ predict() → list[dict]
 ─────────────────────────────────────────
 """
 
+import datetime
 import os
 import re
 from typing import Optional
@@ -141,17 +142,16 @@ _NON_TODO_PATTERNS: list[str] = [
 ]
 
 
-def is_likely_todo(sentence: str) -> bool:
+def _classify(sentence: str) -> Optional[float]:
     """
-    ① 정규식으로 명백한 노이즈 빠르게 제외.
-    ② 통과 시 KoELECTRA 이진 분류 (0: 노이즈, 1: 할 일·중요 일정).
-    두 단계 모두 통과해야 True를 반환.
+    ① 정규식으로 명백한 노이즈 제외 → None 반환.
+    ② 통과 시 KoELECTRA label-1(할 일) 확률 반환 (0.0~1.0).
     """
     if len(sentence) < 7:
-        return False
+        return None
     for pat in _NON_TODO_PATTERNS:
         if re.search(pat, sentence):
-            return False
+            return None
 
     _load_model()
     inputs = _tokenizer(
@@ -164,16 +164,18 @@ def is_likely_todo(sentence: str) -> bool:
 
     with torch.no_grad():
         logits = _model(**inputs).logits
-        prob_todo = float(torch.softmax(logits, dim=-1)[0][1].item())
+        return float(torch.softmax(logits, dim=-1)[0][1].item())
 
-    return prob_todo >= BINARY_THRESHOLD
+
+def is_likely_todo(sentence: str) -> bool:
+    """외부 호환용 래퍼. 임계값 이상이면 True."""
+    prob = _classify(sentence)
+    return prob is not None and prob >= BINARY_THRESHOLD
 
 
 # ─────────────────────────────────────────
 # 4. 정규식 기반 구조 추출
 # ─────────────────────────────────────────
-_CURRENT_YEAR = 2026
-
 _DATE_ABS = re.compile(
     r"(?:(\d{1,2})\s*월\s*(\d{1,2})\s*일)|"
     r"(?<![\d.])(?<!mm)(?<!cm)(?<!원)(?<!시)"
@@ -193,6 +195,15 @@ _DEADLINE = re.compile(r"([\w가-힣\s]+?)\s*까지")
 # \d+\s*원 형태 → "원하시는"·"원인" 오탐 없음
 _MONEY = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\s*원")
 
+_ACTION_PATTERNS: list[tuple[re.Pattern, str]] = [
+    (re.compile(r"납부|입금"),        "납부"),
+    (re.compile(r"제출"),             "제출"),
+    (re.compile(r"신청"),             "신청"),
+    (re.compile(r"참여|참가|출석"),   "참여"),
+    (re.compile(r"준비|지참|챙겨"),   "준비"),
+    (re.compile(r"확인|숙지|참고"),   "확인"),
+]
+
 
 def extract_due_date(sentence: str) -> Optional[str]:
     """문장에서 마감일/일정 날짜 추출. 없으면 None."""
@@ -202,7 +213,7 @@ def extract_due_date(sentence: str) -> Optional[str]:
         day = m.group(2) or m.group(4)
         if month and day:
             try:
-                return f"{_CURRENT_YEAR}-{int(month):02d}-{int(day):02d}"
+                return f"{datetime.date.today().year}-{int(month):02d}-{int(day):02d}"
             except ValueError:
                 pass
 
@@ -219,36 +230,55 @@ def extract_due_date(sentence: str) -> Optional[str]:
     return None
 
 
-def has_money(sentence: str) -> bool:
-    return bool(_MONEY.search(sentence))
+def extract_amount(sentence: str) -> Optional[int]:
+    """문장에서 첫 번째 금액(원) 추출. 없으면 None."""
+    m = _MONEY.search(sentence)
+    if not m:
+        return None
+    try:
+        return int(m.group(1).replace(",", ""))
+    except ValueError:
+        return None
+
+
+def extract_action_hint(sentence: str) -> Optional[str]:
+    """납부·제출·신청 등 행동 키워드 힌트 추출. 없으면 None."""
+    for pattern, hint in _ACTION_PATTERNS:
+        if pattern.search(sentence):
+            return hint
+    return None
 
 
 # ─────────────────────────────────────────
 # 5. 메인 함수
 # ─────────────────────────────────────────
-def predict(notice_text: str) -> list[dict]:
+def predict(notice_text: str, source: Optional[str] = None) -> list[dict]:
     """
     가정통신문 원문 → 할 일 및 중요 일정 후보 문장 리스트.
 
     Args:
-        notice_text: OCR 모듈(pdfplumber / pymupdf 등)이 추출한 가정통신문 텍스트 str.
-                     OCR은 A단계 이전 처리 완료 — 입력은 항상 순수 str.
+        notice_text: OCR 모듈이 추출한 가정통신문 텍스트 str.
+        source:      원본 파일명 등 출처 식별자 (선택).
 
     Returns:
         B단계(경이 모델) 입력 스키마:
-        [{"text": str, "due_date": str | None, "has_money": bool}, ...]
+        [{"text", "source", "due_date", "amount", "confidence", "action_hint"}, ...]
     """
     if not notice_text or not notice_text.strip():
         return []
 
     results: list[dict] = []
     for sentence in split_sentences(notice_text):
-        if not is_likely_todo(sentence):
+        confidence = _classify(sentence)
+        if confidence is None or confidence < BINARY_THRESHOLD:
             continue
         results.append({
-            "text":      sentence,
-            "due_date":  extract_due_date(sentence),
-            "has_money": has_money(sentence),
+            "text":        sentence,
+            "source":      source,
+            "due_date":    extract_due_date(sentence),
+            "amount":      extract_amount(sentence),
+            "confidence":  round(confidence, 4),
+            "action_hint": extract_action_hint(sentence),
         })
 
     return results
@@ -277,9 +307,12 @@ http://bit.ly/sarlang www.sarlang.com
     print("=" * 60)
     print("A단계 추출 결과 — OCR 텍스트 입력 (B단계 입력용)")
     print("=" * 60)
-    candidates = predict(sample)
+    candidates = predict(sample, source="sample_pdfplumber.txt")
     for i, item in enumerate(candidates, 1):
         print(f"\n{i}. {item['text']}")
-        print(f"   due_date : {item['due_date']}")
-        print(f"   has_money: {item['has_money']}")
+        print(f"   source     : {item['source']}")
+        print(f"   due_date   : {item['due_date']}")
+        print(f"   amount     : {item['amount']}")
+        print(f"   confidence : {item['confidence']}")
+        print(f"   action_hint: {item['action_hint']}")
     print(f"\n총 {len(candidates)}개 후보 문장 추출")
