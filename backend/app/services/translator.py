@@ -14,7 +14,12 @@ _TRANSLATION_DIR = Path("/app/external_model/translation_tts")
 if str(_TRANSLATION_DIR) not in sys.path:
     sys.path.insert(0, str(_TRANSLATION_DIR))
 
-import run_mvp_pipeline as _sejong  # noqa: E402
+# 외부 마운트가 없는 환경(CI/테스트)에서도 모듈 로드는 성공해야 한다.
+try:
+    import run_mvp_pipeline as _sejong  # noqa: E402
+except ImportError as error:
+    print(f"[translator] run_mvp_pipeline unavailable: {error}")
+    _sejong = None
 
 NLLB_MODEL_NAME = "facebook/nllb-200-distilled-600M"
 SOURCE_LANG = "kor_Hang"
@@ -50,6 +55,9 @@ def _get_glossary():
     """raw 사전 rows를 1회 로드. 언어별 컬럼 선택은 find_glossary_hits에서 처리."""
     global _glossary_rows
     if _glossary_rows is None:
+        if _sejong is None:
+            _glossary_rows = []
+            return _glossary_rows
         try:
             _glossary_rows = _sejong.read_glossary(_TRANSLATION_DIR / "term_glossary.csv")
         except Exception as error:
@@ -136,7 +144,7 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return text
 
     glossary = _get_glossary()
-    hits = _sejong.find_glossary_hits(text, glossary, target_lang)
+    hits = _sejong.find_glossary_hits(text, glossary, target_lang) if _sejong else []
 
     # 긴 용어 먼저 치환해야 부분 치환 충돌 방지
     injected = text
