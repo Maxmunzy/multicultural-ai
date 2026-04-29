@@ -123,33 +123,38 @@ def clean_text(text: str) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# 3. 문장 분리 (kss 우선, 없으면 predict.py 의 split_sentences 사용)
+# 3. 문장 분리 (predict.py 의 split_sentences 사용, 최초 1회만 로드)
 # ─────────────────────────────────────────────────────────────────────────────
-def _split_with_predict(text: str) -> list[str]:
-    """predict.py 의 split_sentences 를 가져와서 사용"""
-    predict_path = _HERE / "predict.py"
-    import importlib.util
-    spec = importlib.util.spec_from_file_location("predict", predict_path)
-    mod = importlib.util.module_from_spec(spec)
-    try:
-        spec.loader.exec_module(mod)
-        return mod.split_sentences(text)
-    except Exception as e:
-        print(f"[경고] predict.split_sentences 로드 실패: {e}")
-        # 최후 fallback: 마침표/물음표/느낌표 기준 단순 분리
+_predict_mod = None   # 모듈 캐시 — exec_module 은 최초 1회만 실행
+
+
+def _get_split_fn():
+    """predict.split_sentences 를 반환. 실패 시 정규식 fallback 반환."""
+    global _predict_mod
+    if _predict_mod is None:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("predict", _HERE / "predict.py")
+        if spec is not None:
+            _predict_mod = importlib.util.module_from_spec(spec)
+            try:
+                spec.loader.exec_module(_predict_mod)
+                print("  predict.split_sentences 로드 완료 (이후 재사용)")
+            except Exception as e:
+                print(f"  [경고] predict.py 로드 실패: {e}")
+                _predict_mod = None
+
+    if _predict_mod is not None:
+        return _predict_mod.split_sentences
+
+    # 최후 fallback: 마침표/물음표/느낌표 기준 단순 분리
+    def _simple_split(text: str) -> list[str]:
         parts = re.split(r"(?<=[.!?])\s+", text)
         return [p.strip() for p in parts if p.strip() and len(p.strip()) > 3]
+    return _simple_split
 
 
 def split_into_sentences(text: str) -> list[str]:
-    """kss 사용 시도 -> 실패하면 predict.split_sentences 사용"""
-    try:
-        import kss
-        print("  kss 로 문장 분리 중...")
-        return kss.split_sentences(text)
-    except ImportError:
-        print("  [kss 미설치] predict.split_sentences 로 대체합니다.")
-        return _split_with_predict(text)
+    return _get_split_fn()(text)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
