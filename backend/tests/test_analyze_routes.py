@@ -92,9 +92,10 @@ def test_analyze_returns_slot_shape(client, parent_headers, monkeypatch):
     assert data["notice_id"] == notice_id
     assert data["target_language"] == "vi"
 
-    # summary 6슬롯 모두 존재
+    # summary 8슬롯 모두 존재 (urls/phones는 NLLB 보호용)
     summary = data["summary"]
-    for key in ("dates", "times", "places", "supplies", "amounts", "deadlines"):
+    for key in ("dates", "times", "places", "supplies", "amounts",
+                "deadlines", "urls", "phones"):
         assert key in summary, f"summary 슬롯 누락: {key}"
         assert isinstance(summary[key], list)
 
@@ -134,6 +135,26 @@ def test_analyze_regex_slots_filled_from_raw_text(client, parent_headers, monkey
     assert all(a["source"] == "regex" for a in summary["amounts"])
 
 
+def test_analyze_urls_phones_passthrough(client, parent_headers, monkeypatch):
+    """원문에 URL/전화가 있으면 summary.urls / phones에 ko 그대로 노출 (번역 X)."""
+    text = "신청 https://apply.school.kr, 문의 02-2649-7232 / 1588-0260"
+    notice_id = _seed_notice(client, text=text)
+    _patch_models(monkeypatch)
+
+    r = client.post(f"/notice/analyze/{notice_id}", json=_VI_BODY, headers=parent_headers)
+    summary = r.json()["data"]["summary"]
+
+    assert any(u["ko"] == "https://apply.school.kr" for u in summary["urls"])
+    assert any(p["ko"] == "02-2649-7232" for p in summary["phones"])
+    assert any(p["ko"] == "1588-0260" for p in summary["phones"])
+
+    # translated가 ko와 동일 = 번역 안 거침
+    for u in summary["urls"]:
+        assert u["translated"] == u["ko"]
+    for p in summary["phones"]:
+        assert p["translated"] == p["ko"]
+
+
 def test_analyze_supplies_aggregated_from_items(client, parent_headers, monkeypatch):
     """경이님 분류가 supplies로 잡힌 todo의 토큰이 summary.supplies로 집계 (강사 강조: 누락 금지)."""
     from app.models.schemas import Category, YunjeongTodo
@@ -151,6 +172,83 @@ def test_analyze_supplies_aggregated_from_items(client, parent_headers, monkeypa
     assert "도시락" in ko_tokens
     assert "물통" in ko_tokens
     assert "돗자리" in ko_tokens
+
+
+# ─────────────────────────────────────────
+#  UPLOAD — multipart 파일 입력
+# ─────────────────────────────────────────
+def _patch_parser(monkeypatch, *, text="파싱 결과 텍스트", error=None):
+    """parser.parse_bytes_to_text를 mock해서 LibreOffice 의존 없이 검증."""
+    from app.services.parser import ParserError
+
+    def fake(data, filename):
+        if error:
+            raise ParserError(error)
+        return text
+
+    monkeypatch.setattr("app.routers.notice.parse_bytes_to_text", fake)
+
+
+def test_upload_text_creates_notice(client, teacher_headers, monkeypatch):
+    """평문 .txt 업로드 → notice 생성. 응답에 notice_id + char_count."""
+    _patch_parser(monkeypatch, text="텍스트 통신문 본문")
+    files = {"file": ("hello.txt", b"abc", "text/plain")}
+    data = {"teacher_id": "teacher_001", "parent_id": "parent_001"}
+
+    r = client.post("/notice/upload", data=data, files=files, headers=teacher_headers)
+
+    assert r.status_code == 200, r.text
+    body = r.json()["data"]
+    assert "notice_id" in body
+    assert body["char_count"] == len("텍스트 통신문 본문")
+
+
+def test_upload_other_teacher_blocked(client, teacher_headers):
+    """본인 ID와 다른 teacher_id로 업로드 → 403."""
+    files = {"file": ("hello.txt", b"abc", "text/plain")}
+    data = {"teacher_id": "teacher_002", "parent_id": "parent_001"}
+    r = client.post("/notice/upload", data=data, files=files, headers=teacher_headers)
+    assert r.status_code == 403
+
+
+def test_upload_unknown_parent_blocked(client, teacher_headers, monkeypatch):
+    """존재하지 않는 parent_id → 404."""
+    _patch_parser(monkeypatch)
+    files = {"file": ("x.txt", b"abc", "text/plain")}
+    data = {"teacher_id": "teacher_001", "parent_id": "ghost"}
+    r = client.post("/notice/upload", data=data, files=files, headers=teacher_headers)
+    assert r.status_code == 404
+
+
+def test_upload_parser_failure_returns_400(client, teacher_headers, monkeypatch):
+    _patch_parser(monkeypatch, error="LibreOffice 변환 실패")
+    files = {"file": ("broken.hwp", b"x", "application/x-hwp")}
+    data = {"teacher_id": "teacher_001", "parent_id": "parent_001"}
+    r = client.post("/notice/upload", data=data, files=files, headers=teacher_headers)
+    assert r.status_code == 400
+    assert "변환 실패" in r.json()["detail"]
+
+
+def test_upload_empty_text_returns_400(client, teacher_headers, monkeypatch):
+    """파서가 빈 문자열 반환 → 400."""
+    _patch_parser(monkeypatch, text="")
+    files = {"file": ("empty.txt", b"", "text/plain")}
+    data = {"teacher_id": "teacher_001", "parent_id": "parent_001"}
+    r = client.post("/notice/upload", data=data, files=files, headers=teacher_headers)
+    assert r.status_code == 400
+
+
+def test_upload_then_inbox_round_trip(client, teacher_headers, parent_headers, monkeypatch):
+    """업로드 → 학부모 inbox에서 같은 텍스트 보임."""
+    _patch_parser(monkeypatch, text="upload→inbox 통신문")
+    files = {"file": ("doc.pdf", b"%PDF-fake", "application/pdf")}
+    data = {"teacher_id": "teacher_001", "parent_id": "parent_001"}
+    r = client.post("/notice/upload", data=data, files=files, headers=teacher_headers)
+    notice_id = r.json()["data"]["notice_id"]
+
+    inbox = client.get("/notice/inbox/parent_001", headers=parent_headers).json()["data"]
+    assert any(n["notice_id"] == notice_id and n["text"] == "upload→inbox 통신문"
+               for n in inbox)
 
 
 # ─────────────────────────────────────────

@@ -6,8 +6,10 @@
 from app.services.slot_extractor import (
     extract_amounts,
     extract_dates,
+    extract_phones,
     extract_summary_regex_slots,
     extract_times,
+    extract_urls,
     find_amount_in_text,
     find_deadline_in_text,
     find_when_in_text,
@@ -121,6 +123,37 @@ def test_format_date_en():
     assert format_date(d, "en") == "May 14 (Wed)"
 
 
+# ── URL / 전화 ───────────────────────────────────────────────────
+def test_extract_urls_http_https_www():
+    text = "신청은 https://example.kr/apply 에서, 자세한 내용은 www.school.go.kr 참조."
+    urls = extract_urls(text)
+    assert "https://example.kr/apply" in urls
+    assert "www.school.go.kr" in urls
+
+
+def test_extract_urls_dedupes():
+    text = "http://a.com 안내 http://a.com 재공지"
+    urls = extract_urls(text)
+    assert urls.count("http://a.com") == 1
+
+
+def test_extract_phones_dash_formats():
+    text = "교무실 02-2649-7232, 학교 849-7003, 신고 1588-0260, 휴대폰 010-1234-5678"
+    phones = extract_phones(text)
+    assert "02-2649-7232" in phones
+    assert "849-7003" in phones
+    assert "1588-0260" in phones
+    assert "010-1234-5678" in phones
+
+
+def test_extract_phones_does_not_match_amount_with_comma():
+    """'15,000원' 같은 숫자에서 전화번호가 잘못 잡히면 안 됨."""
+    text = "참가비 15,000원, 문의 02-1234-5678"
+    phones = extract_phones(text)
+    assert "02-1234-5678" in phones
+    assert not any(p.startswith("15") or p.startswith("000") for p in phones)
+
+
 # ── 통합 진입점 ──────────────────────────────────────────────────
 def test_extract_summary_regex_slots_full_flow():
     text = "5월 14일(수) 오전 9시 출발. 참가비 15,000원."
@@ -129,6 +162,18 @@ def test_extract_summary_regex_slots_full_flow():
     assert all(d["source"] == "regex" for d in out["dates"])
     assert any(t["ko"] == "오전 9시" for t in out["times"])
     assert any(a["ko"] == "15,000원" for a in out["amounts"])
+
+
+def test_extract_summary_regex_slots_includes_urls_and_phones():
+    """summary 슬롯에 urls/phones가 ko 그대로 통과 (NLLB 안 거침)."""
+    text = "신청 https://apply.school.kr 문의 02-2649-7232"
+    out = extract_summary_regex_slots(text, "vi")
+    assert any(u["ko"] == "https://apply.school.kr" for u in out["urls"])
+    assert any(p["ko"] == "02-2649-7232" for p in out["phones"])
+    # 보호: translated가 ko와 동일해야 한다
+    for slot in out["urls"] + out["phones"]:
+        assert slot["translated"] == slot["ko"]
+        assert slot["source"] == "regex"
 
 
 def test_find_when_combines_date_and_time():

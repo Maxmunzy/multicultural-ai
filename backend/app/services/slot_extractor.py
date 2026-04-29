@@ -34,6 +34,16 @@ _TIME_24H = re.compile(r"(?<!\d)(?P<hour>\d{1,2}):(?P<minute>\d{2})(?!\d)")
 _AMOUNT_KRW = re.compile(r"(?P<num>\d{1,3}(?:,\d{3})+|\d+)\s*원")
 _AMOUNT_KO = re.compile(r"(?P<num>\d+)\s*(?P<unit>만|천|억)\s*원")
 
+# URL: http(s)://… 또는 www.…  — NLLB가 토큰화하면서 깨먹는 패턴 방지용 슬롯
+_URL = re.compile(r"\bhttps?://[^\s<>\"'()]+|\bwww\.[^\s<>\"'()]+", re.IGNORECASE)
+# 전화번호: 02-xxx-xxxx, 02-xxxx-xxxx, 010-xxxx-xxxx, 1588-0260, 849-7003 등
+# 시작·끝에 숫자 인접 금지 (15,000원 같은 금액 부분 매칭 회피)
+_PHONE = re.compile(
+    r"(?<![\d-])"
+    r"(?:\d{2,4}-\d{3,4}-\d{4}|\d{4}-\d{4}|\d{3,4}-\d{4})"
+    r"(?!\d)"
+)
+
 # 까지 마감 표현: "5월 9일까지", "내일까지", "5월 9일(금)까지 ... 제출"
 # 콤마는 negation에서 제외 — "15,000원 (...까지...)" 같이 숫자 콤마에서 잘리는 버그 회피
 _DEADLINE_PHRASE = re.compile(r"([^.\n]*?까지[^.\n]*?)(?=[.\n]|$)")
@@ -150,6 +160,32 @@ def extract_deadline_phrases(text: str) -> list[str]:
     return [m.group(1).strip() for m in _DEADLINE_PHRASE.finditer(text)]
 
 
+def extract_urls(text: str) -> list[str]:
+    """URL 표면형 그대로. NLLB로 보내지 말고 슬롯으로 격리."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in _URL.finditer(text):
+        ko = m.group(0).strip().rstrip(".,)]")
+        if ko in seen:
+            continue
+        seen.add(ko)
+        out.append(ko)
+    return out
+
+
+def extract_phones(text: str) -> list[str]:
+    """전화번호 표면형. 같은 이유로 슬롯 격리."""
+    seen: set[str] = set()
+    out: list[str] = []
+    for m in _PHONE.finditer(text):
+        ko = m.group(0).strip()
+        if ko in seen:
+            continue
+        seen.add(ko)
+        out.append(ko)
+    return out
+
+
 # ── 다국어 포매터 ─────────────────────────────────────────────────
 # 베트남어가 1차 시연 타깃이라 가장 정교하게. 나머지 언어는 안전한 디폴트.
 _WEEKDAY_VI = {"월": "Thứ Hai", "화": "Thứ Ba", "수": "Thứ Tư", "목": "Thứ Năm",
@@ -230,8 +266,13 @@ def format_amount(a: dict, target_lang: str) -> str:
 
 # ── 통합 진입점 ──────────────────────────────────────────────────
 def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[dict]]:
-    """summary 슬롯 중 정규식으로 채울 수 있는 dates/times/amounts를 SlotEntry-ready dict로."""
-    out = {"dates": [], "times": [], "amounts": []}
+    """summary 슬롯 중 정규식으로 채울 수 있는 항목들을 SlotEntry-ready dict로.
+
+    urls/phones는 번역 안 거치고 ko 그대로 노출 (NLLB가 깨먹는 패턴 방어).
+    """
+    out: dict[str, list[dict]] = {
+        "dates": [], "times": [], "amounts": [], "urls": [], "phones": [],
+    }
     for d in extract_dates(text):
         out["dates"].append({
             "ko": d["ko"],
@@ -250,6 +291,10 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
             "translated": format_amount(a, target_lang),
             "source": "regex",
         })
+    for url in extract_urls(text):
+        out["urls"].append({"ko": url, "translated": url, "source": "regex"})
+    for phone in extract_phones(text):
+        out["phones"].append({"ko": phone, "translated": phone, "source": "regex"})
     return out
 
 
