@@ -47,10 +47,10 @@ from transformers import AutoTokenizer, AutoModelForSequenceClassification
 # 1. 모델 로드 (lazy, 최초 1회)
 # ─────────────────────────────────────────
 # CPU 시연 환경을 위해 small 변형 사용
-_BASE_MODEL_ID = "monologg/koelectra-small-v3-discriminator"
+_BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub 파인튜닝 모델
 _LOCAL_CHECKPOINT_DIR = os.path.join(
-    os.path.dirname(__file__), "checkpoints/koelectra-binary"
-)
+    os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary"
+)  # file/../checkpoints = extraction/checkpoints (이전: file/checkpoints — 경로 오류 수정)
 # label-1 (할 일) 확률 임계값 — 파인튜닝 후 조정 가능
 BINARY_THRESHOLD = 0.5
 
