@@ -38,9 +38,12 @@ predict() → list[dict]
 import datetime
 import os
 import re
+import warnings
 from typing import Optional
 
 import torch
+
+warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
 
@@ -85,7 +88,21 @@ def _load_model() -> None:
 
 
 # ─────────────────────────────────────────
-# 2. 문장 분리
+# 2. PDF 줄 끊김 복원
+# ─────────────────────────────────────────
+def _join_broken_lines(text: str) -> str:
+    """PDF 추출 시 발생하는 단어 중간 줄 끊김 복원.
+    "다문화가정 학\\n생" → "다문화가정 학생"
+    "지원하기\\n위해"   → "지원하기 위해"
+    """
+    text = re.sub(r" ([가-힣])\n([가-힣])", r" \1\2", text)   # 단어 중간 끊김
+    text = re.sub(r"([^.!?\n])\n([^\n])", r"\1 \2", text)     # 문장 이어짐
+    text = re.sub(r"[ \t]+", " ", text)
+    return text.strip()
+
+
+# ─────────────────────────────────────────
+# 3. 문장 분리
 # ─────────────────────────────────────────
 _HEADER_ONLY = re.compile(
     r"^[^.,!?~]{2,40}(안내|공지|알림|공개수업|상담|학습|행사|일정)\s*$"
@@ -272,6 +289,7 @@ def predict(notice_text: str, source: Optional[str] = None) -> list[dict]:
     if not notice_text or not notice_text.strip():
         return []
 
+    notice_text = _join_broken_lines(notice_text)
     results: list[dict] = []
     for sentence in split_sentences(notice_text):
         confidence = _classify(sentence)
@@ -287,7 +305,6 @@ def predict(notice_text: str, source: Optional[str] = None) -> list[dict]:
         })
 
     return results
-
 
 # ─────────────────────────────────────────
 # 6. 직접 실행 테스트
@@ -309,15 +326,15 @@ if __name__ == "__main__":
 http://bit.ly/sarlang www.sarlang.com
 의정부신곡초등학교장"""
 
-    print("=" * 60)
-    print("A단계 추출 결과 — OCR 텍스트 입력 (B단계 입력용)")
-    print("=" * 60)
-    candidates = predict(sample, source="sample_pdfplumber.txt")
-    for i, item in enumerate(candidates, 1):
-        print(f"\n{i}. {item['text']}")
-        print(f"   source     : {item['source']}")
-        print(f"   due_date   : {item['due_date']}")
-        print(f"   amount     : {item['amount']}")
-        print(f"   confidence : {item['confidence']}")
-        print(f"   action_hint: {item['action_hint']}")
-    print(f"\n총 {len(candidates)}개 후보 문장 추출")
+    # print("=" * 60)
+    # print("A단계 추출 결과 — OCR 텍스트 입력 (B단계 입력용)")
+    # print("=" * 60)
+    # candidates = predict(sample, source="sample_pdfplumber.txt")
+    # for i, item in enumerate(candidates, 1):
+    #     print(f"\n{i}. {item['text']}")
+    #     print(f"   source     : {item['source']}")
+    #     print(f"   due_date   : {item['due_date']}")
+    #     print(f"   amount     : {item['amount']}")
+    #     print(f"   confidence : {item['confidence']}")
+    #     print(f"   action_hint: {item['action_hint']}")
+    # print(f"\n총 {len(candidates)}개 후보 문장 추출")
