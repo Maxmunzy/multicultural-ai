@@ -1,13 +1,15 @@
-"""경이님 분류 모델 wrapper (검수자 역할).
+"""경이님 6-class 분류 모델 wrapper.
 
-윤정 추출 결과(TodoItem 리스트)를 받아 경이 모델로 카테고리/중요도를 다시 평가.
-두 모델의 결과가 다르면 review_needed 메시지로 표시한다.
+문장 → Category (일정/준비물/제출/비용/건강·안전/기타).
+파이프라인 [4] 단계 — 윤정님 todo 각각에 대해 호출되어 AnalyzeItem.category로 들어감.
+
+기본 모델: simple (TF-IDF + LogReg). 시연 시 가벼움 + 정확도 0.85+ 목표.
 """
 import sys
 from datetime import date
 from pathlib import Path
 
-from app.models.schemas import TodoItem
+from app.models.schemas import Category
 
 _CLF_DIR = Path("/app/external_model/classification")
 if str(_CLF_DIR) not in sys.path:
@@ -15,37 +17,20 @@ if str(_CLF_DIR) not in sys.path:
 
 from src.predict import predict_one  # noqa: E402
 
-IMPORTANCE_DIFF_THRESHOLD = 0.15  # 0.15 이상 차이나면 검수 표시
 
+def classify_category(text: str, today: date | None = None) -> Category:
+    """문장 → 6-class 카테고리. 실패/미정 시 Category.other."""
+    if not text or not text.strip():
+        return Category.other
 
-def review_todos(todos: list[TodoItem], today: date | None = None) -> str:
-    """윤정 todos를 경이 모델로 검수. 불일치 시 사람 검수용 메시지 반환."""
-    if not todos:
-        return ""
+    try:
+        result = predict_one(text, model="simple", today=today, explain=False)
+    except Exception as error:
+        print(f"[classifier] predict_one failed: {error}")
+        return Category.other
 
-    diffs: list[str] = []
-    for i, todo in enumerate(todos, start=1):
-        try:
-            result = predict_one(
-                todo.text_ko, model="simple", today=today, explain=True
-            )
-        except Exception as error:
-            print(f"[classifier] predict_one failed for [{i}]: {error}")
-            continue
-
-        kyeongyi_cat = result.get("category", "")
-        kyeongyi_imp = float(result.get("importance", 0.0))
-
-        cat_mismatch = kyeongyi_cat and kyeongyi_cat != todo.category.value
-        imp_mismatch = abs(kyeongyi_imp - todo.importance) >= IMPORTANCE_DIFF_THRESHOLD
-
-        if cat_mismatch or imp_mismatch:
-            preview = todo.text_ko if len(todo.text_ko) <= 30 else todo.text_ko[:30] + "..."
-            parts = [f"[{i}] '{preview}'"]
-            if cat_mismatch:
-                parts.append(f"카테고리: 윤정={todo.category.value} vs 경이={kyeongyi_cat}")
-            if imp_mismatch:
-                parts.append(f"중요도: 윤정={todo.importance:.2f} vs 경이={kyeongyi_imp:.2f}")
-            diffs.append(" / ".join(parts))
-
-    return "\n".join(diffs)
+    label = result.get("category", "")
+    try:
+        return Category(label)
+    except ValueError:
+        return Category.other

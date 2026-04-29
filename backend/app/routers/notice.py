@@ -3,16 +3,15 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
     AnalyzeItem, ApiResponse, Category, Notice, NoticeAnalyzeRequest,
-    NoticeSendRequest, SlotEntry, SummarySlots, TodoItem, UserProfile,
+    NoticeSendRequest, SlotEntry, SummarySlots, UserProfile, YunjeongTodo,
 )
 from app.services.extractor import extract_todos
 from app.services.translator import translate_short_sentence, translate_term
-from app.services.classifier import review_todos
+from app.services.classifier import classify_category
 from app.services.tts import generate_tts_file
 from app.services.slot_extractor import (
-    extract_summary_regex_slots, find_amount_in_text,
-    find_deadline_in_text, find_when_in_text, split_supply_tokens,
-    strip_markers,
+    extract_summary_regex_slots, find_when_in_text,
+    split_supply_tokens, strip_markers,
 )
 from app.services.mock import MOCK_TODOS
 
@@ -90,31 +89,44 @@ async def clear_inbox(
 #   1. 템플릿 슬롯 출력 (summary)
 #   2. 정규식 + 모델 하이브리드 (regex source 표시)
 #   3. 핵심 명사(준비물·금액) 누락 가시화 (빈 슬롯 즉시 노출)
-def _build_item(todo: TodoItem, target_lang: str) -> AnalyzeItem:
-    # 마크업(■) 등은 그대로 유지. 세종님 관찰: NLLB가 segmentation 힌트로 활용.
-    # 마크업 strip은 TTS 빌더에서만 (음성 노이즈 방지).
-    text = todo.text_ko
+def _amount_to_ko(amount: int | None) -> str | None:
+    if amount is None:
+        return None
+    return f"{amount:,}원"
+
+
+def _build_item(todo: YunjeongTodo, target_lang: str) -> AnalyzeItem:
+    """YunjeongTodo + 경이님 카테고리 → AnalyzeItem.
+
+    - category : 경이님 6-class 분류 (주제)
+    - action_hint : 윤정님 추출 결과 (행동: 신청/제출/...)
+    - due_date / amount : 윤정님 모델 결과 신뢰 (정규식 [2]는 summary 전체 단위 담당)
+    - when : 자유텍스트의 일시 표현은 정규식으로 추가 추출
+    - what : 준비물 카테고리일 때만 토큰 분해
+    - 마크업(■)은 보존, TTS 빌더에서만 strip.
+    """
+    text = todo.text
+    category = classify_category(text)
+
     when = find_when_in_text(text, target_lang)
-    amount_ko = find_amount_in_text(text, target_lang)
-    deadline_ko = find_deadline_in_text(text)
 
     what: list[str] = []
-    if todo.category == Category.supplies:
+    if category == Category.supplies:
         what = split_supply_tokens(text)
 
-    # 짧은 문장 번역 실패 시 한국어 원문 fallback (세종님 정책: 안드에 한국어 노출이 NLLB 오역보다 안전).
     title_translated = translate_short_sentence(text, target_lang) or text
 
     return AnalyzeItem(
-        category=todo.category,
+        category=category,
+        action_hint=todo.action_hint,
         title_ko=text,
         title_translated=title_translated,
         when=when,
-        where=None,                # NER 영역 — 추후 윤정님 추출기와 연동
+        where=None,
         what=what,
-        amount=amount_ko,
-        deadline=deadline_ko,
-        importance=todo.importance,
+        amount=_amount_to_ko(todo.amount),
+        deadline=todo.due_date,
+        importance=todo.confidence,
     )
 
 
@@ -168,7 +180,14 @@ async def analyze_notice(
 ):
     """수신된 가정통신문 → 슬롯 기반 분석 응답.
 
-    파이프라인: 추출(윤정) → 검수(경이) → 정규식 슬롯(태수) → 슬롯 번역(세종) → TTS
+    파이프라인:
+      [3] 윤정 추출 (binary + 정규식, list[YunjeongTodo])
+      [2] 정규식 슬롯 (전체 통신문 단위)
+      [4] 경이 6-class 분류 (각 todo.text)
+      [5] 슬롯/짧은 문장 번역 (세종)
+      [6] AnalyzeItem 결합 + summary 집계
+      [7] TTS
+
     학부모 본인의 가정통신문만 분석 가능. target_language 필수.
     """
     if notice_id not in _notices:
@@ -185,7 +204,7 @@ async def analyze_notice(
         )
     target_lang = req.target_language
 
-    # 1. 추출 (윤정 KoELECTRA)
+    # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     try:
         todos = extract_todos(notice.text)
         if not todos:
@@ -194,34 +213,22 @@ async def analyze_notice(
         print(f"[analyze] extractor failed: {error}")
         todos = MOCK_TODOS
 
-    # 2. 분류 검수 (경이 모델)
-    classifier_review = ""
-    try:
-        classifier_review = review_todos(todos)
-    except Exception as error:
-        print(f"[analyze] classifier review failed: {error}")
-
-    # 3. 정규식 슬롯 (태수): notice 원문 → dates/times/amounts (LLM 의존 없는 안전 데이터)
+    # [2] 정규식 슬롯 (전체 통신문 단위, summary 재료)
     regex_slots = extract_summary_regex_slots(notice.text, target_lang)
 
-    # 4. items: TodoItem → AnalyzeItem (슬롯 분해 + 짧은 문장 번역)
+    # [4]+[6] items: 각 todo에 경이님 카테고리 + 슬롯 결합
     items = [_build_item(t, target_lang) for t in todos]
 
-    # 5. summary 집계: 정규식 + 모델 슬롯 통합
+    # [6] summary 집계: 정규식 + items 모델 슬롯 통합
     summary = _build_summary(regex_slots, items, target_lang)
 
-    # 6. TTS: 슬롯 정보 합쳐 한 문장씩 + importance 우선 정렬
+    # [7] TTS: 슬롯+할일 합쳐 한 문장씩, importance 내림차순
     tts_text = _build_tts_text(summary, items, target_lang)
     try:
         tts_url = await generate_tts_file(tts_text, target_lang=target_lang) if tts_text else ""
     except Exception as error:
         print(f"[analyze] TTS failed: {error}")
         tts_url = ""
-
-    # 7. 검수 노트
-    review_needed = (
-        f"[경이 모델 교차검증]\n{classifier_review}" if classifier_review else ""
-    )
 
     response = {
         "notice_id": notice_id,
@@ -232,7 +239,7 @@ async def analyze_notice(
         "tts_text": tts_text,
         "tts_url": tts_url,
         "quality_note": "",
-        "review_needed": review_needed,
+        "review_needed": "",
     }
     return ApiResponse.success(data=response)
 
