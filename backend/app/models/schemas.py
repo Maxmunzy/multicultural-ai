@@ -74,6 +74,8 @@ class SummarySlots(BaseModel):
     supplies: list[SlotEntry] = []   # ⚠️ 강사 강조: 누락 금지
     amounts: list[SlotEntry] = []    # ⚠️ 강사 강조: 누락 금지
     deadlines: list[SlotEntry] = []
+    urls: list[SlotEntry] = []       # NLLB가 깨먹지 않게 ko 그대로 노출
+    phones: list[SlotEntry] = []     # 같은 이유
 
 
 class AnalyzeItem(BaseModel):
