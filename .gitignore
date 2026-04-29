@@ -20,19 +20,11 @@ data/raw/
 *.bin
 *.onnx
 
-<<<<<<< HEAD
-# Android (전체 로컬 전용 — OCR 실험 포함)
-android/
-=======
 # 컨테이너 작업 영역 (학습 데이터·OCR·임시 변환물)
 backend/data/
 
-# Android
-android/.gradle/
-android/build/
-android/local.properties
-android/app/build/
->>>>>>> b0d7dec356a839dea35076bffd289f431176276d
+# Android (전체 로컬 전용 — OCR 실험 포함)
+android/
 *.apk
 *.aab
 *.keystore
