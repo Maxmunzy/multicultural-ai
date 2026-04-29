@@ -27,10 +27,14 @@ def _seed_notice(client, teacher_id="teacher_001", parent_id="parent_001",
     return r.json()["data"]["notice_id"]
 
 
-def _patch_models(monkeypatch, *, todos=None, tts_url="/static/tts/fake.mp3"):
-    """모델 호출 4종(추출/검수/번역2)을 한 번에 mock. 각 테스트가 인자만 바꿔쓰게."""
+def _patch_models(monkeypatch, *, todos=None, category=None,
+                  tts_url="/static/tts/fake.mp3"):
+    """모델 호출 4종(추출/분류/번역2)을 한 번에 mock. 각 테스트가 인자만 바꿔쓰게."""
+    from app.models.schemas import Category
+    default_category = category or Category.other
     monkeypatch.setattr("app.routers.notice.extract_todos", lambda text: todos or [])
-    monkeypatch.setattr("app.routers.notice.review_todos", lambda todos: "")
+    monkeypatch.setattr("app.routers.notice.classify_category",
+                        lambda text: default_category)
     monkeypatch.setattr("app.routers.notice.translate_short_sentence",
                         lambda text, target_lang: f"[VI]{text}")
     monkeypatch.setattr("app.routers.notice.translate_term",
@@ -97,8 +101,8 @@ def test_analyze_returns_slot_shape(client, parent_headers, monkeypatch):
     # items 리스트 + 각 item 필수 필드
     assert isinstance(data["items"], list)
     for item in data["items"]:
-        for key in ("category", "title_ko", "title_translated", "when", "where",
-                    "what", "amount", "deadline", "importance"):
+        for key in ("category", "action_hint", "title_ko", "title_translated",
+                    "when", "where", "what", "amount", "deadline", "importance"):
             assert key in item, f"item 필드 누락: {key}"
 
     # 구버전 한 덩어리 필드는 빠져있어야 함 (안드 마이그레이션 확인용)
@@ -131,15 +135,15 @@ def test_analyze_regex_slots_filled_from_raw_text(client, parent_headers, monkey
 
 
 def test_analyze_supplies_aggregated_from_items(client, parent_headers, monkeypatch):
-    """category=supplies todo의 항목이 summary.supplies로 집계 (강사 강조: 누락 금지)."""
-    from app.models.schemas import Category, TodoItem
-    todos = [TodoItem(
-        category=Category.supplies,
-        text_ko="도시락, 물통, 돗자리를 준비해 주세요",
-        text_vi="", importance=0.9, due_date=None,
+    """경이님 분류가 supplies로 잡힌 todo의 토큰이 summary.supplies로 집계 (강사 강조: 누락 금지)."""
+    from app.models.schemas import Category, YunjeongTodo
+    todos = [YunjeongTodo(
+        text="도시락, 물통, 돗자리를 준비해 주세요",
+        confidence=0.9,
+        action_hint="준비",
     )]
     notice_id = _seed_notice(client, text="도시락, 물통, 돗자리를 준비해 주세요")
-    _patch_models(monkeypatch, todos=todos)
+    _patch_models(monkeypatch, todos=todos, category=Category.supplies)
 
     r = client.post(f"/notice/analyze/{notice_id}", json=_VI_BODY, headers=parent_headers)
     supplies = r.json()["data"]["summary"]["supplies"]
