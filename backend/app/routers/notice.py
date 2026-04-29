@@ -1,11 +1,12 @@
 import uuid
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
     AnalyzeItem, ApiResponse, Category, Notice, NoticeAnalyzeRequest,
     NoticeSendRequest, SlotEntry, SummarySlots, UserProfile, YunjeongTodo,
 )
 from app.services.extractor import extract_todos
+from app.services.parser import ParserError, parse_bytes_to_text
 from app.services.translator import translate_short_sentence, translate_term
 from app.services.classifier import classify_category
 from app.services.tts import generate_tts_file
@@ -47,6 +48,55 @@ async def send_notice(
     )
     _notices[notice_id] = notice
     return ApiResponse.success(data={"notice_id": notice_id}, message="발송 완료")
+
+
+@router.post("/upload", response_model=ApiResponse)
+async def upload_notice(
+    teacher_id: str = Form(...),
+    parent_id: str = Form(...),
+    file: UploadFile = File(...),
+    user: UserProfile = Depends(require_teacher),
+):
+    """선생님이 HWP/PDF 파일로 가정통신문 발송. 파일 → 텍스트 변환 후 send와 동일 흐름."""
+    if user.user_id != teacher_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 선생님 ID로만 발송 가능합니다",
+        )
+    parent = get_user(parent_id)
+    if parent is None or parent.role != "parent":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"학부모 계정을 찾을 수 없습니다: {parent_id}",
+        )
+
+    raw_bytes = await file.read()
+    try:
+        text = parse_bytes_to_text(raw_bytes, file.filename or "")
+    except ParserError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"파일 변환 실패: {error}",
+        )
+    if not text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="파일에서 추출된 텍스트가 비어있습니다",
+        )
+
+    notice_id = str(uuid.uuid4())
+    notice = Notice(
+        notice_id=notice_id,
+        teacher_id=teacher_id,
+        parent_id=parent_id,
+        text=text,
+        todos=[],
+    )
+    _notices[notice_id] = notice
+    return ApiResponse.success(
+        data={"notice_id": notice_id, "char_count": len(text)},
+        message=f"파일 업로드 완료 ({file.filename})",
+    )
 
 
 @router.get("/inbox/{parent_id}", response_model=ApiResponse)
@@ -139,11 +189,13 @@ def _build_summary(
     items: list[AnalyzeItem],
     target_lang: str,
 ) -> SummarySlots:
-    """정규식 슬롯(dates/times/amounts) + items에서 모델 슬롯(supplies/deadlines) 집계."""
+    """정규식 슬롯(dates/times/amounts/urls/phones) + items에서 모델 슬롯(supplies/deadlines) 집계."""
     summary = SummarySlots(
         dates=[SlotEntry(**s) for s in regex_slots["dates"]],
         times=[SlotEntry(**s) for s in regex_slots["times"]],
         amounts=[SlotEntry(**s) for s in regex_slots["amounts"]],
+        urls=[SlotEntry(**s) for s in regex_slots.get("urls", [])],
+        phones=[SlotEntry(**s) for s in regex_slots.get("phones", [])],
     )
 
     # supplies: category=supplies items의 what 토큰 집계 (중복 제거, 순서 보존)
