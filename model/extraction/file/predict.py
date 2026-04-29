@@ -1,5 +1,5 @@
 """
-model/extraction/predict.py
+model/extraction/file/predict.py
 ============================
 A단계: 가정통신문 → 할 일 및 중요 일정 후보 문장 추출기
 
@@ -30,7 +30,8 @@ OCR 추출 텍스트 (str)
     has_money()             정규식: 금액 여부 추출
     ↓
 predict() → list[dict]
-    {"text": str, "due_date": str | None, "has_money": bool}
+    {"text": str, "source": str|None, "due_date": str|None,
+     "amount": int|None, "confidence": float, "action_hint": str|None}
 ─────────────────────────────────────────
 """
 
@@ -64,10 +65,14 @@ def _load_model() -> None:
     if _model is not None:
         return
 
-    # 로컬 파인튜닝 체크포인트 우선, 없으면 HF Hub 베이스 모델
-    _local_ready = any(
-        os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, fname))
-        for fname in ("pytorch_model.bin", "model.safetensors")
+    # 로컬 파인튜닝 체크포인트 우선, 없으면 HF Hub 모델
+    # weights + config 둘 다 있어야 로컬 사용 (config 없으면 로드 실패)
+    _local_ready = (
+        any(
+            os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, fname))
+            for fname in ("pytorch_model.bin", "model.safetensors")
+        )
+        and os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, "config.json"))
     )
     src = _LOCAL_CHECKPOINT_DIR if _local_ready else _BASE_MODEL_ID
 
