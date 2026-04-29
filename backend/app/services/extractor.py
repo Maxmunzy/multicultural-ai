@@ -16,7 +16,13 @@ _EXTRACTION_DIR = Path("/app/external_model/extraction")
 if str(_EXTRACTION_DIR) not in sys.path:
     sys.path.insert(0, str(_EXTRACTION_DIR))
 
-import predict as _yunjeong  # noqa: E402
+# 모델 모듈은 도커 외부 마운트라 CI/테스트 환경에선 부재할 수 있음.
+# 모듈 레벨 import 실패가 conftest 로드를 깨뜨리지 않게 가드.
+try:
+    import predict as _yunjeong  # noqa: E402
+except ImportError as error:
+    print(f"[extractor] predict module unavailable: {error}")
+    _yunjeong = None
 
 _AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\s*원")
 
@@ -25,6 +31,8 @@ def extract_todos(notice_text: str) -> list[YunjeongTodo]:
     """가정통신문 원문 → list[YunjeongTodo]. 할일 없으면 []."""
     if not notice_text or not notice_text.strip():
         return []
+    if _yunjeong is None:
+        return []  # 모델 모듈 없음 (CI 등) — 빈 결과로 후속 단계 정상 동작
 
     if hasattr(_yunjeong, "predict_v2"):
         return [YunjeongTodo(**raw) for raw in _yunjeong.predict_v2(notice_text)]
