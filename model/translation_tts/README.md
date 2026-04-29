@@ -29,12 +29,13 @@ Translation/TTS 파트는 슬롯 기반 응답 구조(summary + items)로 전환
 
 ### term_glossary.csv
 
-총 156개 용어 (8개 언어). 2026-04-28에 12개 신규 추가: 학생, 초등학생, 전세버스, 생존수영, 리코더, 우범지역, 줄넘기, 간편복, 어깨끈, 횡단보도, 안심벨, 수리력
+학교 특화 용어사전 (8개 언어). 최신 용어 수는 CSV 직접 참고.
+주요 추가 이력: 학생/전세버스/생존수영/리코더/물통 등 오번역 방지 용어 중심으로 지속 확장 중.
 
 ## 주요 파일
 
 - `run_mvp_pipeline.py`: MVP 파이프라인 실행 스크립트
-- `term_glossary.csv`: 학교 특화 한국어-다국어 용어사전 (156개 용어, 8개 언어)
+- `term_glossary.csv`: 학교 특화 한국어-다국어 용어사전 (8개 언어, 최신 용어 수는 CSV 직접 참고)
 - `languages.py`: NLLB target code 및 TTS voice 매핑
 - `run_ab_compare.py`: 원문 전체 번역(A)과 TODO 추출 번역(B) 속도/입력량 비교
 - `run_ab_quality_eval.py`: A/B 번역 품질 평가. 현지 자연스러움과 Round-trip 검사를 포함
@@ -93,5 +94,5 @@ python model/translation_tts/run_quality_eval.py
 - 번역 입력을 원문 전체 → 추출된 할 일 문장(text)으로 변경
 - 응답 구조 전환: 단일 translation 블롭 → summary(슬롯) + items(카드) 분리
 - 번역 3경로 분리: i18n 포매터 / glossary 직접 치환 / NLLB
-- term_glossary.csv 12개 신규 용어 추가 (총 156개)
+- term_glossary.csv 신규 용어 지속 추가 (물통, 학생, 전세버스 등 오번역 방지 중심)
 - 윤정(A) → 경이(B) → 세종(C) 역할 확정: 경이가 6분류 + 중요도 전담
