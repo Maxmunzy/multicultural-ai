@@ -155,6 +155,54 @@ def test_analyze_urls_phones_passthrough(client, parent_headers, monkeypatch):
         assert p["translated"] == p["ko"]
 
 
+def test_analyze_returns_cards_shape(client, parent_headers, monkeypatch):
+    """신규 cards 필드 구조 검증 — 슬롯 카드 재설계 (Phase 1)."""
+    from app.models.schemas import Category, YunjeongTodo
+    todos = [YunjeongTodo(
+        text="운영시간 오전 10:00 ~ 12:00 (2시간)",
+        confidence=0.85,
+        action_hint="참여",
+    )]
+    notice_id = _seed_notice(client, text="운영시간 오전 10:00 ~ 12:00 (2시간)")
+    _patch_models(monkeypatch, todos=todos, category=Category.schedule)
+
+    r = client.post(f"/notice/analyze/{notice_id}", json=_VI_BODY, headers=parent_headers)
+    assert r.status_code == 200
+    data = r.json()["data"]
+
+    # cards 필드 존재 + 리스트
+    assert "cards" in data
+    assert isinstance(data["cards"], list)
+    assert len(data["cards"]) >= 1
+
+    # 카드 필수 필드
+    for card in data["cards"]:
+        for key in ("header_ko", "header_translated", "value_ko",
+                    "value_easy_ko", "value_translated", "chip", "importance"):
+            assert key in card, f"card 필드 누락: {key}"
+
+    # 헤더 분해 — "운영시간" 헤더 추출됐는지
+    headers = [c["header_ko"] for c in data["cards"]]
+    assert "운영시간" in headers, f"운영시간 헤더 누락: {headers}"
+
+    # tts_url_easy_ko 필드 존재 (세종님 별도 버튼)
+    assert "tts_url_easy_ko" in data
+
+
+def test_analyze_cards_regex_url_card(client, parent_headers, monkeypatch):
+    """todo로 못 잡힌 URL이 regex 보강으로 '신청 URL' 카드에 들어가야 한다."""
+    text = "신청 안내. http://apply.school.kr 에서 접수."
+    notice_id = _seed_notice(client, text=text)
+    _patch_models(monkeypatch)  # todos 빈 채로
+
+    r = client.post(f"/notice/analyze/{notice_id}", json=_VI_BODY, headers=parent_headers)
+    cards = r.json()["data"]["cards"]
+    headers = [c["header_ko"] for c in cards]
+    assert "신청 URL" in headers, f"URL 카드 누락: {headers}"
+    url_card = next(c for c in cards if c["header_ko"] == "신청 URL")
+    assert "http://apply.school.kr" in url_card["value_ko"]
+
+
 def test_analyze_supplies_aggregated_from_items(client, parent_headers, monkeypatch):
     """경이님 분류가 supplies로 잡힌 todo의 토큰이 summary.supplies로 집계 (강사 강조: 누락 금지)."""
     from app.models.schemas import Category, YunjeongTodo

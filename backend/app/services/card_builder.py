@@ -1,0 +1,127 @@
+"""슬롯 카드 빌더 — todos + regex_slots → list[SlotCard].
+
+강사님 처방 "지저분한 줄글 X, 슬롯 위주 가공" 대응:
+  한 카드 = 한 의미 단위 (운영시간 / 신청기간 / 운영방법 ...).
+
+흐름:
+  1. todos → 헤더 분해 + 분류 + 번역 + 쉬운 한국어
+  2. regex 슬롯 (URL/시간/날짜/전화/금액) → 보강 카드 (todo로 못 잡은 정보)
+  3. importance 내림차순 정렬
+
+윤정님 모델이 임계값에서 컷한 정보(운영시간/신청기간 등)를 regex 슬롯이
+보완 — 강사님 의견 "슬롯 위주 표시" 본질과 정합.
+"""
+from __future__ import annotations
+
+from app.models.schemas import Category, SlotCard, YunjeongTodo
+from app.services.classifier import classify_category
+from app.services.easy_korean import to_easy_korean
+from app.services.header_split import split_header_value
+from app.services.translator import translate_short_sentence, translate_term
+
+# 헤더 추정 실패 시 fallback
+_FALLBACK_HEADER = "기타"
+
+# regex 슬롯별 기본 헤더 (todo에서 못 잡은 정보 보강용 카드)
+# todo로 헤더가 추정된 경우엔 이 카드를 만들지 않음 (중복 방지).
+_SLOT_HEADERS: dict[str, str] = {
+    "dates": "일시",
+    "times": "시간",
+    "urls": "신청 URL",
+    "phones": "연락처",
+    "amounts": "비용",
+}
+
+# regex 슬롯이 todo로 이미 흡수됐는지 판단할 헤더 매핑.
+# 예: todo가 "운영시간" 헤더로 이미 추출됐으면 regex times 카드는 만들지 않음.
+_TODO_HEADER_COVERS: dict[str, set[str]] = {
+    "times": {"운영시간", "신청시간", "시간"},
+    "dates": {"운영날짜", "일시", "기간", "운영기간"},
+    "urls": {"신청 URL", "신청경로", "신청방법"},
+    "phones": {"연락처", "문의", "문의처"},
+    "amounts": {"비용", "회비", "참가비", "수강료", "급식비"},
+}
+
+
+def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
+    """YunjeongTodo → SlotCard."""
+    header, value = split_header_value(todo.text)
+    if header is None:
+        header = _FALLBACK_HEADER
+
+    category = classify_category(value)
+    chip = category.value if category != Category.other else None
+
+    return SlotCard(
+        header_ko=header,
+        header_translated=translate_term(header, target_lang),
+        value_ko=value,
+        value_easy_ko=to_easy_korean(value),
+        value_translated=translate_short_sentence(value, target_lang) or value,
+        chip=chip,
+        importance=todo.confidence,
+    )
+
+
+def _slot_entry_ko(entry: dict | str) -> str:
+    if isinstance(entry, dict):
+        return entry.get("ko", "")
+    return entry
+
+
+def _slot_entry_translated(entry: dict | str) -> str:
+    if isinstance(entry, dict):
+        return entry.get("translated") or entry.get("ko", "")
+    return entry
+
+
+def _build_cards_from_regex_slots(
+    regex_slots: dict[str, list[dict]],
+    target_lang: str,
+    todo_headers: set[str],
+) -> list[SlotCard]:
+    """regex 슬롯 → 보강 SlotCard. todo 헤더가 이미 커버한 슬롯은 스킵."""
+    cards: list[SlotCard] = []
+
+    for slot_name, default_header in _SLOT_HEADERS.items():
+        entries = regex_slots.get(slot_name, [])
+        if not entries:
+            continue
+        # todo가 이미 이 슬롯을 커버하면 스킵 (중복 카드 방지)
+        if todo_headers & _TODO_HEADER_COVERS.get(slot_name, set()):
+            continue
+
+        # 슬롯당 한 카드 — 여러 값은 콤마 구분
+        values_ko = [_slot_entry_ko(e) for e in entries]
+        values_translated = [_slot_entry_translated(e) for e in entries]
+        value_ko = ", ".join(v for v in values_ko if v)
+        value_translated = ", ".join(v for v in values_translated if v)
+        if not value_ko:
+            continue
+
+        cards.append(SlotCard(
+            header_ko=default_header,
+            header_translated=translate_term(default_header, target_lang),
+            value_ko=value_ko,
+            value_easy_ko=to_easy_korean(value_ko),
+            value_translated=value_translated or value_ko,
+            chip=None,  # regex 슬롯은 칩 없음 — todo가 아니므로 카테고리 모호
+            importance=0.7,  # todo 평균 confidence보다 살짝 낮음
+        ))
+
+    return cards
+
+
+def build_cards(
+    todos: list[YunjeongTodo],
+    regex_slots: dict[str, list[dict]],
+    target_lang: str,
+) -> list[SlotCard]:
+    """todos + regex_slots → list[SlotCard]. importance 내림차순 정렬."""
+    cards = [_build_card_from_todo(t, target_lang) for t in todos]
+
+    todo_headers = {c.header_ko for c in cards}
+    cards.extend(_build_cards_from_regex_slots(regex_slots, target_lang, todo_headers))
+
+    cards.sort(key=lambda c: -c.importance)
+    return cards
