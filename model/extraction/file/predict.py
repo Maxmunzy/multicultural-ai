@@ -55,8 +55,8 @@ _BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub 파인튜닝 모�
 _LOCAL_CHECKPOINT_DIR = os.path.join(
     os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary"
 )  # file/../checkpoints = extraction/checkpoints (이전: file/checkpoints — 경로 오류 수정)
-# label-1 (할 일) 확률 임계값 — 파인튜닝 후 조정 가능
-BINARY_THRESHOLD = 0.5
+# label-1 (할 일) 확률 임계값 — v2 평가(2026-04-30) 최적값 0.65로 업데이트
+BINARY_THRESHOLD = 0.65
 
 _tokenizer: Optional[AutoTokenizer] = None
 _model: Optional[AutoModelForSequenceClassification] = None
@@ -330,15 +330,15 @@ if __name__ == "__main__":
 http://bit.ly/sarlang www.sarlang.com
 의정부신곡초등학교장"""
 
-    print("=" * 60)
-    print("A단계 추출 결과 — OCR 텍스트 입력 (B단계 입력용)")
-    print("=" * 60)
-    candidates = predict(sample, source="sample_pdfplumber.txt")
-    for i, item in enumerate(candidates, 1):
-        print(f"\n{i}. {item['text']}")
-        print(f"   source     : {item['source']}")
-        print(f"   due_date   : {item['due_date']}")
-        print(f"   amount     : {item['amount']}")
-        print(f"   confidence : {item['confidence']}")
-        print(f"   action_hint: {item['action_hint']}")
-    print(f"\n총 {len(candidates)}개 후보 문장 추출")
+    # print("=" * 60)
+    # print("A단계 추출 결과 — OCR 텍스트 입력 (B단계 입력용)")
+    # print("=" * 60)
+    # candidates = predict(sample, source="sample_pdfplumber.txt")
+    # for i, item in enumerate(candidates, 1):
+    #     print(f"\n{i}. {item['text']}")
+    #     print(f"   source     : {item['source']}")
+    #     print(f"   due_date   : {item['due_date']}")
+    #     print(f"   amount     : {item['amount']}")
+    #     print(f"   confidence : {item['confidence']}")
+    #     print(f"   action_hint: {item['action_hint']}")
+    # print(f"\n총 {len(candidates)}개 후보 문장 추출")
