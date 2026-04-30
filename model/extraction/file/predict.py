@@ -102,6 +102,21 @@ def _join_broken_lines(text: str) -> str:
 
 
 # ─────────────────────────────────────────
+# 2-1. 특수기호 정제 (문장 단위)
+# ─────────────────────────────────────────
+# split_sentences()가 ◆●▪○ 등을 분리 기준으로 사용하므로
+# 마커 제거는 split 이후 문장 단위로 수행 — 학습 데이터 clean_text()와 동일 정제
+_SYMBOL_PATTERN = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏]+")
+_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]")
+
+
+def _clean_symbols(sentence: str) -> str:
+    sentence = _SYMBOL_PATTERN.sub(" ", sentence)
+    sentence = _CIRCLE_NUM_PATTERN.sub("", sentence)
+    return re.sub(r"\s+", " ", sentence).strip()
+
+
+# ─────────────────────────────────────────
 # 3. 문장 분리
 # ─────────────────────────────────────────
 _HEADER_ONLY = re.compile(
@@ -296,6 +311,9 @@ def predict(notice_text: str, source: Optional[str] = None) -> list[dict]:
     notice_text = _join_broken_lines(notice_text)
     results: list[dict] = []
     for sentence in split_sentences(notice_text):
+        sentence = _clean_symbols(sentence)
+        if not sentence:
+            continue
         confidence = _classify(sentence)
         if confidence is None or confidence < BINARY_THRESHOLD:
             continue
