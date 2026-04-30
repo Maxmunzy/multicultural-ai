@@ -56,6 +56,13 @@ def evaluate_simple(split: str = "test") -> dict:
 
 
 def evaluate_kcelectra(split: str = "test") -> dict:
+    # Colab에서 이미 평가한 JSON이 있으면 재활용 (torch 없는 환경에서도 비교 가능)
+    cached_json = OUT_DIR / "eval_results_kcelectra.json"
+    if cached_json.exists() and not kcelectra_ready():
+        print(f"[compare] Colab 결과 파일 사용: {cached_json.name}")
+        with open(cached_json, encoding="utf-8") as f:
+            return json.load(f)
+
     if not kcelectra_ready():
         print("[compare] KcELECTRA 체크포인트 없음. 01_train_kcelectra.ipynb 먼저 실행하세요.")
         return {}
