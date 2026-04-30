@@ -1,139 +1,132 @@
-# MVP 정의서 및 체크리스트 — 가정통신문 AI 도우미
+# MVP 정의서 및 체크리스트
 
-## 서비스 한 줄 정의
+## 서비스 MVP 정의
 
-선생님이 가정통신문을 발송하면 부모 앱에서 수신하고, AI가 할 일을 추출·분류·번역하여
-한국어 수준에 맞춰 베트남어 음성으로 안내해주는 서비스
+선생님이 가정통신문을 발송하면 학부모가 앱에서 수신하고, AI가 핵심 행동 항목을 체크리스트로 정리한 뒤 쉬운 한국어 + 8개국어(베트남어/영어/러시아어/말레이시아어/몽골어/중국어/태국어/일본어) 번역과 언어별 음성 안내를 제공하는 서비스입니다.
 
----
+이번 MVP의 목표는 완성형 서비스가 아니라, 아래 3가지를 보여 주는 것입니다.
 
-## AI 파이프라인
-
-```text
-가정통신문 텍스트
-        ↓ 모델 A (윤정)
-할 일 문장 추출
-        ↓ 모델 B (경이)
-카테고리 + 중요도
-        ↓ 모델 C (세종)
-베트남어 번역 + TTS 음성
-```
+1. 실제로 동작하는 모바일 시연 흐름
+2. 번역/TTS 파이프라인의 고정 산출물
+3. 모델 미완성 범위와 다음 연결 지점
 
 ---
 
 ## MVP 범위
 
-### 포함 (In Scope)
+### 포함
 
-| 기능 | 설명 | 담당 |
+| 기능 | 설명 | 상태 |
 | --- | --- | --- |
-| 가정통신문 발송/수신 | 선생님 → 부모 앱 전달 | 태수·찬영 |
-| 할 일 추출 | 준비물·일정·제출·비용 문장 추출 | 윤정 |
-| 카테고리 분류 + 중요도 | 6개 카테고리 + 0~1 점수 | 경이 |
-| 베트남어 번역 | NLLB 모델 기반 | 세종 |
-| TTS 음성 안내 | MMS-TTS 베트남어 음성 | 세종 |
-| FastAPI 서버 | 모델 A·B·C 연결·API 제공 | 태수 |
-| Android 데모 앱 | 실기기 시연 가능 | 찬영 |
+| 가정통신문 발송/수신 | 선생님 화면에서 발송, 학부모 화면에서 수신 | 완료 |
+| X-User-Id 헤더 인증 | 역할(teacher/parent) 기반 권한 검증 | 완료 |
+| 분석 API | `POST /notice/analyze/{notice_id}` (target_language) | 실제 모델 연결 완료 |
+| 체크리스트 표시 | 해야 할 일을 카테고리별로 보여 줌 | 실제 모델 결과 표시 |
+| 쉬운 한국어 | 학부모가 이해하기 쉬운 문장으로 요약 | 완료 |
+| 다국어 번역 | NLLB 기반 8개국어 번역(vi/en/ru/ms/mn/zh/th/ja) + 통화 오번역 후처리 | 완료 |
+| 용어사전 검수 | 학교 안내 핵심 용어 누락 확인 | 완료 (용어 확장) |
+| TTS 재생 | 언어별 Edge-TTS 음성(9개) 또는 앱 내장 mp3 fallback | 완료 |
+| Android 실기기 데모 | Java 단일 Activity 앱 | 완료 |
 
-### 제외 (Out of Scope)
+### 제외
 
 | 기능 | 제외 이유 |
 | --- | --- |
-| OCR (이미지 업로드) | 텍스트 입력으로 대체 |
-| STT 음성 질문 | 후순위 |
-| 담임 문자 전달 | 후순위 |
-| iOS 앱 | Android 우선 |
-| 실제 학교 시스템 연동 | 후순위 |
-| 자동 일정 등록 | 후순위 |
-| 자동 답장 전송 | 후순위 |
+| OCR 이미지/PDF 인식 | 텍스트 입력 흐름 검증을 우선 |
+| 실제 학교 시스템 연동 | MVP 이후 확장 범위 |
+| 자동 문자/푸시 알림 | 앱 내 수신함 시연을 우선 |
+| 자동 일정 등록 | 핵심 안내 이해를 우선 |
+| iOS 앱 | Android 실기기 데모 우선 |
 
 ---
 
-## MVP 체크리스트
+## 체크리스트
 
-### 목표
+### 데이터
 
-핵심 기준 3가지:
+- [x] 6개 카테고리 체계 정의: 일정, 준비물, 제출, 비용, 건강/안전, 기타
+- [x] `data/labeled/notice_sample_v3.csv` 200개 샘플 확보
+- [x] 컬럼 정의: `id`, `source_type`, `original_text`, `category`, `keywords`, `importance`, `action_required`, `easy_korean`, `vietnamese`, `tts_target`
+- [x] 번역/TTS 입력 샘플: `data/translation_tts/easy_ko_text_sample.csv`
 
-1. 실제로 동작하는 흐름이 있다
-2. 베이스라인 모델 실험 결과가 있다
-3. MVP 범위와 한계가 문서화되어 있다
+### 모델 A: 중요 문장 추출
 
----
+- [x] baseline 추출 모델 구현 (KoELECTRA 하이브리드, `model/extraction/predict.py`)
+- [x] 평가 기준 정의 (confidence 임계값 0.4, importance 임계값 0.3, 카테고리별 기본 점수)
+- [x] 서버 연결용 `extract_todos_dict()` 인터페이스 설계
+- [x] `POST /notice/analyze/{notice_id}` 응답에 실제 추출 결과 연결
 
-### 데이터 (세종)
+### 모델 B: 분류/중요도
 
-- [ ] 라벨 체계를 6개로 확정한다
-- [ ] 라벨 정의를 문서로 정리한다
-- [ ] 목표 샘플 수를 약 150개로 맞춘다
-- [ ] `기타` 라벨 기준을 명확히 정리한다
-- [ ] `importance`, `action_required`, `tts_target` 기준을 통일한다
-- [ ] 학습/검증용으로 나눌 수 있게 데이터 구조를 정리한다
+- [x] 6개 카테고리 분류 baseline 구현 (numpy LR / sklearn / SBERT 멀티트랙, accuracy 0.857, macro F1 0.747)
+- [x] 중요도 점수 산출 기준 확정 (룰 기반 시급도 + Ridge 회귀 결합, MAE 0.038)
+- [x] 서버 연결용 `model/classification/src/api.py` 설계 (`POST /classify`, port 8001)
+- [x] 메인 백엔드(`POST /notice/analyze`)와 실제 연결
 
-### 모델 A — 추출 (윤정)
+### 모델 C: 번역/TTS
 
-- [ ] 베이스라인 추출 모델 구현
-- [ ] 할 일 문장 추출 정확도 측정 (목표 F1 0.75 이상)
-- [ ] 서버 연결용 API 형식 태수님과 협의
+- [x] NLLB 모델 기준 확정: `facebook/nllb-200-distilled-600M`
+- [x] Edge-TTS 다국어 음성 매핑(9개): `vi-VN-HoaiMyNeural`, `en-US-JennyNeural`, `ru-RU-SvetlanaNeural`, `ms-MY-YasminNeural`, `mn-MN-YesuiNeural`, `zh-CN-XiaoxiaoNeural`, `th-TH-PremwadeeNeural`, `ja-JP-NanamiNeural`, `ko-KR-SunHiNeural`
+- [x] 용어사전 파일 구성: `model/translation_tts/term_glossary.csv`
+- [x] 고정 데모 산출물 생성: `demo/translation_tts/demo_case_01/`
+- [x] Android 앱에 데모 산출물 포함
+- [x] 서버 API에 번역/TTS 파이프라인 직접 연결 (target_language 파라미터로 8개국어 동적 라우팅)
 
-### 모델 B — 분류 (경이)
+### Backend
 
-- [ ] 베이스라인 분류 모델 구현
-- [ ] 6개 카테고리 분류 정확도 측정 (목표 80% 이상)
-- [ ] 중요도 점수 산출
-- [ ] 서버 연결용 API 형식 태수님과 협의
+- [x] FastAPI 앱 구성
+- [x] Docker 실행 환경 구성
+- [x] 공통 응답 형식: `{ status, data, message }`
+- [x] `POST /notice/send` (teacher 권한 + body.teacher_id 일치 검증)
+- [x] `GET /notice/inbox/{parent_id}` (parent 본인만)
+- [x] `DELETE /notice/inbox/{parent_id}` (parent 본인만, 시연용)
+- [x] `POST /notice/analyze/{notice_id}` (parent 본인만, target_language 동적)
+- [x] `POST /tts/generate` (언어별 Edge-TTS 보이스 자동 매핑)
+- [x] `GET /user/{id}`, `POST /user/`
+- [x] `GET /health`
+- [x] X-User-Id 헤더 인증 + 역할 기반 권한(teacher/parent) 검증
+- [x] 시연용 시드 계정: `teacher_001/002`, `parent_001/002/003`
+- [x] 실제 모델 서비스 연결
 
-### 모델 C — 번역 + TTS (세종)
+### Android
 
-- [ ] NLLB 번역 모델 실험 완료
-- [ ] MMS-TTS 음성 생성 확인
-- [ ] 가정통신문 도메인 파인튜닝
-- [ ] 서버 연결용 API 형식 태수님과 협의
-
-### 서버 (태수)
-
-- [x] FastAPI 서버 뼈대
-- [x] API 응답 형식 표준화 (`{ status, data, message }`)
-- [x] 선생님 발송 API (`POST /notice/send`)
-- [x] 부모 수신함 API (`GET /notice/inbox/{parent_id}`)
-- [x] 분석 API (`POST /notice/analyze/{notice_id}`)
-- [x] mock 응답 (Android 연동 테스트용)
-- [x] Docker 환경 구성
-- [ ] 모델 A 연결 (`services/extractor.py`)
-- [ ] 모델 B 연결 (`services/classifier.py`)
-- [ ] 모델 C 연결 (`services/translator.py`, `services/tts.py`)
-- [ ] Android 통신 테스트
-
-### Android 앱 (찬영)
-
-- [ ] 선생님 화면 (가정통신문 작성·발송)
-- [ ] 부모 화면 (수신함·체크리스트)
-- [ ] TTS 음성 재생
-- [ ] 실기기 시연 가능
+- [x] 로그인 화면 (역할 선택 → ID 입력 → 들어가기)
+- [x] 선생님 화면: 가정통신문 작성/발송 (X-User-Id 자동 첨부)
+- [x] 학부모 화면: 수신함 카드 리스트
+- [x] 통신문 상세 화면 (우측 상단 ✨ AI 번역 버튼)
+- [x] AI 분석 화면: 체크리스트 + 쉬운 한국어 + 모국어 번역 + 학교 용어 + TTS
+- [x] 9개 언어 선택 드롭다운 (변경 시 자동 재분석)
+- [x] 글자 크기 조절(A−/A+)
+- [x] TTS 재생/정지 토글
+- [x] 내장 데모 산출물 fallback (서버 연결 실패 시)
+- [x] 내장 mp3 TTS 재생
+- [ ] `BASE_URL` 환경별 설정 방식 개선
 
 ### 문서
 
-- [x] `README.md` 아키텍처·API 정리
-- [x] `team-brief.md`
-- [x] `troubleshooting.md`
-- [x] `mvp-checklist.md`
-- [ ] `data/README.md` 라벨 기준 최신화
+- [x] `docs/team-brief.md` 최신화
+- [x] `docs/mvp-checklist.md` 최신화
+- [x] `docs/troubleshooting.md` 최신화
 
 ---
 
 ## 최소 완료 기준
 
-- [ ] 6개 라벨 기준 데이터 약 150개 확보
-- [ ] 모델 A·B·C 베이스라인 실험 결과 각 1회 이상
-- [ ] 실기기 데모 1개 흐름 확보
+- [x] Android 실기기에서 앱 실행
+- [x] PC FastAPI 서버의 Swagger UI 접속 확인: `http://localhost:8000/docs`
+- [x] 선생님 화면에서 발송 성공
+- [x] 학부모 화면에서 수신함 조회 성공
+- [x] 분석 결과 화면 표시 (실제 모델 결과)
+- [x] 선택 언어별 TTS 재생 확인 (vi/en/ru/ms/mn/zh/th/ja/ko_easy)
+- [x] 발표 시 mock 범위와 실제 구현 범위 구분 설명
 
 ---
 
-## 목표 성능
+## 현재 리스크
 
-| 항목 | 목표 |
-| --- | --- |
-| 카테고리 분류 정확도 | 80% 이상 |
-| 할 일 추출 F1 | 0.75 이상 |
-| TTS 응답 시간 | 3초 이내 |
-| API 응답 시간 | 1초 이내 |
+| 리스크 | 영향 | 대응 |
+| --- | --- | --- |
+| NLLB 첫 실행 warmup | 모델 로드에 10~15분 소요 (2.4GB 다운로드) | 시연 30분 전 curl로 warmup 필수 |
+| Android `BASE_URL` 고정 | 네트워크가 바뀌면 앱 수정 후 재빌드 필요 | 시연 전 PC IP 확인 |
+| NLLB 출력 품질 변동 | 일부 문장 어색한 번역 가능 | 용어사전 검수와 교차검증 결과로 보완 설명 |
+| 체크리스트 인사말 포함 | "학부모님 안녕하세요" 등 인사말이 TODO로 분류될 수 있음 | 추출 모델 필터 개선 예정 |

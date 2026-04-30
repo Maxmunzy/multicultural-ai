@@ -1,3 +1,18 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
 fastapi==0.111.0
 uvicorn[standard]==0.29.0
 pydantic==2.7.1
+edge-tts>=7.0.0
+torch==2.3.1+cpu
+transformers==4.44.2
+huggingface-hub==0.24.7
+sentencepiece==0.2.0
+numpy==2.0.2
+pandas==2.2.2
+
+# 파일 입력 변환 ([1] 텍스트 변환)
+pdfplumber==0.11.9
+python-multipart==0.0.20
+
+# 경이 분류기 ([4] 단계 — TF-IDF + LogReg simple, KcELECTRA는 transformers 사용)
+scikit-learn==1.5.2

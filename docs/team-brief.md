@@ -1,120 +1,100 @@
 # 팀 진행 브리프
 
-## 현재 프로젝트 핵심
+## 현재 프로젝트 한 줄 설명
 
-우리 프로젝트의 핵심은 다문화 가정 학부모가 학교 알림, 특히 가정통신문의 내용을 쉽게 이해하고 필요한 행동까지 이어질 수 있도록 돕는 AI 시스템을 만드는 것이다.
+가정통신문 AI 도우미는 선생님이 보낸 안내문에서 학부모가 바로 확인해야 할 일을 뽑고, 쉬운 한국어 + 8개국어(베트남어/영어/러시아어/말레이시아어/몽골어/중국어/태국어/일본어) 번역과 언어별 음성 안내까지 이어 주는 MVP입니다.
 
-현재 단계에서는 서비스를 크게 확장하기보다, 아래 핵심 흐름이 실제로 동작하는 MVP 뼈대를 만드는 것이 가장 중요하다.
+현재 저장소 기준 핵심은 다음 흐름입니다.
 
-1. 선생님이 가정통신문 발송
-2. 부모 앱에서 수신
-3. AI 파이프라인 처리 (추출 → 분류 → 번역 → TTS)
-4. 체크리스트 + 베트남어 음성 안내
-5. 실기기에서 결과 확인
+```text
+선생님 Android 화면  (X-User-Id: teacher_xxx)
+  -> POST /notice/send (teacher 권한 검증)
+FastAPI 서버
+  -> 임시 메모리 저장
+학부모 Android 화면  (X-User-Id: parent_xxx)
+  -> GET /notice/inbox/{parent_id} (본인만)
+  -> POST /notice/analyze/{notice_id} (target_language 지정)
+분석 결과
+  -> 체크리스트, 쉬운 한국어, 선택 언어 번역, 용어 검수, 언어별 TTS 재생
+```
+
+Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출하고, 서버 응답이 없거나 TTS URL이 없을 때는 앱에 포함된 고정 데모 산출물을 fallback으로 보여 줍니다.
+
+`/notice/*` 엔드포인트는 모두 `X-User-Id` 헤더로 요청자를 식별하고 역할(teacher/parent) 권한을 검증합니다. MVP 단계라 토큰 없이 헤더 한 줄로 처리하며, 시드 계정은 `teacher_001/002`와 `parent_001/002/003`입니다.
 
 ---
 
-## AI 파이프라인 구조
+## 탑재형 AI 도우미 모듈
 
-총 3개 모델이 순서대로 연결된다.
+이 프로젝트의 핵심은 새로운 알림장 앱 자체를 만드는 것이 아니라, 기존 학교 알림장/가정통신문 서비스가 가져다 쓸 수 있는 AI 도우미 모듈을 만드는 것입니다. Android 앱은 이 모듈의 동작을 보여 주기 위한 실기기 데모 클라이언트입니다.
 
-```text
-가정통신문 텍스트
-        ↓
-[모델 A] 추출 모델 (윤정)
-        할 일 문장 추출
-        ↓
-[모델 B] 분류 모델 (경이)
-        카테고리 + 중요도 점수
-        ↓
-[모델 C] 번역 + TTS 모델 (세종)
-        베트남어 번역 → 음성 생성
-        ↓
-Android 앱 출력
-```
+서버와 모델 파이프라인은 가정통신문 텍스트와 학부모가 선택한 언어 코드(target_language)를 받아 체크리스트, 쉬운 한국어, 선택 언어 번역(8개국어 중 1), 용어 검수 결과, 해당 언어 TTS 음성을 만들어 반환합니다. 이후에는 기존 학교 앱이나 알림장 서비스가 같은 API를 호출하는 방식으로 확장할 수 있습니다.
 
 ---
 
 ## 역할 분담
 
-| 이름 | 역할 | 폴더 |
+| 이름 | 담당 | 주요 위치 |
 | --- | --- | --- |
-| 태수 | FastAPI 서버·API 설계·모델 A·B·C 연결·Android 통신 | `backend/` |
-| 윤정 | 가정통신문 → 할 일 문장 추출 모델 (파인튜닝) | `model/extraction/` |
-| 경이 | 추출 문장 → 카테고리 분류 + 중요도 점수 모델 | `model/classification/` |
-| 세종 | NLLB 번역 모델 + MMS-TTS 모델 + 데이터 수집·라벨링 | `data/` |
-| 찬영 | Android 데모 앱 UI·시연 시나리오·발표자료 | `android/` · `docs/` |
+| 태수 | FastAPI 서버, API 설계, Android 통신 연결 | `backend/` |
+| 윤정 | 중요 문장 추출 모델 | `model/extraction/` |
+| 경이 | 카테고리 분류, 중요도 모델 | `model/classification/` |
+| 세종 | NLLB 번역, 학교 용어사전 검수, Edge-TTS 출력, 데이터셋 | `model/translation_tts/`, `data/`, `demo/translation_tts/` |
+| 찬영 | Android 실기기 데모, UI, 발표 자료 | `android/`, `docs/` |
 
 ---
 
-## 세종님 모델 상세
+## 현재 구현 상태 (2026-04-29 갱신)
 
-- **번역**: `facebook/nllb-200-distilled-600M` — 한국어 → 베트남어
-- **TTS**: `facebook/mms-tts-vie` — 베트남어 음성 생성
-- 별도 레포에서 실험 중: `github.com/mosejong/translation-tts-lab`
-- 완성 후 태수님 서버에 연결 예정
-
----
-
-## 다음 미팅 전까지 필요한 산출물
-
-### 1. 디바이스 기반 데모
-
-- 실기기 기준으로 동작해야 함
-- 에뮬레이터나 데스크탑 시연은 제외
-- 최소 흐름: 텍스트 입력 → 분석 결과 표시 → TTS 재생
-
-### 2. 베이스 모델 실험 / 탑재 / 추론 결과
-
-- 6개 라벨 기준 데이터셋 구축
-- 베이스라인 모델 실험
-- 추론 결과 예시 정리
-- 성능 지표 정리
-
-### 3. MVP 정의서 및 체크리스트
-
-- 이번 단계에서 구현할 것과 제외할 것 명확화
-- 각 파트별 진행 여부 체크
-
-### 4. 트러블슈팅 문서
-
-- 기술 선택 이유
-- 구현 중 어려웠던 점
-- 제한사항과 미완성 범위
+| 영역 | 상태 | 메모 |
+| --- | --- | --- |
+| Backend | 완료 | FastAPI, Docker, `/notice`, `/tts`, `/user`, `/health` 라우터. X-User-Id 헤더 + 역할 권한 검증. v2 분업 응답 구조(`summary` 8슬롯 + `items`) 적용 완료 |
+| Android | 완료 | Java 단일 Activity. 선생님 화면에 PDF/HWP 파일 업로드 버튼 추가, 학부모 화면은 새 슬롯 응답(action_hint, urls/phones 칩 포함) 렌더링 |
+| 데이터 | 진행 중 | 갈산초 281장 .txt 변환 완료 (`data/raw/galsan_txt/`), 윤정님께 전달. 학습 라벨링 진행 중 |
+| 파일 입력 | 완료 | `services/parser.py` — HWP/PDF/text → clean_text 통합. LibreOffice + H2Orestart + 한글폰트 Dockerfile 영구 설치. `POST /notice/upload` multipart 엔드포인트 |
+| URL/전화 보호 | 완료 | NLLB가 깨먹는 패턴 방어 — 슬롯 단위 ko 그대로 + 본문은 `⟦P0⟧` placeholder 마스킹 |
+| 번역/TTS | 완료 | NLLB 다국어 번역(vi/en/ru/ms/mn/zh/th/ja), 용어사전 검수, Edge-TTS 9개 보이스 매핑, 통화 오번역 후처리 포함 |
+| 추출 모델 | v2 연결 완료 | 윤정 KoELECTRA binary 추출 (`yunjeong116/koelectra-extractor`). 첫 호출 시 HF Hub 자동 다운로드 |
+| 분류 모델 | v1 연결 완료, v2 학습 중 | 경이 simple TF-IDF (git에 pkl 직접). v2는 비교 실험 진행 중 (TF-IDF baseline + SBERT + KcELECTRA 후보) |
+| 통합 E2E | 완료 | 백엔드 `/notice/upload` → 분석 → 슬롯 응답 → 안드 카드 UI 흐름 코드 검증. 실기기 테스트는 LAN IP 셋업 후 |
 
 ---
 
-## MVP 범위
+## 모델 파이프라인 기준 (v2 — 2026-04-29)
 
-### 포함
+```text
+호스트 앱 → POST /notice/upload (HWP/PDF/text) 또는 /notice/send (text)
+        ↓
+[1] services/parser.py — HWP/PDF/text → clean_text
+        ↓
+[2] slot_extractor — 정규식 dates/times/amounts/urls/phones (summary 재료)
+        ↓
+[3] 윤정 KoELECTRA binary → list[YunjeongTodo] (할일 문장 + due_date/amount/action_hint)
+        ↓
+[4] 경이 6-class 분류 → 각 todo의 카테고리 (일정/준비물/제출/비용/건강·안전/기타)
+        ↓
+[5] 세종 NLLB + 용어사전 + URL/전화 placeholder 보호 → 슬롯별 번역
+        ↓
+[6] _build_summary + _build_item — AnalyzeItem 결합 (summary 8슬롯 + items 리스트)
+        ↓
+[7] Edge-TTS → 선택 언어 mp3 생성
+        ↓
+Android 출력 (슬롯 칩 + 할일 카드 + TTS 재생)
+```
 
-- 선생님 → 부모 가정통신문 발송/수신
-- 할 일 문장 추출 (모델 A)
-- 6개 카테고리 분류 + 중요도 (모델 B)
-- 베트남어 번역 (모델 C)
-- TTS 음성 안내 (모델 C)
-- 실기기 데모 화면 확인
-
-### 제외
-
-- OCR 기반 이미지/PDF 인식
-- 실제 학교 시스템 연동
-- 자동 푸시 알림
-- 일정 자동 등록
-- 답장 자동 전송
-
----
-
-## 현재 가장 중요한 우선순위
-
-1. 6개 라벨 기준 150개 내외 데이터셋
-2. 모델 A·B·C 베이스라인 실험 결과
-3. 실기기에서 보이는 MVP 데모 흐름
-
-이 3가지만 살아 있어도 다음 미팅에서 프로젝트 방향성과 실행력을 충분히 보여줄 수 있다.
+기본 NLLB 모델은 `facebook/nllb-200-distilled-600M`, TTS는 언어별 보이스 매핑(`vi-VN-HoaiMyNeural`, `en-US-JennyNeural`, `ru-RU-SvetlanaNeural`, `ms-MY-YasminNeural`, `mn-MN-YesuiNeural`, `zh-CN-XiaoxiaoNeural`, `th-TH-PremwadeeNeural`, `ja-JP-NanamiNeural`, `ko-KR-SunHiNeural`)을 사용합니다.
 
 ---
 
-## 발표용 한 줄 정리
+## 다음 우선 과제
 
-선생님이 가정통신문을 발송하면 부모 앱에서 수신하고, AI가 할 일을 추출·분류·번역하여 베트남어 음성으로 안내하는 서비스
+1. 추출 모델 인사말 필터 보강 (체크리스트에 인사말 포함되는 문제)
+2. 모델 튜닝: 체크리스트 정밀도 향상, NLLB 번역 품질 개선
+3. 용어사전 지속 확장
+4. 발표에서 E2E 파이프라인 시연 및 검수 루프 설명
+
+---
+
+## 발표용 핵심 문장
+
+선생님이 가정통신문을 보내면 학부모 앱에서 핵심 체크리스트와 쉬운 한국어, 모국어 번역(8개국어 중 선택), 음성 안내를 확인할 수 있습니다. 추출 모델(KoELECTRA), 분류 모델(SBERT 기반), 번역/TTS 파이프라인(NLLB + Edge-TTS 9개 보이스)이 모두 메인 백엔드에 연결되어 실기기에서 E2E 동작이 확인된 상태입니다. 백엔드는 X-User-Id 헤더 기반의 역할 권한 검증으로 선생님/학부모 흐름을 분리합니다.

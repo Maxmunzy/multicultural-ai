@@ -20,14 +20,23 @@ data/raw/
 *.bin
 *.onnx
 
-# Android
+# 경이 simple 분류기 자동 학습 결과 (random seed에 따라 달라져 git 충돌 유발)
+# 학습 코드 + 데이터(csv)는 git에 있어 컨테이너 첫 호출 시 재현 가능
+model/classification/checkpoints/*.pkl
+
+# 컨테이너 작업 영역 (학습 데이터·OCR·임시 변환물)
+backend/data/
+
+# Android build outputs and local settings
 android/.gradle/
+android/.idea/
 android/build/
-android/local.properties
 android/app/build/
+android/local.properties
 *.apk
 *.aab
 *.keystore
+
 
 # IDE
 .idea/
@@ -41,6 +50,14 @@ Thumbs.db
 # TTS 출력물
 tts/*.mp3
 tts/*.wav
+backend/static/tts/*.mp3
 
 #클로드
 .claude
+
+# nested repo 방지
+multicultural-ai/
+multicultural-school-ai/
+
+# 미팅 자료 (디코로만 공유, 깃에는 안 올림)
+docs/meetings/

@@ -5,6 +5,16 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./scripts:/app/scripts
+      - ./data:/app/external_data
+      - ./model:/app/external_model
+      - hf_cache:/root/.cache/huggingface
     env_file:
       - ./backend/.env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
     restart: unless-stopped
+
+volumes:
+  hf_cache:

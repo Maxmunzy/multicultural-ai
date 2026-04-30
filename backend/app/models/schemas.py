@@ -25,6 +25,20 @@ class TodoItem(BaseModel):
     due_date: str | None = None
 
 
+class YunjeongTodo(BaseModel):
+    """윤정님 v2 추출 모델 출력 — 통신문 1개에서 문장 단위로 뽑힌 할일.
+
+    내부에 정규식 due_date/amount 추출 + binary 분류(BINARY_THRESHOLD=0.5) 포함.
+    confidence < 0.5 항목은 모델이 자동 필터링해 출력에 포함 안 됨.
+    """
+    text: str                       # 원문 문장
+    source: str | None = None       # 파일명 (같은 통신문 묶음용)
+    due_date: str | None = None     # YYYY-MM-DD 또는 상대표현 ("다음 주 금요일")
+    amount: int | None = None       # 원 단위
+    confidence: float               # binary 확률 (0.0 ~ 1.0)
+    action_hint: str | None = None  # 신청 / 제출 / 납부 / 준비 / 참여 / 확인
+
+
 class Notice(BaseModel):
     notice_id: str
     teacher_id: str
@@ -39,10 +53,80 @@ class NoticeSendRequest(BaseModel):
     text: str
 
 
+class NoticeAnalyzeRequest(BaseModel):
+    target_language: str   # vi/en/ru/ms/mn/zh/th/ja/ko_easy — 필수, default 없음
+
+
+# ── 슬롯 기반 응답 (강사 처방 1·3 대응) ──────────────────────────
+# source: "regex" | "model" | "model+regex" — 신뢰도 추적용
+# 정규식이 잡은 항목은 LLM 의존 없이 확보됐음을 안드/검수에서 표시 가능.
+class SlotEntry(BaseModel):
+    ko: str
+    translated: str = ""
+    source: str = "model"
+    conditional: bool = False  # "흐릴 경우 우산" 같은 조건부 항목
+
+
+class SummarySlots(BaseModel):
+    dates: list[SlotEntry] = []
+    times: list[SlotEntry] = []
+    places: list[SlotEntry] = []
+    supplies: list[SlotEntry] = []   # ⚠️ 강사 강조: 누락 금지
+    amounts: list[SlotEntry] = []    # ⚠️ 강사 강조: 누락 금지
+    deadlines: list[SlotEntry] = []
+    urls: list[SlotEntry] = []       # NLLB가 깨먹지 않게 ko 그대로 노출
+    phones: list[SlotEntry] = []     # 같은 이유
+
+
+class AnalyzeItem(BaseModel):
+    """카테고리별 할 일 — YunjeongTodo + 경이님 카테고리 결합 결과.
+
+    deprecated — SlotCard로 대체 예정 (안드 마이그레이션 완료 후 폐기).
+    """
+    category: Category                  # 경이님 (주제: 일정/준비물/제출/비용/건강·안전/기타)
+    action_hint: str | None = None      # 윤정님 (행동: 신청/제출/납부/준비/참여/확인)
+    title_ko: str
+    title_translated: str = ""
+    when: str | None = None
+    where: str | None = None
+    what: list[str] = []
+    amount: str | None = None
+    deadline: str | None = None
+    importance: float = 0.5
+    note_ko: str | None = None          # 조건부 메모 (예: "날씨가 흐릴 경우")
+    note_translated: str | None = None
+
+
+class SlotCard(BaseModel):
+    """슬롯 카드 — 헤더 + 값 + 카테고리 칩.
+
+    강사님 처방 "지저분한 줄글 X, 슬롯 위주로 가공" 대응.
+    한 카드 = 한 의미 단위 (운영시간 / 신청기간 / 운영방법 ...).
+    todos 헤더 분해 + regex 슬롯 컨텍스트 매칭 둘 다 카드로 통합.
+    """
+    header_ko: str                       # 예: "운영시간"
+    header_translated: str = ""          # 예: "Thời gian hoạt động"
+    value_ko: str                        # 예: "오전 10:00 ~ 12:00 (2시간)"
+    value_easy_ko: str = ""              # 세종님 to_easy_korean() 결과 — 미구현 시 value_ko 그대로
+    value_translated: str = ""           # NLLB 번역 결과
+    chip: str | None = None              # category 값 — None이면 칩 미표시
+    importance: float = 0.5              # 정렬용 (높은 순)
+
+
 class NoticeAnalyzeResponse(BaseModel):
     notice_id: str
     raw_text: str
-    todos: list[TodoItem]
+    target_language: str
+    # 신규 — 안드 슬롯 카드 UI 대상 (단계적 마이그레이션, 본 필드가 메인)
+    cards: list[SlotCard] = []
+    # deprecated — 안드 마이그레이션 완료 후 다음 PR에서 폐기 예정
+    summary: SummarySlots
+    items: list[AnalyzeItem] = []
+    tts_text: str = ""                   # 음성 변환 직전 텍스트 — 시연·디버그용 가시화
+    tts_url: str = ""                    # 번역 합본 TTS (안드 기존 버튼)
+    tts_url_easy_ko: str = ""            # 쉬운 한국어 합본 TTS (세종님 별도 버튼 요청)
+    quality_note: str = ""
+    review_needed: str = ""
 
 
 class TTSRequest(BaseModel):
