@@ -28,6 +28,7 @@ except ImportError as error:
 
 NLLB_MODEL_NAME = "facebook/nllb-200-distilled-600M"
 SOURCE_LANG = "kor_Hang"
+MAX_TRANSLATE_CHARS = 100
 
 # 안드 언어 코드 → NLLB FLORES-200 코드
 LANG_TO_NLLB = {
@@ -183,6 +184,7 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return ""
     if target_lang == "ko_easy":
         return text
+    text = text.strip()[:MAX_TRANSLATE_CHARS]
 
     # 1) URL/전화 placeholder 치환 — NLLB가 깨먹지 못하게 격리
     masked, placeholders = _mask_protected_entities(text)

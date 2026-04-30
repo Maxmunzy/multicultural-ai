@@ -50,6 +50,8 @@ public class MainActivity extends Activity {
     private static final String BASE_URL = "http://192.168.x.x:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
+    private static final String PREFS_NAME = "app";
+    private static final String PREF_KEY_LANG = "selected_lang";
 
     // SAF 파일 픽커 요청 코드 (legacy startActivityForResult 사용 — minSdk 23 호환).
     private static final int REQUEST_PICK_FILE = 1001;
@@ -74,11 +76,11 @@ public class MainActivity extends Activity {
     private static final int COLOR_INK4         = Color.parseColor("#C4B6A8");
     private static final int COLOR_LINE         = Color.parseColor("#EAD9C4");
 
-    private static final String[] LANG_CODES  = {"ko_easy", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
-    private static final String[] LANG_LABELS = {"🇰🇷 쉬운 한국어", "🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이시아어", "🇲🇳 몽골어", "🇻🇳 베트남어", "🇨🇳 중국어", "🇹🇭 태국어", "🇯🇵 일본어"};
-    private static final String[] LANG_NAMES  = {"쉬운 한국어", "영어", "러시아어", "말레이시아어", "몽골어", "베트남어", "중국어", "태국어", "일본어"};
-    private static final String[] LANG_FLAGS  = {"KR", "EN", "RU", "MY", "MN", "VN", "CN", "TH", "JP"};
-    private static final String[] LANG_NATIVE = {"쉬운 한국어", "English", "Русский", "Bahasa", "Монгол", "Tiếng Việt", "中文", "ไทย", "日本語"};
+    private static final String[] LANG_CODES  = {"en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
+    private static final String[] LANG_LABELS = {"🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이시아어", "🇲🇳 몽골어", "🇻🇳 베트남어", "🇨🇳 중국어", "🇹🇭 태국어", "🇯🇵 일본어"};
+    private static final String[] LANG_NAMES  = {"영어", "러시아어", "말레이시아어", "몽골어", "베트남어", "중국어", "태국어", "일본어"};
+    private static final String[] LANG_FLAGS  = {"EN", "RU", "MY", "MN", "VN", "CN", "TH", "JP"};
+    private static final String[] LANG_NATIVE = {"English", "Русский", "Bahasa", "Монгол", "Tiếng Việt", "中文", "ไทย", "日本語"};
 
     private static String selectedLanguage = "vi";
     private String currentUserId = "";
@@ -105,15 +107,18 @@ public class MainActivity extends Activity {
     private TextView translationText;
     private LinearLayout glossaryChipsBox;
     private Button playButton;
+    private Button easyKoPlayButton;
     private Button langPillBtn;
 
     private NoticeItem selectedNotice;
     private MediaPlayer player;
     private String currentTtsUrl = "";
+    private String currentEasyKoTtsUrl = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        selectedLanguage = getSavedLanguage();
         showLoginScreen();
     }
 
@@ -138,6 +143,7 @@ public class MainActivity extends Activity {
         translationText = null;
         glossaryChipsBox = null;
         playButton = null;
+        easyKoPlayButton = null;
         langPillBtn = null;
     }
 
@@ -180,7 +186,10 @@ public class MainActivity extends Activity {
                 String role = pendingRole;
                 pendingRole = "";
                 if (role.equals("teacher")) showTeacherHome();
-                else showParentHome();
+                else {
+                    showParentHome();
+                    showInitialLanguageDialogIfNeeded();
+                }
             }));
             content.addView(outlineButton("← 역할 다시 선택", v -> {
                 pendingRole = "";
@@ -479,9 +488,9 @@ public class MainActivity extends Activity {
                 for (int i = 0; i < data.length(); i++) {
                     JSONObject item = data.getJSONObject(i);
                     inbox.add(new NoticeItem(
-                            item.optString("notice_id", ""),
-                            item.optString("teacher_id", ""),
-                            item.optString("text", "")
+                            safeString(item, "notice_id"),
+                            safeString(item, "teacher_id"),
+                            safeString(item, "text")
                     ));
                 }
                 renderInboxList();
@@ -808,7 +817,7 @@ public class MainActivity extends Activity {
         title.setPadding(dp(2), 0, dp(2), dp(2));
         content.addView(title);
 
-        TextView sub = text("쉬운 한국어 · 모국어 번역 · 음성 안내", 12, COLOR_INK3, false);
+        TextView sub = text("모국어 번역 · 쉬운 한국어 · 음성 안내", 12, COLOR_INK3, false);
         sub.setPadding(dp(2), 0, 0, dp(12));
         content.addView(sub);
 
@@ -867,6 +876,11 @@ public class MainActivity extends Activity {
         playButton.setVisibility(View.GONE);
         content.addView(playButton);
 
+        easyKoPlayButton = bigPrimaryButton("🔊  쉬운 한국어 듣기",
+                v -> playTtsUrl(currentEasyKoTtsUrl, easyKoPlayButton, "🔊  쉬운 한국어 듣기", false));
+        easyKoPlayButton.setVisibility(View.GONE);
+        content.addView(easyKoPlayButton);
+
         // 닫기
         content.addView(outlineButton("← 통신문으로 돌아가기", v -> showNoticeDetail(notice)));
 
@@ -898,13 +912,17 @@ public class MainActivity extends Activity {
         toggleResultCards(false);
 
         JSONObject payload = new JSONObject();
+        selectedLanguage = getSavedLanguage();
         try { payload.put("target_language", selectedLanguage); } catch (Exception ignored) {}
         postJson("/notice/analyze/" + selectedNotice.noticeId, payload, result -> {
             if (!result.error.isEmpty()) {
-                if (analysisStatusText != null)
-                    analysisStatusText.setText("서버 연결 실패\n" + result.error +
-                            "\n\n오프라인 데모 결과를 표시합니다.");
-                showMockAnalysis();
+                if (analysisStatusText != null) {
+                    String message = result.error.toLowerCase().contains("timed out")
+                            ? "분석 시간이 초과되었습니다.\n긴 통신문은 처리 시간이 오래 걸릴 수 있습니다.\n\n잠시 후 다시 시도해 주세요."
+                            : "서버 연결 실패\n" + result.error;
+                    analysisStatusText.setText(message);
+                    ((View) analysisStatusText.getParent()).setVisibility(View.VISIBLE);
+                }
                 return;
             }
             try {
@@ -923,57 +941,72 @@ public class MainActivity extends Activity {
     }
 
     private void applyAnalysis(JSONObject data) {
-        // === items: 할일 카드 (한국어 체크리스트 + 번역 본문) ===
-        // 새 응답 구조: items[i] = {category, action_hint, title_ko, title_translated,
-        //                          amount, deadline, importance, ...}
-        JSONArray items = sortItemsByImportance(data.optJSONArray("items"));
-
         StringBuilder koBuilder = new StringBuilder();
         StringBuilder trBuilder = new StringBuilder();
-        if (items != null) {
-            for (int i = 0; i < items.length(); i++) {
-                JSONObject item = items.optJSONObject(i);
-                if (item == null) continue;
-                appendItemLine(koBuilder, item, true);
-                appendItemLine(trBuilder, item, false);
+        StringBuilder easyBuilder = new StringBuilder();
+
+        JSONArray cards = data.optJSONArray("cards");
+        if (cards != null && cards.length() > 0) {
+            appendCardLines(cards, koBuilder, easyBuilder, trBuilder);
+        } else {
+            // fallback: deprecated items 구조
+            JSONArray items = sortItemsByImportance(data.optJSONArray("items"));
+            if (items != null) {
+                for (int i = 0; i < items.length(); i++) {
+                    JSONObject item = items.optJSONObject(i);
+                    if (item == null) continue;
+                    appendItemLine(koBuilder, item, true);
+                    appendItemLine(trBuilder, item, false);
+                }
             }
         }
+
         String checklist = koBuilder.toString().trim();
         String translation = trBuilder.toString().trim();
+        String easyKo = easyBuilder.toString().trim();
 
         if (checklistText != null && !checklist.isEmpty()) {
             checklistText.setText(checklist);
             ((View) checklistText.getParent()).setVisibility(View.VISIBLE);
         }
         if (translationText != null) {
-            if (selectedLanguage.equals("ko_easy")) {
-                translationText.setText("(쉬운 한국어 모드 — 위 카드를 참고하세요)");
-                translationText.setTextColor(COLOR_INK3);
-            } else if (!translation.isEmpty()) {
+            if (!translation.isEmpty()) {
                 translationText.setText(translation);
                 translationText.setTextColor(COLOR_INK);
                 ((View) translationText.getParent()).setVisibility(View.VISIBLE);
             }
         }
 
-        // === 원문 미리보기 (쉬운 한국어 카드 자리 — 새 응답엔 raw_text만 있음) ===
+        // === 쉬운 한국어 ===
         if (easyKoText != null) {
-            String raw = data.optString("raw_text", "");
-            if (!raw.isEmpty()) {
-                String preview = raw.length() > 300 ? raw.substring(0, 300) + "..." : raw;
-                easyKoText.setText(preview);
+            if (!easyKo.isEmpty()) {
+                easyKoText.setText(easyKo);
                 ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
+            } else {
+                String raw = safeString(data, "raw_text");
+                String preview = raw.length() > 300 ? raw.substring(0, 300) + "..." : raw;
+                if (!preview.isEmpty()) {
+                    easyKoText.setText(preview);
+                    ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
+                }
             }
         }
 
         // === summary 슬롯: 카테고리별 칩 (urls/phones 포함) ===
-        renderSummarySlots(data.optJSONObject("summary"));
+        if (!renderCardChips(cards)) {
+            renderSummarySlots(data.optJSONObject("summary"));
+        }
 
         // === TTS ===
         currentTtsUrl = optStringDeep(data, "tts_url", "tts_path", "audio_url");
         if (playButton != null && !currentTtsUrl.isEmpty()) {
             playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
             playButton.setVisibility(View.VISIBLE);
+        }
+        currentEasyKoTtsUrl = optStringDeep(data, "tts_url_easy_ko");
+        if (easyKoPlayButton != null && !currentEasyKoTtsUrl.isEmpty()) {
+            easyKoPlayButton.setText("🔊  쉬운 한국어 듣기");
+            easyKoPlayButton.setVisibility(View.VISIBLE);
         }
 
         // status hide
@@ -999,12 +1032,46 @@ public class MainActivity extends Activity {
         return out;
     }
 
+    private void appendCardLines(JSONArray cards, StringBuilder koBuilder,
+                                 StringBuilder easyBuilder, StringBuilder trBuilder) {
+        for (int i = 0; i < cards.length(); i++) {
+            JSONObject card = cards.optJSONObject(i);
+            if (card == null) continue;
+
+            appendSlotCardLine(
+                    koBuilder,
+                    safeString(card, "header_ko"),
+                    safeString(card, "value_ko"),
+                    safeString(card, "chip")
+            );
+            appendSlotCardLine(
+                    easyBuilder,
+                    safeString(card, "header_ko"),
+                    firstNonBlank(safeString(card, "value_easy_ko"), safeString(card, "value_ko")),
+                    safeString(card, "chip")
+            );
+            appendSlotCardLine(
+                    trBuilder,
+                    firstNonBlank(safeString(card, "header_translated"), safeString(card, "header_ko")),
+                    firstNonBlank(safeString(card, "value_translated"), safeString(card, "value_ko")),
+                    safeString(card, "chip")
+            );
+        }
+    }
+
+    private void appendSlotCardLine(StringBuilder sb, String header, String value, String chip) {
+        if (value.isEmpty()) return;
+        if (!chip.isEmpty()) sb.append("[").append(chip).append("] ");
+        if (!header.isEmpty()) sb.append(header).append(": ");
+        sb.append(value).append('\n');
+    }
+
     private void appendItemLine(StringBuilder sb, JSONObject item, boolean korean) {
-        String title = item.optString(korean ? "title_ko" : "title_translated", "");
+        String title = safeString(item, korean ? "title_ko" : "title_translated");
         if (title.isEmpty()) return;
-        String actionHint = item.optString("action_hint", "");
-        String amount = item.optString("amount", "");
-        String deadline = item.optString("deadline", "");
+        String actionHint = safeString(item, "action_hint");
+        String amount = safeString(item, "amount");
+        String deadline = safeString(item, "deadline");
         if (!actionHint.isEmpty()) sb.append("[").append(actionHint).append("] ");
         sb.append(title);
         List<String> meta = new ArrayList<>();
@@ -1012,6 +1079,38 @@ public class MainActivity extends Activity {
         if (!deadline.isEmpty()) meta.add(deadline);
         if (!meta.isEmpty()) sb.append(" · ").append(TextUtils.join(" · ", meta));
         sb.append('\n');
+    }
+
+    private boolean renderCardChips(JSONArray cards) {
+        if (cards == null || cards.length() == 0 || glossaryChipsBox == null) return false;
+        glossaryChipsBox.removeAllViews();
+        int added = 0;
+        for (int i = 0; i < cards.length() && added < 8; i++) {
+            JSONObject card = cards.optJSONObject(i);
+            if (card == null) continue;
+            String chip = safeString(card, "chip");
+            String header = safeString(card, "header_ko");
+            String value = safeString(card, "value_ko");
+            if (header.isEmpty() && value.isEmpty()) continue;
+            String label = header.isEmpty() ? value : header + " · " + value;
+            glossaryChipsBox.addView(slotChipRow(chipIcon(chip), label, ""));
+            added++;
+        }
+        if (added > 0) {
+            ((View) glossaryChipsBox.getParent()).setVisibility(View.VISIBLE);
+            ((View) glossaryChipsBox.getParent().getParent()).setVisibility(View.VISIBLE);
+            return true;
+        }
+        return false;
+    }
+
+    private String chipIcon(String chip) {
+        if (chip.contains("일정")) return "📅";
+        if (chip.contains("준비")) return "📦";
+        if (chip.contains("제출")) return "📝";
+        if (chip.contains("비용")) return "💰";
+        if (chip.contains("건강") || chip.contains("안전")) return "🛡";
+        return "📌";
     }
 
     private void renderSummarySlots(JSONObject summary) {
@@ -1039,8 +1138,8 @@ public class MainActivity extends Activity {
         for (int i = 0; i < slots.length() && count < 4; i++) {  // 슬롯 종류당 최대 4개
             JSONObject slot = slots.optJSONObject(i);
             if (slot == null) continue;
-            String ko = slot.optString("ko", "");
-            String translated = slot.optString("translated", "");
+            String ko = safeString(slot, "ko");
+            String translated = safeString(slot, "translated");
             if (ko.isEmpty()) continue;
             String tgt = translated.equals(ko) ? "" : translated;  // 같으면 한국어만 표시
             box.addView(slotChipRow(icon, ko, tgt));
@@ -1177,7 +1276,7 @@ public class MainActivity extends Activity {
             try {
                 JSONObject json = new JSONObject(result.body);
                 JSONObject data = json.optJSONObject("data");
-                String noticeId = data == null ? "" : data.optString("notice_id", "");
+                String noticeId = safeString(data, "notice_id");
                 setSendResult("✅ 발송 완료\n→ " + parentId + " · #" + shorten(noticeId, 8), true);
             } catch (Exception error) {
                 setSendResult("응답 파싱 실패\n" + result.body, false);
@@ -1261,7 +1360,7 @@ public class MainActivity extends Activity {
                 try {
                     JSONObject json = new JSONObject(result.body);
                     JSONObject d = json.optJSONObject("data");
-                    String noticeId = d == null ? "" : d.optString("notice_id", "");
+                    String noticeId = safeString(d, "notice_id");
                     int charCount = d == null ? 0 : d.optInt("char_count", 0);
                     setSendResult(
                             "✅ 업로드 완료\n→ " + parentId + " · #" + shorten(noticeId, 8)
@@ -1380,41 +1479,43 @@ public class MainActivity extends Activity {
     //  TTS
     // ============================================================
     private void playTts() {
+        playTtsUrl(currentTtsUrl, playButton,
+                "🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기", true);
+    }
+
+    private void playTtsUrl(String ttsUrl, Button activeButton, String idleLabel, boolean allowFallback) {
         if (player != null) {
             try {
                 if (player.isPlaying()) {
                     player.stop();
                     releasePlayer();
-                    if (playButton != null)
-                        playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
+                    resetTtsButtons();
                     return;
                 }
             } catch (IllegalStateException ignored) { }
         }
         releasePlayer();
         try {
-            if (!TextUtils.isEmpty(currentTtsUrl)) {
-                String url = currentTtsUrl.startsWith("http") ? currentTtsUrl : BASE_URL + currentTtsUrl;
+            if (!TextUtils.isEmpty(ttsUrl)) {
+                String url = ttsUrl.startsWith("http") ? ttsUrl : BASE_URL + ttsUrl;
                 player = new MediaPlayer();
                 player.setDataSource(url);
                 player.setOnPreparedListener(mp -> {
                     mp.start();
-                    if (playButton != null) playButton.setText("⏸  정지");
+                    if (activeButton != null) activeButton.setText("⏸  정지");
                 });
                 player.setOnCompletionListener(mp -> {
-                    if (playButton != null)
-                        playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
                     releasePlayer();
+                    resetTtsButtons();
                 });
                 player.prepareAsync();
-            } else {
+            } else if (allowFallback) {
                 player = MediaPlayer.create(this, R.raw.tts_output);
                 player.start();
-                if (playButton != null) playButton.setText("⏸  정지");
+                if (activeButton != null) activeButton.setText("⏸  정지");
                 player.setOnCompletionListener(mp -> {
-                    if (playButton != null)
-                        playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
                     releasePlayer();
+                    resetTtsButtons();
                 });
             }
         } catch (Exception error) {
@@ -1424,6 +1525,13 @@ public class MainActivity extends Activity {
                 analysisStatusText.setText("TTS 재생 실패: " + error.getMessage());
             }
         }
+    }
+
+    private void resetTtsButtons() {
+        if (playButton != null)
+            playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
+        if (easyKoPlayButton != null)
+            easyKoPlayButton.setText("🔊  쉬운 한국어 듣기");
     }
 
     // ============================================================
@@ -1459,15 +1567,32 @@ public class MainActivity extends Activity {
         builder.setItems(LANG_LABELS, (dialog, which) -> {
             if (LANG_CODES[which].equals(selectedLanguage)) return;
             selectedLanguage = LANG_CODES[which];
+            saveLanguage(selectedLanguage);
             if (langPillBtn != null) {
                 int idx = langIndex(selectedLanguage);
                 langPillBtn.setText("🌐  " + LANG_NATIVE[idx] + "  ▾");
             }
             releasePlayer();
             currentTtsUrl = "";
+            currentEasyKoTtsUrl = "";
             // AI 화면이면 자동 재분석
             if (selectedNotice != null && analysisStatusText != null) {
                 showAIOverlay(selectedNotice);
+            }
+        });
+        builder.show();
+    }
+
+    private void showInitialLanguageDialogIfNeeded() {
+        if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).contains(PREF_KEY_LANG)) return;
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("학부모 언어 선택");
+        builder.setItems(LANG_LABELS, (dialog, which) -> {
+            selectedLanguage = LANG_CODES[which];
+            saveLanguage(selectedLanguage);
+            if (langPillBtn != null) {
+                int idx = langIndex(selectedLanguage);
+                langPillBtn.setText("🌐  " + LANG_NATIVE[idx] + "  ▾");
             }
         });
         builder.show();
@@ -1877,7 +2002,7 @@ public class MainActivity extends Activity {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod(method);
                 conn.setConnectTimeout(5000);
-                conn.setReadTimeout(60000);
+                conn.setReadTimeout(90000);
                 conn.setRequestProperty("Accept", "application/json");
                 if (!currentUserId.isEmpty()) {
                     conn.setRequestProperty("X-User-Id", currentUserId);
@@ -1917,7 +2042,6 @@ public class MainActivity extends Activity {
     // ============================================================
     private String getTranslationForLanguage(JSONObject data, String code) {
         switch (code) {
-            case "ko_easy": return "";
             case "en": return optStringDeep(data, "en_text", "english", "translation_en");
             case "ru": return optStringDeep(data, "ru_text", "russian", "translation_ru");
             case "ms": return optStringDeep(data, "ms_text", "malay", "translation_ms");
@@ -1938,12 +2062,47 @@ public class MainActivity extends Activity {
         return code;
     }
 
+    private String getSavedLanguage() {
+        String lang = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .getString(PREF_KEY_LANG, "vi");
+        return isSupportedLanguage(lang) ? lang : "vi";
+    }
+
+    private void saveLanguage(String langCode) {
+        if (!isSupportedLanguage(langCode)) return;
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(PREF_KEY_LANG, langCode)
+                .apply();
+    }
+
+    private boolean isSupportedLanguage(String code) {
+        if (code == null) return false;
+        for (String lang : LANG_CODES) {
+            if (lang.equals(code)) return true;
+        }
+        return false;
+    }
+
     private String optStringDeep(JSONObject object, String... keys) {
+        if (object == null) return "";
         for (String key : keys) {
-            String value = object.optString(key, "");
+            String value = safeString(object, key);
             if (!value.isEmpty()) return value;
         }
         return "";
+    }
+
+    private String safeString(JSONObject object, String key) {
+        if (object == null || key == null || object.isNull(key)) return "";
+        String value = object.optString(key, "");
+        if (value == null) return "";
+        value = value.trim();
+        return value.equalsIgnoreCase("null") ? "" : value;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first != null && !first.trim().isEmpty() ? first.trim() : safe(second);
     }
 
     private String shorten(String value, int max) {

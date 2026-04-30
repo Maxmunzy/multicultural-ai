@@ -21,6 +21,7 @@ from app.services.mock import MOCK_TODOS
 router = APIRouter()
 
 _notices: dict[str, Notice] = {}
+MAX_CARDS = 8
 
 
 @router.post("/send", response_model=ApiResponse)
@@ -276,8 +277,9 @@ async def analyze_notice(
     # [6] summary 집계: 정규식 + items 모델 슬롯 통합 (deprecated, 다음 PR 폐기)
     summary = _build_summary(regex_slots, items, target_lang)
 
-    # [6'] cards: 신규 슬롯 카드 응답 — 안드 마이그레이션 대상
-    cards = build_cards(todos, regex_slots, target_lang)
+    # [6'] cards: 신규 슬롯 카드 응답 — 시연 안정성을 위해 상위 N개만 번역/TTS 대상으로 사용.
+    top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
+    cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
 
     # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
     tts_text_translated = _build_tts_text_from_cards(cards, "translated")
@@ -288,7 +290,7 @@ async def analyze_notice(
         print(f"[analyze] TTS (translated) failed: {error}")
         tts_url = ""
     try:
-        tts_url_easy_ko = await generate_tts_file(tts_text_easy_ko, target_lang="ko") if tts_text_easy_ko else ""
+        tts_url_easy_ko = await generate_tts_file(tts_text_easy_ko, target_lang="ko_easy") if tts_text_easy_ko else ""
     except Exception as error:
         print(f"[analyze] TTS (easy_ko) failed: {error}")
         tts_url_easy_ko = ""
