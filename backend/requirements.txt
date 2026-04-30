@@ -13,3 +13,6 @@ pandas==2.2.2
 # 파일 입력 변환 ([1] 텍스트 변환)
 pdfplumber==0.11.9
 python-multipart==0.0.20
+
+# 경이 분류기 ([4] 단계 — TF-IDF + LogReg simple, KcELECTRA는 transformers 사용)
+scikit-learn==1.5.2
