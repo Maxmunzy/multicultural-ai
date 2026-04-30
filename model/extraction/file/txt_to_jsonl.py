@@ -85,17 +85,15 @@ def join_broken_lines(text: str) -> str:
 def clean_text(text: str) -> str:
     """
     연속 공백 / 줄바꿈 / PDF 추출 잔여 바이트 정규화.
-    - null byte(), 캐리지 리턴() 제거
+    - null byte(), 캐리지 리턴(
+) 제거
     - 연속 공백 -> 단일 공백
     - 3개 이상 줄바꿈 -> 두 줄바꿈
     """
     text = re.sub(r'', '', text)          # null byte 제거 (pdfplumber 잔여물)
-    text = text.replace('', '')             # Windows CR 제거
+    text = text.replace('', '')             # Windows CR 제거
     text = re.sub(r'[ 	]+', ' ', text)
-    text = re.sub(r'
-{3,}', '
-
-', text)
+    text = re.sub(r'{3,}', '', text)
     return text.strip()
 
 
