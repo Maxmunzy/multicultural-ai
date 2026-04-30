@@ -115,9 +115,13 @@ def join_broken_lines(text: str) -> str:
 # 2. 기본 텍스트 정리
 # ─────────────────────────────────────────────────────────────────────────────
 def clean_text(text: str) -> str:
-    """null byte / 캐리지 리턴 / 연속 공백 정리"""
+    """null byte / 캐리지 리턴 / 특수기호 / 연속 공백 정리"""
     text = re.sub(r"\x00", "", text)       # pdfplumber null byte 잔여물
     text = text.replace("\r", "")          # Windows CR
+    # 한글 문서 특수기호 → 공백 (번역·TTS 오염 방지)
+    text = re.sub(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…]+", " ", text)
+    # 원문자(①~⑩) 제거
+    text = re.sub(r"[①②③④⑤⑥⑦⑧⑨⑩]", "", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
 

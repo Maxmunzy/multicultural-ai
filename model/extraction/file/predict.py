@@ -55,8 +55,8 @@ _BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub 파인튜닝 모�
 _LOCAL_CHECKPOINT_DIR = os.path.join(
     os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary"
 )  # file/../checkpoints = extraction/checkpoints (이전: file/checkpoints — 경로 오류 수정)
-# label-1 (할 일) 확률 임계값 — 파인튜닝 후 조정 가능
-BINARY_THRESHOLD = 0.5
+# label-1 (할 일) 확률 임계값 — v2 평가(2026-04-30) 최적값 0.65로 업데이트
+BINARY_THRESHOLD = 0.65
 
 _tokenizer: Optional[AutoTokenizer] = None
 _model: Optional[AutoModelForSequenceClassification] = None
@@ -99,6 +99,21 @@ def _join_broken_lines(text: str) -> str:
     text = re.sub(r"([^.!?\n])\n([^\n])", r"\1 \2", text)     # 문장 이어짐
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
+
+
+# ─────────────────────────────────────────
+# 2-1. 특수기호 정제 (문장 단위)
+# ─────────────────────────────────────────
+# split_sentences()가 ◆●▪○ 등을 분리 기준으로 사용하므로
+# 마커 제거는 split 이후 문장 단위로 수행 — 학습 데이터 clean_text()와 동일 정제
+_SYMBOL_PATTERN = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏]+")
+_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]")
+
+
+def _clean_symbols(sentence: str) -> str:
+    sentence = _SYMBOL_PATTERN.sub(" ", sentence)
+    sentence = _CIRCLE_NUM_PATTERN.sub("", sentence)
+    return re.sub(r"\s+", " ", sentence).strip()
 
 
 # ─────────────────────────────────────────
@@ -296,6 +311,9 @@ def predict(notice_text: str, source: Optional[str] = None) -> list[dict]:
     notice_text = _join_broken_lines(notice_text)
     results: list[dict] = []
     for sentence in split_sentences(notice_text):
+        sentence = _clean_symbols(sentence)
+        if not sentence:
+            continue
         confidence = _classify(sentence)
         if confidence is None or confidence < BINARY_THRESHOLD:
             continue
