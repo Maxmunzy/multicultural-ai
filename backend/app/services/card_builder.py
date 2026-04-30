@@ -13,6 +13,8 @@
 """
 from __future__ import annotations
 
+import re
+
 from app.models.schemas import Category, SlotCard, YunjeongTodo
 from app.services.classifier import classify_category
 from app.services.easy_korean import to_easy_korean
@@ -112,16 +114,53 @@ def _build_cards_from_regex_slots(
     return cards
 
 
+# dedup 비교용 — 표 구분자/콜론/연속 공백 정규화 (`|`/`:`/`：` 등 차이로 substring 놓치는 것 방지)
+_DEDUP_NORMALIZE = re.compile(r"[\s|｜:：]+")
+
+
+def _normalize_for_dedup(text: str) -> str:
+    """value 비교용 정규화 — 공백/구분자 차이 무시."""
+    return _DEDUP_NORMALIZE.sub(" ", text).strip()
+
+
+def _dedup_cards(cards: list[SlotCard]) -> list[SlotCard]:
+    """같은 헤더 안에서 substring 카드 제거.
+
+    pdfplumber가 본문 + [표] 양쪽에서 같은 정보를 추출해 두 카드로 들어오는 경우
+    (예: 서대구초 운영방법 156자 본문 카드 + 38자 표 영역 카드) 짧은 쪽이 긴
+    쪽 안에 substring으로 들어있으면 짧은 쪽 제거. 정보 손실 0.
+
+    헤더가 다르면 손대지 않음 — 운영방법/일시/시간/URL 등 다른 슬롯은 별개.
+    """
+    by_header: dict[str, list[SlotCard]] = {}
+    for c in cards:
+        by_header.setdefault(c.header_ko, []).append(c)
+
+    keep: list[SlotCard] = []
+    for group in by_header.values():
+        # 긴 value 우선 — 짧은 게 긴 것 substring이면 제거 가능
+        group.sort(key=lambda c: -len(c.value_ko))
+        kept_norms: list[str] = []
+        for card in group:
+            norm = _normalize_for_dedup(card.value_ko)
+            if any(norm in k for k in kept_norms):
+                continue
+            kept_norms.append(norm)
+            keep.append(card)
+    return keep
+
+
 def build_cards(
     todos: list[YunjeongTodo],
     regex_slots: dict[str, list[dict]],
     target_lang: str,
 ) -> list[SlotCard]:
-    """todos + regex_slots → list[SlotCard]. importance 내림차순 정렬."""
+    """todos + regex_slots → list[SlotCard]. dedup + importance 내림차순 정렬."""
     cards = [_build_card_from_todo(t, target_lang) for t in todos]
 
     todo_headers = {c.header_ko for c in cards}
     cards.extend(_build_cards_from_regex_slots(regex_slots, target_lang, todo_headers))
 
+    cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
     return cards
