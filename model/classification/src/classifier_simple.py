@@ -99,7 +99,6 @@ def build_pipeline() -> Pipeline:
             max_iter=1000,
             class_weight="balanced",
             random_state=42,
-            multi_class="multinomial",
             solver="lbfgs",
         )),
     ])

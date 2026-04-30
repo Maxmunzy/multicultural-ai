@@ -1,0 +1,5 @@
+# 대용량 모델 바이너리 제외 (Git LFS 미사용 환경)
+*.safetensors
+*.bin
+*.pt
+*.ckpt
