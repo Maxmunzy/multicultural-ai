@@ -47,7 +47,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // 각자 PC의 내부 IP로 수정. 자세한 가이드는 android/README.md 참고.
-    private static final String BASE_URL = "http://192.168.x.x:8000";
+    private static final String BASE_URL = "http://192.168.40.81:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
 
@@ -332,7 +332,6 @@ public class MainActivity extends Activity {
         content.addView(bigPrimaryButton("📤  통신문 발송", v -> sendNotice()));
         // 파일 업로드 (HWP/PDF/TXT) — 선택 시 SAF 픽커 → 백엔드 /notice/upload
         content.addView(outlineButton("📎  PDF/HWP 파일 업로드", v -> launchFilePicker()));
-        content.addView(outlineButton("📷  OCR 실험", v -> startActivity(new Intent(this, OcrActivity.class))));
         content.addView(outlineButton("← 로그아웃", v -> showLoginScreen()));
     }
 
