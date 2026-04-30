@@ -115,15 +115,22 @@ def join_broken_lines(text: str) -> str:
 # 2. 기본 텍스트 정리
 # ─────────────────────────────────────────────────────────────────────────────
 def clean_text(text: str) -> str:
-    """null byte / 캐리지 리턴 / 특수기호 / 연속 공백 정리"""
+    """null byte / 캐리지 리턴 / 연속 공백 정리 (기호 정제는 split 이후 clean_sentence 에서)"""
     text = re.sub(r"\x00", "", text)       # pdfplumber null byte 잔여물
     text = text.replace("\r", "")          # Windows CR
-    # 한글 문서 특수기호 → 공백 (번역·TTS 오염 방지)
-    text = re.sub(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…]+", " ", text)
-    # 원문자(①~⑩) 제거
-    text = re.sub(r"[①②③④⑤⑥⑦⑧⑨⑩]", "", text)
     text = re.sub(r"[ \t]+", " ", text)
     return text.strip()
+
+
+_SYMBOL_PATTERN     = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏]+")
+_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]")
+
+
+def clean_sentence(sentence: str) -> str:
+    """split 이후 문장 단위 기호 정제 — predict.py _clean_symbols 와 동일 로직"""
+    sentence = _SYMBOL_PATTERN.sub(" ", sentence)
+    sentence = _CIRCLE_NUM_PATTERN.sub("", sentence)
+    return re.sub(r"\s+", " ", sentence).strip()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -196,9 +203,13 @@ def preprocess_to_custom_schema(
         return -1
 
     joined  = join_broken_lines(raw)
-    cleaned = clean_text(joined)
+    pre_cleaned = clean_text(joined)              # null byte / CR / 공백만
 
-    sentences = [s for s in split_into_sentences(cleaned) if len(s.strip()) > 3]
+    raw_sents = split_into_sentences(pre_cleaned) # 마커 기준 분리 먼저
+    sentences = [
+        clean_sentence(s) for s in raw_sents      # 분리 후 기호 정제
+        if len(clean_sentence(s)) > 3
+    ]
 
     mode = "a" if append else "w"
     output_path.parent.mkdir(parents=True, exist_ok=True)
