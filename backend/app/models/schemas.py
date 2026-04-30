@@ -79,7 +79,10 @@ class SummarySlots(BaseModel):
 
 
 class AnalyzeItem(BaseModel):
-    """카테고리별 할 일 — YunjeongTodo + 경이님 카테고리 결합 결과."""
+    """카테고리별 할 일 — YunjeongTodo + 경이님 카테고리 결합 결과.
+
+    deprecated — SlotCard로 대체 예정 (안드 마이그레이션 완료 후 폐기).
+    """
     category: Category                  # 경이님 (주제: 일정/준비물/제출/비용/건강·안전/기타)
     action_hint: str | None = None      # 윤정님 (행동: 신청/제출/납부/준비/참여/확인)
     title_ko: str
@@ -94,14 +97,34 @@ class AnalyzeItem(BaseModel):
     note_translated: str | None = None
 
 
+class SlotCard(BaseModel):
+    """슬롯 카드 — 헤더 + 값 + 카테고리 칩.
+
+    강사님 처방 "지저분한 줄글 X, 슬롯 위주로 가공" 대응.
+    한 카드 = 한 의미 단위 (운영시간 / 신청기간 / 운영방법 ...).
+    todos 헤더 분해 + regex 슬롯 컨텍스트 매칭 둘 다 카드로 통합.
+    """
+    header_ko: str                       # 예: "운영시간"
+    header_translated: str = ""          # 예: "Thời gian hoạt động"
+    value_ko: str                        # 예: "오전 10:00 ~ 12:00 (2시간)"
+    value_easy_ko: str = ""              # 세종님 to_easy_korean() 결과 — 미구현 시 value_ko 그대로
+    value_translated: str = ""           # NLLB 번역 결과
+    chip: str | None = None              # category 값 — None이면 칩 미표시
+    importance: float = 0.5              # 정렬용 (높은 순)
+
+
 class NoticeAnalyzeResponse(BaseModel):
     notice_id: str
     raw_text: str
     target_language: str
+    # 신규 — 안드 슬롯 카드 UI 대상 (단계적 마이그레이션, 본 필드가 메인)
+    cards: list[SlotCard] = []
+    # deprecated — 안드 마이그레이션 완료 후 다음 PR에서 폐기 예정
     summary: SummarySlots
     items: list[AnalyzeItem] = []
-    tts_text: str = ""        # 음성 변환 직전 텍스트 — 시연·디버그용 가시화
-    tts_url: str = ""
+    tts_text: str = ""                   # 음성 변환 직전 텍스트 — 시연·디버그용 가시화
+    tts_url: str = ""                    # 번역 합본 TTS (안드 기존 버튼)
+    tts_url_easy_ko: str = ""            # 쉬운 한국어 합본 TTS (세종님 별도 버튼 요청)
     quality_note: str = ""
     review_needed: str = ""
 
