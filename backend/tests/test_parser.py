@@ -79,9 +79,9 @@ def test_parse_filename_metachars_safe(monkeypatch):
             assert "rm" not in arg
             assert ";" not in arg
             assert "$(" not in arg
-        # 가짜 PDF 만들어서 변환 성공처럼
+        # 가짜 ODT 만들어서 변환 성공처럼
         out_dir = Path(cmd[cmd.index("--outdir") + 1])
-        (out_dir / "input.pdf").write_bytes(b"%PDF-fake")
+        (out_dir / "input.odt").write_bytes(b"PK-fake-odt")
 
         class Result:
             returncode = 0
@@ -90,7 +90,7 @@ def test_parse_filename_metachars_safe(monkeypatch):
 
     monkeypatch.setattr("app.services.parser.subprocess.run", fake_run)
     monkeypatch.setattr(
-        "app.services.parser._pdf_to_text",
+        "app.services.parser._odt_to_text",
         lambda p: "ok",
     )
 
@@ -114,37 +114,36 @@ def test_parse_libreoffice_timeout_raises_with_message(monkeypatch):
 
 
 # ── parse_bytes_to_text — HWP (LibreOffice 모킹) ──────────────
-def test_parse_hwp_calls_libreoffice_and_pdfplumber(monkeypatch, tmp_path):
-    """HWP 입력 → LibreOffice 변환 호출 + pdfplumber 호출 확인."""
+def test_parse_hwp_calls_libreoffice_and_odt_extractor(monkeypatch, tmp_path):
+    """HWP 입력 → LibreOffice ODT 변환 호출 + content.xml 추출 호출 확인."""
     called = {}
 
-    def fake_hwp_to_pdf(hwp_path: Path, out_dir: Path) -> Path:
+    def fake_hwp_to_odt(hwp_path: Path, out_dir: Path) -> Path:
         called["hwp_path"] = hwp_path
         called["out_dir"] = out_dir
-        # 실제 PDF 안 만들고 가짜 경로 반환
-        fake_pdf = out_dir / "fake.pdf"
-        fake_pdf.write_bytes(b"%PDF-fake")
-        return fake_pdf
+        fake_odt = out_dir / "fake.odt"
+        fake_odt.write_bytes(b"PK-fake-odt")
+        return fake_odt
 
-    def fake_pdf_to_text(pdf_path: Path) -> str:
-        called["pdf_path"] = pdf_path
+    def fake_odt_to_text(odt_path: Path) -> str:
+        called["odt_path"] = odt_path
         return "본문 추출 결과"
 
-    monkeypatch.setattr("app.services.parser._hwp_to_pdf", fake_hwp_to_pdf)
-    monkeypatch.setattr("app.services.parser._pdf_to_text", fake_pdf_to_text)
+    monkeypatch.setattr("app.services.parser._hwp_to_odt", fake_hwp_to_odt)
+    monkeypatch.setattr("app.services.parser._odt_to_text", fake_odt_to_text)
 
     out = parse_bytes_to_text(b"HWP-bytes", "안내.hwp")
 
     assert out == "본문 추출 결과"
     assert called["hwp_path"].suffix == ".hwp"
-    assert called["pdf_path"].suffix == ".pdf"
+    assert called["odt_path"].suffix == ".odt"
 
 
 def test_parse_pdf_calls_pdfplumber_only(monkeypatch):
     """PDF 입력 → LibreOffice 우회, pdfplumber만 호출."""
     called = {"hwp": False, "pdf": False}
 
-    def fake_hwp_to_pdf(*args, **kwargs):
+    def fake_hwp_to_odt(*args, **kwargs):
         called["hwp"] = True
         raise AssertionError("PDF 입력에선 LibreOffice가 호출되면 안 됨")
 
@@ -152,7 +151,7 @@ def test_parse_pdf_calls_pdfplumber_only(monkeypatch):
         called["pdf"] = True
         return "PDF 추출 결과"
 
-    monkeypatch.setattr("app.services.parser._hwp_to_pdf", fake_hwp_to_pdf)
+    monkeypatch.setattr("app.services.parser._hwp_to_odt", fake_hwp_to_odt)
     monkeypatch.setattr("app.services.parser._pdf_to_text", fake_pdf_to_text)
 
     out = parse_bytes_to_text(b"%PDF-1.4 fake", "doc.pdf")
@@ -166,7 +165,7 @@ def test_parse_libreoffice_failure_raises_parser_error(monkeypatch):
     def boom(*args, **kwargs):
         raise ParserError("LibreOffice 변환 실패")
 
-    monkeypatch.setattr("app.services.parser._hwp_to_pdf", boom)
+    monkeypatch.setattr("app.services.parser._hwp_to_odt", boom)
 
     with pytest.raises(ParserError):
         parse_bytes_to_text(b"HWP", "x.hwp")

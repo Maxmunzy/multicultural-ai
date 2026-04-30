@@ -5,9 +5,15 @@
 지원:
   - text (text/plain) → 그대로
   - PDF (application/pdf) → pdfplumber 본문 + 표 [표] 섹션
-  - HWP/HWPX → LibreOffice + H2Orestart로 PDF 변환 → pdfplumber
+  - HWP/HWPX → LibreOffice + H2Orestart로 ODT 변환 → content.xml 직접 파싱
 
 이미지(.jpg/.png) OCR은 별도 단계 (세종님 OCR 합류 시 추가).
+
+ODT 경로 채택 이유 (vs 이전 HWP→PDF):
+  HWP→PDF→pdfplumber는 LibreOffice가 텍스트를 두 번 그려 글자가 중복
+  추출되는 문제 ("22002266학학년년도도"). ODT(zip+content.xml)는 구조화된
+  단일 출력이라 중복 0. 검증: hwp5txt 28b 실패, docx 0c 실패, odt 1899c
+  키워드 6/6 보존.
 
 보안 모델:
   - 원본 filename은 .suffix 추출에만 사용. 추출된 suffix는 화이트리스트 검사
@@ -22,6 +28,8 @@ import os
 import re
 import subprocess
 import tempfile
+import xml.etree.ElementTree as ET
+import zipfile
 from pathlib import Path
 
 # pdfplumber는 외부 의존이라 CI/테스트 안전하게 가드.
@@ -114,17 +122,23 @@ def _pdf_to_text(pdf_path: Path) -> str:
     return "\n\n".join(parts)
 
 
-def _hwp_to_pdf(hwp_path: Path, out_dir: Path) -> Path:
-    """LibreOffice headless로 HWP → PDF. 실패하면 ParserError.
+# ODT content.xml 네임스페이스
+_ODT_TEXT_NS = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
+_ODT_TABLE_NS = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
 
-    타임아웃: PARSER_LIBREOFFICE_TIMEOUT 환경변수로 오버라이드 가능 (기본 300초).
+
+def _hwp_to_odt(hwp_path: Path, out_dir: Path) -> Path:
+    """LibreOffice headless로 HWP → ODT.
+
+    HWP→PDF 경로의 doubled-char 문제 회피. ODT는 zip 구조라 본문/표가
+    단일 트리에 한 번만 들어감. 타임아웃: PARSER_LIBREOFFICE_TIMEOUT.
     """
     out_dir.mkdir(parents=True, exist_ok=True)
     try:
         result = subprocess.run(
             [
                 "libreoffice", "--headless",
-                "--convert-to", "pdf",
+                "--convert-to", "odt",
                 "--outdir", str(out_dir),
                 str(hwp_path),
             ],
@@ -136,12 +150,65 @@ def _hwp_to_pdf(hwp_path: Path, out_dir: Path) -> Path:
             f"LibreOffice 변환 타임아웃 ({LIBREOFFICE_TIMEOUT_SECONDS}초 초과). "
             "큰 HWP면 PARSER_LIBREOFFICE_TIMEOUT 환경변수로 늘릴 수 있음."
         )
-    pdf_path = out_dir / f"{hwp_path.stem}.pdf"
-    if result.returncode != 0 or not pdf_path.exists():
+    odt_path = out_dir / f"{hwp_path.stem}.odt"
+    # H2Orestart가 ODT 변환 후 종료 시점에 종종 Signal 11 (cleanup 버그)을 내지만
+    # 출력 파일은 정상. 파일 존재 여부를 성공 기준으로 — returncode/stderr는 참고만.
+    if not odt_path.exists():
         raise ParserError(
-            f"LibreOffice 변환 실패. stderr={result.stderr.strip()[:200]}"
+            f"LibreOffice ODT 변환 실패 (출력 파일 없음). "
+            f"returncode={result.returncode}, stderr={result.stderr.strip()[:200]}"
         )
-    return pdf_path
+    return odt_path
+
+
+def _odt_to_text(odt_path: Path) -> str:
+    """ODT(zip) content.xml → 본문 + 표 영역 평면 텍스트.
+
+    표 안 paragraph는 본문 처리에서 제외(중복 방지). 표는 셀 단위 공백 합치고
+    행 단위 줄바꿈으로 평면화 — `|` 구분자 X, `[표]` 마커 X.
+    윤정님 split_sentences가 헤더 키워드 lookahead("운영시간"/"운영방법"/...)로
+    행 안에서 의미 단위 자연 분리하므로 셀 구분자 불필요.
+    """
+    with zipfile.ZipFile(odt_path) as z:
+        with z.open("content.xml") as f:
+            tree = ET.parse(f)
+
+    # 표 안 element id 모음 → 본문 처리에서 제외
+    table_inner_ids: set[int] = set()
+    for table in tree.iter(_ODT_TABLE_NS + "table"):
+        for elem in table.iter():
+            table_inner_ids.add(id(elem))
+
+    body_parts: list[str] = []
+    for elem in tree.iter():
+        tag = elem.tag
+        if tag in (_ODT_TEXT_NS + "p", _ODT_TEXT_NS + "h"):
+            if id(elem) in table_inner_ids:
+                continue
+            text = "".join(elem.itertext()).strip()
+            if text:
+                body_parts.append(text)
+
+    table_blocks: list[str] = []
+    for table in tree.iter(_ODT_TABLE_NS + "table"):
+        rows: list[str] = []
+        for row in table.iter(_ODT_TABLE_NS + "table-row"):
+            cells: list[str] = []
+            for cell in row.iter(_ODT_TABLE_NS + "table-cell"):
+                cell_text = "".join(cell.itertext()).strip()
+                if cell_text:
+                    cells.append(cell_text)
+            if cells:
+                rows.append(" ".join(cells))
+        if rows:
+            table_blocks.append("\n".join(rows))
+
+    parts: list[str] = []
+    if body_parts:
+        parts.append("\n".join(body_parts))
+    if table_blocks:
+        parts.append("\n\n".join(table_blocks))
+    return "\n\n".join(parts)
 
 
 def parse_bytes_to_text(data: bytes, filename: str) -> str:
@@ -173,8 +240,8 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
             return normalize(raw)
 
         if suffix in HWP_EXTS:
-            pdf_path = _hwp_to_pdf(src_path, tmp_dir)
-            raw = _pdf_to_text(pdf_path)
+            odt_path = _hwp_to_odt(src_path, tmp_dir)
+            raw = _odt_to_text(odt_path)
             return normalize(raw)
 
     raise ParserError(f"지원하지 않는 파일 형식: {suffix}")
