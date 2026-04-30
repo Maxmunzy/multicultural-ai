@@ -3,7 +3,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, s
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
     AnalyzeItem, ApiResponse, Category, Notice, NoticeAnalyzeRequest,
-    NoticeSendRequest, SlotEntry, SummarySlots, UserProfile, YunjeongTodo,
+    NoticeSendRequest, SlotCard, SlotEntry, SummarySlots, UserProfile,
+    YunjeongTodo,
 )
 from app.services.extractor import extract_todos
 from app.services.parser import ParserError, parse_bytes_to_text
@@ -14,11 +15,13 @@ from app.services.slot_extractor import (
     extract_summary_regex_slots, find_when_in_text,
     split_supply_tokens, strip_markers,
 )
+from app.services.card_builder import build_cards
 from app.services.mock import MOCK_TODOS
 
 router = APIRouter()
 
 _notices: dict[str, Notice] = {}
+MAX_CARDS = 8
 
 
 @router.post("/send", response_model=ApiResponse)
@@ -268,32 +271,68 @@ async def analyze_notice(
     # [2] 정규식 슬롯 (전체 통신문 단위, summary 재료)
     regex_slots = extract_summary_regex_slots(notice.text, target_lang)
 
-    # [4]+[6] items: 각 todo에 경이님 카테고리 + 슬롯 결합
+    # [4]+[6] items: 각 todo에 경이님 카테고리 + 슬롯 결합 (deprecated, 다음 PR 폐기)
     items = [_build_item(t, target_lang) for t in todos]
 
-    # [6] summary 집계: 정규식 + items 모델 슬롯 통합
+    # [6] summary 집계: 정규식 + items 모델 슬롯 통합 (deprecated, 다음 PR 폐기)
     summary = _build_summary(regex_slots, items, target_lang)
 
-    # [7] TTS: 슬롯+할일 합쳐 한 문장씩, importance 내림차순
-    tts_text = _build_tts_text(summary, items, target_lang)
+    # [6'] cards: 신규 슬롯 카드 응답 — 시연 안정성을 위해 상위 N개만 번역/TTS 대상으로 사용.
+    top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
+    cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
+
+    # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
+    tts_text_translated = _build_tts_text_from_cards(cards, "translated")
+    tts_text_easy_ko = _build_tts_text_from_cards(cards, "easy_ko")
     try:
-        tts_url = await generate_tts_file(tts_text, target_lang=target_lang) if tts_text else ""
+        tts_url = await generate_tts_file(tts_text_translated, target_lang=target_lang) if tts_text_translated else ""
     except Exception as error:
-        print(f"[analyze] TTS failed: {error}")
+        print(f"[analyze] TTS (translated) failed: {error}")
         tts_url = ""
+    try:
+        tts_url_easy_ko = await generate_tts_file(tts_text_easy_ko, target_lang="ko_easy") if tts_text_easy_ko else ""
+    except Exception as error:
+        print(f"[analyze] TTS (easy_ko) failed: {error}")
+        tts_url_easy_ko = ""
 
     response = {
         "notice_id": notice_id,
         "raw_text": notice.text,
         "target_language": target_lang,
+        "cards": [c.model_dump() for c in cards],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
-        "tts_text": tts_text,
+        "tts_text": tts_text_translated,
         "tts_url": tts_url,
+        "tts_url_easy_ko": tts_url_easy_ko,
         "quality_note": "",
         "review_needed": "",
     }
     return ApiResponse.success(data=response)
+
+
+def _build_tts_text_from_cards(cards: list[SlotCard], mode: str) -> str:
+    """슬롯 카드 → TTS 텍스트 (헤더 + 값 한 줄씩 합본).
+
+    mode="translated": 대상 언어 TTS용 — value_translated + header_translated
+    mode="easy_ko":    쉬운 한국어 TTS용 — value_easy_ko + header_ko
+    """
+    if not cards:
+        return ""
+    lines: list[str] = []
+    for c in cards:
+        if mode == "translated":
+            header = c.header_translated or c.header_ko
+            value = c.value_translated or c.value_ko
+        else:  # easy_ko
+            header = c.header_ko
+            value = c.value_easy_ko or c.value_ko
+        if not value:
+            continue
+        value = strip_markers(value)
+        line = f"{header}. {value}" if header else value
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def _build_tts_text(
