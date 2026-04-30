@@ -156,3 +156,22 @@ e알리미,e-Alimi(e알리미),e-Alimi(e알리미),e-Alimi(e알리미),e-Alimi(e
 안심벨,chuông an toàn,safety alarm,安心铃,กระดิ่งความปลอดภัย,loceng keselamatan,аюулгүй байдлын хонх,сигнал безопасности,安心ベル,학교 안전 기기
 수리력,năng lực toán học,numeracy,数学能力,ความสามารถทางคณิตศาสตร์,kemahiran numerasi,тоон чадвар,математические навыки,算数の力,수선/수리 오역 방지
 물통,bình nước,water bottle,水壶,ขวดน้ำ,botol air,усны сав,бутылка для воды,水筒,준비물
+운영시간,Thời gian hoạt động,Operating hours,运营时间,เวลาดำเนินการ,Waktu operasi,Үйл ажиллагааны цаг,Время работы,運営時間,슬롯 카드 헤더
+운영방법,Cách thức hoạt động,Operating method,运营方法,วิธีดำเนินการ,Cara operasi,Үйл ажиллагааны арга,Способ проведения,運営方法,슬롯 카드 헤더
+운영날짜,Ngày hoạt động,Operating date,运营日期,วันดำเนินการ,Tarikh operasi,Үйл ажиллагааны өдөр,Дата проведения,運営日,슬롯 카드 헤더
+신청방법,Cách đăng ký,How to apply,申请方法,วิธีสมัคร,Cara mendaftar,Бүртгүүлэх арга,Как подать заявку,申込方法,슬롯 카드 헤더
+신청기간,Thời gian đăng ký,Application period,申请期间,ระยะเวลาสมัคร,Tempoh permohonan,Бүртгэлийн хугацаа,Период подачи заявок,申込期間,슬롯 카드 헤더
+신청 URL,URL đăng ký,Application URL,申请网址,URL สำหรับสมัคร,URL permohonan,Бүртгэлийн URL,Ссылка для подачи,申込URL,슬롯 카드 헤더
+일시,Thời gian,Date and time,日期时间,วันเวลา,Tarikh dan masa,Огноо ба цаг,Дата и время,日時,슬롯 카드 헤더
+시간,Thời gian,Time,时间,เวลา,Masa,Цаг,Время,時間,슬롯 카드 헤더
+장소,Địa điểm,Place,场所,สถานที่,Tempat,Газар,Место,場所,슬롯 카드 헤더
+대상,Đối tượng,Target,对象,กลุ่มเป้าหมาย,Sasaran,Зорилтот,Целевая аудитория,対象,슬롯 카드 헤더
+비용,Chi phí,Cost,费用,ค่าใช้จ่าย,Kos,Зардал,Стоимость,費用,슬롯 카드 헤더
+회비,Phí hội,Membership fee,会费,ค่าสมาชิก,Yuran keahlian,Гишүүний хураамж,Членский взнос,会費,슬롯 카드 헤더
+참가비,Phí tham gia,Participation fee,参加费,ค่าเข้าร่วม,Yuran penyertaan,Оролцооны хураамж,Взнос за участие,参加費,슬롯 카드 헤더
+기타 안내사항,Thông tin khác,Other notices,其他通知事项,ข้อแจ้งอื่นๆ,Pengumuman lain,Бусад мэдээлэл,Прочие уведомления,その他のお知らせ,슬롯 카드 헤더
+안내사항,Thông tin hướng dẫn,Notices,通知事项,ข้อแจ้ง,Pengumuman,Мэдээлэл,Уведомление,お知らせ,슬롯 카드 헤더
+유의사항,Lưu ý,Cautions,注意事项,ข้อควรระวัง,Perhatian,Анхааруулга,Внимание,注意事項,슬롯 카드 헤더
+문의,Liên hệ,Inquiries,咨询,สอบถาม,Pertanyaan,Лавлагаа,Вопросы,問合せ,슬롯 카드 헤더
+연락처,Số liên hệ,Contact,联系方式,ช่องทางติดต่อ,Hubungan,Холбоо барих,Контакты,連絡先,슬롯 카드 헤더
+기타,Khác,Other,其他,อื่นๆ,Lain-lain,Бусад,Прочее,その他,슬롯 카드 헤더
