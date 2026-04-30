@@ -27,14 +27,16 @@ model/classification/checkpoints/*.pkl
 # 컨테이너 작업 영역 (학습 데이터·OCR·임시 변환물)
 backend/data/
 
-# Android
+# Android build outputs and local settings
 android/.gradle/
+android/.idea/
 android/build/
-android/local.properties
 android/app/build/
+android/local.properties
 *.apk
 *.aab
 *.keystore
+
 
 # IDE
 .idea/
