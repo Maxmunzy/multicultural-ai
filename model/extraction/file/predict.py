@@ -106,8 +106,8 @@ def _join_broken_lines(text: str) -> str:
 # ─────────────────────────────────────────
 # split_sentences()가 ◆●▪○ 등을 분리 기준으로 사용하므로
 # 마커 제거는 split 이후 문장 단위로 수행 — 학습 데이터 clean_text()와 동일 정제
-_SYMBOL_PATTERN = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏]+")
-_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]")
+_SYMBOL_PATTERN = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏‧∙∘․]+")
+_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩➊➋➌➍➎➏]")
 
 
 def _clean_symbols(sentence: str) -> str:

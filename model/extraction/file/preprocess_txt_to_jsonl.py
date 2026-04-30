@@ -122,8 +122,8 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-_SYMBOL_PATTERN     = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏]+")
-_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩]")
+_SYMBOL_PATTERN     = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏‧∙∘․]+")
+_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩➊➋➌➍➎➏]")
 
 
 def clean_sentence(sentence: str) -> str:
