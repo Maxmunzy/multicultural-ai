@@ -37,6 +37,7 @@ android/local.properties
 *.aab
 *.keystore
 
+
 # IDE
 .idea/
 .vscode/
