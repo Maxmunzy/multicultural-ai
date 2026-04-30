@@ -9,6 +9,8 @@ import pytest
 
 from app.services.parser import (
     ParserError,
+    _fix_doubled_chars,
+    _fix_doubled_chars_word,
     normalize,
     parse_bytes_to_text,
 )
@@ -34,6 +36,37 @@ def test_normalize_preserves_paragraph_breaks():
 def test_normalize_empty_returns_empty():
     assert normalize("") == ""
     assert normalize("   \n\n  ") == ""
+
+
+# ── _fix_doubled_chars — HWP→PDF 글자 두 번 그리기 dedup ──────
+def test_fix_doubled_word_dedups_doubled_digits():
+    """HWP→PDF 변환 산출물의 '22002266' → '2026'."""
+    assert _fix_doubled_chars_word("22002266") == "2026"
+
+
+def test_fix_doubled_word_dedups_doubled_korean():
+    """'학학년년도도' → '학년도', '안안내내' → '안내'."""
+    assert _fix_doubled_chars_word("학학년년도도") == "학년도"
+    assert _fix_doubled_chars_word("안안내내") == "안내"
+
+
+def test_fix_doubled_word_keeps_natural_repetition():
+    """홀수 길이 단어 (자연 한글 반복) 영향 없음."""
+    assert _fix_doubled_chars_word("그러나") == "그러나"
+    assert _fix_doubled_chars_word("22번") == "22번"
+    assert _fix_doubled_chars_word("사람") == "사람"  # 짝수지만 패턴 X
+
+
+def test_fix_doubled_word_keeps_short_words():
+    """길이 2 이하는 영향 없음 ('◑◑' 같은 마커 보호)."""
+    assert _fix_doubled_chars_word("◑◑") == "◑◑"
+    assert _fix_doubled_chars_word("AB") == "AB"
+
+
+def test_fix_doubled_chars_processes_lines_and_words():
+    """줄바꿈/공백 단위로 단어별 처리 — 정상 단어는 보존."""
+    src = "22002266학학년년도도 가가족족동동반반\n안안내내"
+    assert _fix_doubled_chars(src) == "2026학년도 가족동반\n안내"
 
 
 # ── parse_bytes_to_text — 평문 ────────────────────────────────

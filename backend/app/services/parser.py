@@ -144,6 +144,29 @@ def _hwp_to_pdf(hwp_path: Path, out_dir: Path) -> Path:
     return pdf_path
 
 
+# HWP → PDF 변환 시 LibreOffice가 텍스트 객체를 두 번 그려 pdfplumber가
+# 글자를 두 번씩 추출하는 패턴 ("22002266학학년년도도", "안안내내" 등).
+# 짝수 길이 단어가 i와 i+1 위치마다 같은 글자면 절반으로 줄이는 휴리스틱.
+# 자연 한글 반복(예: "그러나" 길이 3, "사람" 등)은 짝수 길이가 아니거나
+# 짝수 위치 반복 패턴이 아니므로 영향 없음.
+def _fix_doubled_chars_word(word: str) -> str:
+    """단어가 짝수 위치마다 반복인 패턴이면 dedup (예: '2200'→'20', '학학'→'학')."""
+    if len(word) < 4 or len(word) % 2 != 0:
+        return word
+    if all(word[i] == word[i + 1] for i in range(0, len(word), 2)):
+        return "".join(word[i] for i in range(0, len(word), 2))
+    return word
+
+
+def _fix_doubled_chars(text: str) -> str:
+    """줄별·공백 단위로 doubled-char 단어 dedup."""
+    out_lines: list[str] = []
+    for line in text.split("\n"):
+        words = [_fix_doubled_chars_word(w) for w in line.split(" ")]
+        out_lines.append(" ".join(words))
+    return "\n".join(out_lines)
+
+
 def parse_bytes_to_text(data: bytes, filename: str) -> str:
     """업로드된 bytes + 파일명 → 정규화된 clean_text.
 
@@ -175,6 +198,7 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
         if suffix in HWP_EXTS:
             pdf_path = _hwp_to_pdf(src_path, tmp_dir)
             raw = _pdf_to_text(pdf_path)
-            return normalize(raw)
+            # HWP→PDF 경로에서만 발생하는 글자 두 번 그리기 dedup
+            return normalize(_fix_doubled_chars(raw))
 
     raise ParserError(f"지원하지 않는 파일 형식: {suffix}")
