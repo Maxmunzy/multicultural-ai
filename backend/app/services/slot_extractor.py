@@ -24,6 +24,13 @@ _DATE_MD = re.compile(
     r"(?:\s*\((?P<wday>[월화수목금토일])\))?"
 )
 _DATE_SLASH = re.compile(r"\b(?P<month>\d{1,2})\s*[/.]\s*(?P<day>\d{1,2})\b")
+# 점 표기 ("2026. 4. 18.(토)" / "5. 16.(토)") — 요일 필수로 시간·금액 오탐 회피
+_DATE_DOT = re.compile(
+    r"(?:(?P<year>\d{4})\s*\.\s*)?"
+    r"(?P<month>\d{1,2})\s*\.\s*"
+    r"(?P<day>\d{1,2})\s*\.?"
+    r"\s*\((?P<wday>[월화수목금토일])\)"
+)
 _DATE_RELATIVE = ["내일", "모레", "오늘", "다음 주", "다음주", "이번 주", "이번주"]
 
 _TIME_AMPM = re.compile(
@@ -46,7 +53,8 @@ _PHONE = re.compile(
 
 # 까지 마감 표현: "5월 9일까지", "내일까지", "5월 9일(금)까지 ... 제출"
 # 콤마는 negation에서 제외 — "15,000원 (...까지...)" 같이 숫자 콤마에서 잘리는 버그 회피
-_DEADLINE_PHRASE = re.compile(r"([^.\n]*?까지[^.\n]*?)(?=[.\n]|$)")
+# 한글 프로 마커(❍❏|※)도 종결자 — pdfplumber 본문이 한 줄로 들어와도 항목 단위로 끊김
+_DEADLINE_PHRASE = re.compile(r"([^.\n❍❏|※]*?까지[^.\n❍❏|※]*?)(?=[.\n❍❏|※]|$)")
 
 # 안내문 줄머리 장식 마크업 (■ ▶ ▸ etc.) — items/슬롯 추출 전 strip
 _MARKER_STRIP = re.compile(r"^[\s■▶▸◆●○*\-•]+")
@@ -87,6 +95,19 @@ def extract_dates(text: str) -> list[dict]:
         out.append({
             "ko": ko,
             "year": None,
+            "month": int(m.group("month")),
+            "day": int(m.group("day")),
+            "weekday": m.group("wday"),
+        })
+
+    for m in _DATE_DOT.finditer(text):
+        ko = m.group(0).strip()
+        if ko in seen:
+            continue
+        seen.add(ko)
+        out.append({
+            "ko": ko,
+            "year": int(m.group("year")) if m.group("year") else None,
             "month": int(m.group("month")),
             "day": int(m.group("day")),
             "weekday": m.group("wday"),
@@ -156,8 +177,13 @@ def extract_amounts(text: str) -> list[dict]:
 
 
 def extract_deadline_phrases(text: str) -> list[str]:
-    """'까지'가 들어간 어구를 한 문장 단위로 추출."""
-    return [m.group(1).strip() for m in _DEADLINE_PHRASE.finditer(text)]
+    """'까지'가 들어간 어구를 한 문장 단위로 추출.
+
+    URL 안 마침표(`.do`/`.kr` 등)에서 phrase가 잘려 무의미하게 길어지는 것 회피 —
+    매칭 전 URL을 placeholder로 마스킹 후 매칭.
+    """
+    masked = _URL.sub(lambda m: "⟦U" + ("_" * (len(m.group(0)) - 3)) + "⟧", text)
+    return [m.group(1).strip() for m in _DEADLINE_PHRASE.finditer(masked)]
 
 
 def extract_urls(text: str) -> list[str]:
