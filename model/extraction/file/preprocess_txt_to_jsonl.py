@@ -122,14 +122,39 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-_SYMBOL_PATTERN     = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏‧∙∘․]+")
-_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩➊➋➌➍➎➏]")
+# 특정 기호 → ASCII 대응 문자로 변환
+_NORMALIZE_TABLE = str.maketrans({
+    '‘': "'",  '’': "'",   # ' '  →  '
+    '“': '"',  '”': '"',   # " "  →  "
+    '「': '"',  '」': '"',   # 「」 →  "
+    '『': '"',  '』': '"',   # 『』 →  "
+    '【': '(',  '】': ')',   # 【】 →  ()
+    '〔': '(',  '〕': ')',   # 〔〕 →  ()
+    '｢': '"',  '｣': '"',   # ｢｣  →  "
+    '–': '-',  '—': '-',   # –—  →  -
+    '～': '~',  '∼': '~',   # ～∼ →  ~
+    '，': ',',                   # ，  →  ,
+    '×': 'x',                   # ×   →  x
+    '·': ' ',  '･': ' ',   # ·･  →  공백
+    '・': ' ',  '〃': ' ',   # ・〃 →  공백
+    '…': '...',                  # …   →  ...
+    '­': '',                     # soft hyphen → 제거
+    '￦': '',                    # ￦  →  제거
+})
+
+# 한글/영숫자/허용 구두점 이외의 모든 기호를 공백으로 대체
+_SYMBOL_REMOVE_RE = re.compile(
+    "[^가-힣"   # 한글 완성형
+    "㄰-㆏"     # 한글 자모
+    "a-zA-Z0-9"         # 영숫자
+    " \\t.,!?():/%@~&_\\-'\"]"  # 허용 구두점 + 공백
+)
 
 
 def clean_sentence(sentence: str) -> str:
-    """split 이후 문장 단위 기호 정제 — predict.py _clean_symbols 와 동일 로직"""
-    sentence = _SYMBOL_PATTERN.sub(" ", sentence)
-    sentence = _CIRCLE_NUM_PATTERN.sub("", sentence)
+    """문장 단위 기호 정제: 정규화 후 허용 문자 외 기호 공백으로 대체"""
+    sentence = sentence.translate(_NORMALIZE_TABLE)
+    sentence = _SYMBOL_REMOVE_RE.sub(' ', sentence)
     return re.sub(r"\s+", " ", sentence).strip()
 
 
