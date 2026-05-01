@@ -117,6 +117,18 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
     return vi_text
 
 
+# OCR 변환 과정에서 생기는 특수문자 제거. HWP 체크박스/불릿이 □·▣ 등으로 깨지는 패턴.
+_OCR_NOISE = re.compile(r"[□■▣▷◆◇▶◀►◄■-◿`]+")
+_MULTI_SPACE = re.compile(r"[ \t]{2,}")
+
+
+def _clean_for_translation(text: str) -> str:
+    """NLLB 입력 전 OCR 잔여 특수문자를 제거한다."""
+    text = _OCR_NOISE.sub(" ", text)
+    text = _MULTI_SPACE.sub(" ", text)
+    return text.strip()
+
+
 # URL/전화 보호 — NLLB가 깨먹는 패턴 방어. 한국어 입력에 안 등장하는 unicode bracket으로
 # 치환하고 번역 후 복원. ⟦…⟧는 NLLB가 분해하지 않는 안전 토큰.
 _PROTECT_TOKEN = re.compile(r"⟦P(\d+)⟧")
@@ -184,7 +196,7 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return ""
     if target_lang == "ko_easy":
         return text
-    text = text.strip()[:MAX_TRANSLATE_CHARS]
+    text = _clean_for_translation(text)[:MAX_TRANSLATE_CHARS]
 
     # 1) URL/전화 placeholder 치환 — NLLB가 깨먹지 못하게 격리
     masked, placeholders = _mask_protected_entities(text)
