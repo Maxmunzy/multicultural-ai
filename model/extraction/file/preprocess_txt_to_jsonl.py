@@ -98,7 +98,16 @@ def join_broken_lines(text: str) -> str:
     규칙 3 - 문장 종결 후 (줄바꿈 유지):
       종결 부호(.!?)로 끝나는 줄 -> 줄바꿈 그대로
       예: "제공합니다.\\n모국어를" -> 변경 없음
+
+    규칙 0 (선행) - 날짜/숫자 분절 복원:
+      숫자마침표로 끝나는 줄 -> 줄바꿈을 공백으로 이어줌
+      예: "2026.\\n~ 11." -> "2026. ~ 11."
+      이유: 한국식 날짜(2026.~11.30.)는 마침표가 구분자이므로
+            규칙 3이 적용되면 날짜가 조각남
     """
+    # 규칙 0: 숫자마침표로 끝나는 줄 → 공백으로 이어줌 (날짜 분절 복원)
+    text = re.sub(r"(\d+\.)\n", r"\1 ", text)
+
     # 규칙 1: 공백 + 한글 + 줄바꿈 + 한글  ->  공백 + (두 한글 합침)
     text = re.sub(r" ([가-힣])\n([가-힣])", r" \1\2", text)
 
@@ -122,14 +131,39 @@ def clean_text(text: str) -> str:
     return text.strip()
 
 
-_SYMBOL_PATTERN     = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏‧∙∘․]+")
-_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩➊➋➌➍➎➏]")
+# 특정 기호 → ASCII 대응 문자로 변환
+_NORMALIZE_TABLE = str.maketrans({
+    '‘': "'",  '’': "'",   # ' '  →  '
+    '“': '"',  '”': '"',   # " "  →  "
+    '「': '"',  '」': '"',   # 「」 →  "
+    '『': '"',  '』': '"',   # 『』 →  "
+    '【': '(',  '】': ')',   # 【】 →  ()
+    '〔': '(',  '〕': ')',   # 〔〕 →  ()
+    '｢': '"',  '｣': '"',   # ｢｣  →  "
+    '–': '-',  '—': '-',   # –—  →  -
+    '～': '~',  '∼': '~',   # ～∼ →  ~
+    '，': ',',                   # ，  →  ,
+    '×': 'x',                   # ×   →  x
+    '·': ' ',  '･': ' ',   # ·･  →  공백
+    '・': ' ',  '〃': ' ',   # ・〃 →  공백
+    '…': '...',                  # …   →  ...
+    '­': '',                     # soft hyphen → 제거
+    '￦': '',                    # ￦  →  제거
+})
+
+# 한글/영숫자/허용 구두점 이외의 모든 기호를 공백으로 대체
+_SYMBOL_REMOVE_RE = re.compile(
+    "[^가-힣"   # 한글 완성형
+    "㄰-㆏"     # 한글 자모
+    "a-zA-Z0-9"         # 영숫자
+    " \\t.,!?():/%@~&_\\-'\"]"  # 허용 구두점 + 공백
+)
 
 
 def clean_sentence(sentence: str) -> str:
-    """split 이후 문장 단위 기호 정제 — predict.py _clean_symbols 와 동일 로직"""
-    sentence = _SYMBOL_PATTERN.sub(" ", sentence)
-    sentence = _CIRCLE_NUM_PATTERN.sub("", sentence)
+    """문장 단위 기호 정제: 정규화 후 허용 문자 외 기호 공백으로 대체"""
+    sentence = sentence.translate(_NORMALIZE_TABLE)
+    sentence = _SYMBOL_REMOVE_RE.sub(' ', sentence)
     return re.sub(r"\s+", " ", sentence).strip()
 
 
@@ -159,7 +193,11 @@ def _get_split_fn():
 
     # 최후 fallback: 마침표/물음표/느낌표 기준 단순 분리
     def _simple_split(text: str) -> list[str]:
-        parts = re.split(r"(?<=[.!?])\s+", text)
+        parts = re.split(
+            r"(?<!\d\.)(?<=[.!?])\s+"      # 숫자마침표(날짜) 뒤는 분리 안 함
+            r"|\s+(?=[1-9]\.\s+[가-힣])",  # "4. 한글" 앞 공백 → 1~9번 목록 항목 시작
+            text,
+        )
         return [p.strip() for p in parts if p.strip() and len(p.strip()) > 3]
     return _simple_split
 
