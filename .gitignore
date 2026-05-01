@@ -15,7 +15,6 @@ build/
 # ML 체크포인트 / 대용량 파일
 ml/*/checkpoints/
 ml/*/best_model/
-data/raw/
 *.pt
 *.bin
 *.onnx
