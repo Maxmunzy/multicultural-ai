@@ -382,8 +382,6 @@ public class MainActivity extends Activity {
         content.addView(bigPrimaryButton("📤  통신문 발송", v -> sendNotice()));
         // 파일 업로드 (HWP/PDF/TXT) — 선택 시 SAF 픽커 → 백엔드 /notice/upload
         content.addView(outlineButton("📎  PDF/HWP 파일 업로드", v -> launchFilePicker()));
-        // 사진 OCR — 카메라 촬영 → ML Kit Korean → 백엔드 TXT 업로드
-        content.addView(outlineButton("📷  사진 OCR", v -> launchOcrActivity()));
         content.addView(outlineButton("← 로그아웃", v -> showLoginScreen()));
     }
 
@@ -501,6 +499,8 @@ public class MainActivity extends Activity {
         inboxListBox.addView(inboxEmptyText);
 
         content.addView(outlineButton("🔄  " + uiText("refresh_inbox"), v -> loadInbox()));
+        // 종이 통신문 사진 → ML Kit Korean OCR → 번역 (백엔드 parent 업로드 허용 후 활성화)
+        content.addView(outlineButton("📷  종이 통신문 사진 번역", v -> launchOcrActivity()));
         content.addView(outlineButton("← " + uiText("logout"), v -> showLoginScreen()));
 
         loadInbox();
