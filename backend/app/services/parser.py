@@ -44,7 +44,8 @@ except ImportError as error:
 PDF_EXTS = {".pdf"}
 HWP_EXTS = {".hwp", ".hwpx"}
 TEXT_EXTS = {".txt", ".md"}
-ALLOWED_EXTS = PDF_EXTS | HWP_EXTS | TEXT_EXTS
+IMG_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+ALLOWED_EXTS = PDF_EXTS | HWP_EXTS | TEXT_EXTS | IMG_EXTS
 
 # LibreOffice 변환 타임아웃 (초). 큰 HWP는 ENV로 오버라이드 가능.
 LIBREOFFICE_TIMEOUT_SECONDS = int(os.environ.get("PARSER_LIBREOFFICE_TIMEOUT", "300"))
@@ -122,6 +123,32 @@ def _pdf_to_text(pdf_path: Path) -> str:
     return "\n\n".join(parts)
 
 
+def _image_to_text(img_path: Path) -> str:
+    """카메라 사진(.jpg/.png) → 텍스트. Tesseract 한국어 OCR.
+
+    전체 이미지 1차 OCR → 한국어 문자 외 노이즈 정리.
+    표 영역 재처리(2차 OCR)는 별도 로직으로 확장 가능.
+    """
+    try:
+        import pytesseract
+        from PIL import Image
+    except ImportError as e:
+        raise ParserError(f"OCR 의존 미설치: {e}. Docker 재빌드 필요.")
+
+    try:
+        img = Image.open(img_path).convert("RGB")
+    except Exception as e:
+        raise ParserError(f"이미지 열기 실패: {e}")
+
+    try:
+        # psm 3: 자동 레이아웃 감지 (표·단락 혼재 가정통신문에 적합)
+        text = pytesseract.image_to_string(img, lang="kor", config="--psm 3 --oem 1")
+    except Exception as e:
+        raise ParserError(f"Tesseract OCR 실패: {e}")
+
+    return text
+
+
 # ODT content.xml 네임스페이스
 _ODT_TEXT_NS = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
 _ODT_TABLE_NS = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
@@ -162,13 +189,16 @@ def _hwp_to_odt(hwp_path: Path, out_dir: Path) -> Path:
     return odt_path
 
 
-def _odt_to_text(odt_path: Path) -> str:
+def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
     """ODT(zip) content.xml → 본문 + 표 영역 평면 텍스트.
 
     표 안 paragraph는 본문 처리에서 제외(중복 방지). 표는 셀 단위 공백 합치고
     행 단위 줄바꿈으로 평면화 — `|` 구분자 X, `[표]` 마커 X.
     윤정님 split_sentences가 헤더 키워드 lookahead("운영시간"/"운영방법"/...)로
     행 안에서 의미 단위 자연 분리하므로 셀 구분자 불필요.
+
+    mark_header=True: 각 표의 첫 번째 행 앞에 "[헤더] " 마킹 + 셀을 " | " 구분.
+    기본값 False — 기존 호출부(parse_bytes_to_text, batch_convert.py) 변경 없음.
     """
     with zipfile.ZipFile(odt_path) as z:
         with z.open("content.xml") as f:
@@ -198,14 +228,17 @@ def _odt_to_text(odt_path: Path) -> str:
     table_blocks: list[str] = []
     for table in tree.iter(_ODT_TABLE_NS + "table"):
         rows: list[str] = []
-        for row in table.iter(_ODT_TABLE_NS + "table-row"):
+        for row_idx, row in enumerate(table.iter(_ODT_TABLE_NS + "table-row")):
             cells: list[str] = []
             for cell in row.iter(_ODT_TABLE_NS + "table-cell"):
                 cell_text = "".join(cell.itertext()).strip()
                 if cell_text:
                     cells.append(cell_text)
             if cells:
-                rows.append(" ".join(cells))
+                if mark_header and row_idx == 0:
+                    rows.append("[헤더] " + " | ".join(cells))
+                else:
+                    rows.append(" ".join(cells))
         if rows:
             table_blocks.append("\n".join(rows))
 
@@ -248,6 +281,10 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
         if suffix in HWP_EXTS:
             odt_path = _hwp_to_odt(src_path, tmp_dir)
             raw = _odt_to_text(odt_path)
+            return normalize(raw)
+
+        if suffix in IMG_EXTS:
+            raw = _image_to_text(src_path)
             return normalize(raw)
 
     raise ParserError(f"지원하지 않는 파일 형식: {suffix}")
