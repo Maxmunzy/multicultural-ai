@@ -125,6 +125,7 @@ def _pdf_to_text(pdf_path: Path) -> str:
 # ODT content.xml 네임스페이스
 _ODT_TEXT_NS = "{urn:oasis:names:tc:opendocument:xmlns:text:1.0}"
 _ODT_TABLE_NS = "{urn:oasis:names:tc:opendocument:xmlns:table:1.0}"
+_ODT_DRAW_NS = "{urn:oasis:names:tc:opendocument:xmlns:drawing:1.0}"
 
 
 def _hwp_to_odt(hwp_path: Path, out_dir: Path) -> Path:
@@ -173,10 +174,15 @@ def _odt_to_text(odt_path: Path) -> str:
         with z.open("content.xml") as f:
             tree = ET.parse(f)
 
-    # 표 안 element id 모음 → 본문 처리에서 제외
+    # 표/draw:frame 안 element id 모음 → 본문 처리에서 제외
+    # draw:frame: 텍스트 상자/이미지 프레임 — 본문과 같은 텍스트가 중복 저장돼
+    # 3배 이상 반복되는 아티팩트 원인. 표 inner 제외와 동일 방식.
     table_inner_ids: set[int] = set()
     for table in tree.iter(_ODT_TABLE_NS + "table"):
         for elem in table.iter():
+            table_inner_ids.add(id(elem))
+    for frame in tree.iter(_ODT_DRAW_NS + "frame"):
+        for elem in frame.iter():
             table_inner_ids.add(id(elem))
 
     body_parts: list[str] = []
