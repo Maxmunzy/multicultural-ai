@@ -511,21 +511,20 @@ public class OcrActivity extends Activity {
             String errorMsg = "";
 
             try {
-                URL url = new URL(baseUrl + "/notice/upload");
+                URL url = new URL(baseUrl + "/notice/upload-self");
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod("POST");
                 conn.setConnectTimeout(10000);
                 conn.setReadTimeout(180000);
                 conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
                 conn.setRequestProperty("Accept", "application/json");
-                if (teacherId != null && !teacherId.isEmpty()) {
-                    conn.setRequestProperty("X-User-Id", teacherId);
+                if (parentId != null && !parentId.isEmpty()) {
+                    conn.setRequestProperty("X-User-Id", parentId);
                 }
                 conn.setDoOutput(true);
 
                 try (OutputStream os = conn.getOutputStream()) {
-                    writeField(os, boundary, "teacher_id", teacherId != null ? teacherId : "teacher_001");
-                    writeField(os, boundary, "parent_id",  parentId  != null ? parentId  : "parent_001");
+                    writeField(os, boundary, "parent_id", parentId != null ? parentId : "parent_001");
                     writeFilePart(os, boundary, "file", filename, bytes);
                     os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
                 }
