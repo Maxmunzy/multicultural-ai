@@ -47,7 +47,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // 각자 PC의 내부 IP로 수정. 자세한 가이드는 android/README.md 참고.
-    private static final String BASE_URL = "http://192.168.x.x:8000";
+    private static final String BASE_URL = "http://172.30.1.45:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
     private static final String PREFS_NAME = "app";
@@ -55,6 +55,8 @@ public class MainActivity extends Activity {
 
     // SAF 파일 픽커 요청 코드 (legacy startActivityForResult 사용 — minSdk 23 호환).
     private static final int REQUEST_PICK_FILE = 1001;
+    // OcrActivity 요청 코드
+    private static final int REQUEST_OCR       = 1002;
 
     // ── Daon design tokens ──
     private static final int COLOR_PEACH        = Color.parseColor("#FFD9C2");
@@ -380,6 +382,8 @@ public class MainActivity extends Activity {
         content.addView(bigPrimaryButton("📤  통신문 발송", v -> sendNotice()));
         // 파일 업로드 (HWP/PDF/TXT) — 선택 시 SAF 픽커 → 백엔드 /notice/upload
         content.addView(outlineButton("📎  PDF/HWP 파일 업로드", v -> launchFilePicker()));
+        // 사진 OCR — 카메라 촬영 → ML Kit Korean → 백엔드 TXT 업로드
+        content.addView(outlineButton("📷  사진 OCR", v -> launchOcrActivity()));
         content.addView(outlineButton("← 로그아웃", v -> showLoginScreen()));
     }
 
@@ -1364,12 +1368,32 @@ public class MainActivity extends Activity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode != REQUEST_PICK_FILE) return;
-        if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
-        Uri uri = data.getData();
-        String filename = queryDisplayName(uri);
-        long sizeBytes = querySize(uri);
-        uploadSelectedFile(uri, filename, sizeBytes);
+        if (requestCode == REQUEST_PICK_FILE) {
+            if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+            Uri uri = data.getData();
+            String filename = queryDisplayName(uri);
+            long sizeBytes = querySize(uri);
+            uploadSelectedFile(uri, filename, sizeBytes);
+        } else if (requestCode == REQUEST_OCR) {
+            if (resultCode != RESULT_OK || data == null) return;
+            String noticeId  = data.getStringExtra(OcrActivity.RESULT_NOTICE_ID);
+            int    charCount = data.getIntExtra(OcrActivity.RESULT_CHAR_COUNT, 0);
+            setSendResult(
+                    "✅ OCR 업로드 완료\n→ " + DEFAULT_PARENT_ID
+                            + " · #" + shorten(noticeId != null ? noticeId : "", 8)
+                            + " · 추출 " + charCount + "자",
+                    true);
+        }
+    }
+
+    private void launchOcrActivity() {
+        String parentIdRaw = parentIdInput == null ? "" : safe(parentIdInput.getText().toString());
+        final String parentId = parentIdRaw.isEmpty() ? DEFAULT_PARENT_ID : parentIdRaw;
+        Intent intent = new Intent(this, OcrActivity.class);
+        intent.putExtra(OcrActivity.EXTRA_BASE_URL,   BASE_URL);
+        intent.putExtra(OcrActivity.EXTRA_TEACHER_ID, currentUserId);
+        intent.putExtra(OcrActivity.EXTRA_PARENT_ID,  parentId);
+        startActivityForResult(intent, REQUEST_OCR);
     }
 
     private void uploadSelectedFile(Uri uri, String filename, long sizeBytes) {
@@ -2039,7 +2063,7 @@ public class MainActivity extends Activity {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod(method);
                 conn.setConnectTimeout(5000);
-                conn.setReadTimeout(90000);
+                conn.setReadTimeout(180000);  // analyze 파이프라인 (NLLB+TTS) 최대 3분 허용
                 conn.setRequestProperty("Accept", "application/json");
                 if (!currentUserId.isEmpty()) {
                     conn.setRequestProperty("X-User-Id", currentUserId);
