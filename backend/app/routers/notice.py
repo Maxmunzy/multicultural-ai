@@ -102,6 +102,51 @@ async def upload_notice(
     )
 
 
+@router.post("/upload-self", response_model=ApiResponse)
+async def upload_notice_self(
+    parent_id: str = Form(...),
+    file: UploadFile = File(...),
+    user: UserProfile = Depends(require_user),
+):
+    """학부모가 종이 통신문 사진/파일을 직접 업로드 → 수신함에 self-send 형태로 저장.
+
+    teacher_id = parent_id (자기 자신이 발신자)로 저장되며
+    이후 /analyze/{notice_id} 흐름은 동일.
+    """
+    if user.role != "parent" or user.user_id != parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 학부모 ID로만 업로드 가능합니다",
+        )
+
+    raw_bytes = await file.read()
+    try:
+        text = parse_bytes_to_text(raw_bytes, file.filename or "")
+    except ParserError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"파일 변환 실패: {error}",
+        )
+    if not text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="파일에서 추출된 텍스트가 비어있습니다",
+        )
+
+    notice_id = str(uuid.uuid4())
+    _notices[notice_id] = Notice(
+        notice_id=notice_id,
+        teacher_id=parent_id,
+        parent_id=parent_id,
+        text=text,
+        todos=[],
+    )
+    return ApiResponse.success(
+        data={"notice_id": notice_id, "char_count": len(text)},
+        message=f"업로드 완료 ({file.filename})",
+    )
+
+
 @router.get("/inbox/{parent_id}", response_model=ApiResponse)
 async def get_inbox(
     parent_id: str,
