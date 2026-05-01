@@ -12,8 +12,8 @@
 | 태수 | FastAPI 서버, API 설계, 모델 연결, Android 통신 | `backend/` |
 | 윤정 | 가정통신문에서 할 일 문장 추출 모델 | `model/extraction/` |
 | 경이 | 추출 문장 카테고리 분류 및 중요도 모델 | `model/classification/` |
-| 세종 | 베트남어 번역, 학교 용어사전, 번역 검수 루프, TTS 출력 | `model/translation_tts/` · `data/translation_tts/` · `demo/translation_tts/` |
-| 찬영 | Android 데모 앱 UI, 실기기 시연 흐름, 발표자료 | `android/` · `docs/` |
+| 세종 | 다국어 번역, 학교 용어사전, 번역 검수 루프, TTS 출력, 카메라 OCR (Android ML Kit) | `model/translation_tts/` · `android/` (OcrActivity) |
+| 찬영 | 발표자료 | `docs/` |
 
 ---
 
@@ -21,22 +21,28 @@
 
 ```text
 [선생님 Android 앱]  (X-User-Id: teacher_xxx)
-    │ 가정통신문 제목/본문 + parent_id 작성
+    │ 방법 1: 가정통신문 제목/본문 직접 입력
     ▼ POST /notice/send
+    │
+    │ 방법 2: HWP·PDF·TXT 파일 선택
+    ▼ POST /notice/upload  → parser(태수): HWP→ODT→텍스트 / PDF→pdfplumber
+    │
+    │ 방법 3: 카메라 사진 촬영 (OcrActivity)
+    │   ML Kit Korean OCR → Quality Gate(0.90) → TXT → POST /notice/upload
+    ▼
 [FastAPI 서버]
-    │ 권한 검증 (teacher 역할 + body.teacher_id 일치)
-    │ 가정통신문 저장
+    │ 권한 검증 (teacher 역할) · 가정통신문 저장
     ▼
 [학부모 Android 앱]  (X-User-Id: parent_xxx)
     │ 본인 수신함 조회
     ▼ GET /notice/inbox/{parent_id}
 [학부모 Android 앱]
-    │ 통신문 상세 → 우측 상단 ✨ AI 번역 버튼
+    │ 통신문 상세 → ✨ AI 번역 버튼
     ▼ POST /notice/analyze/{notice_id}  (target_language)
 [FastAPI 서버 + 모델 파이프라인]
-    │ 할 일 추출(윤정) → 카테고리 분류·중요도 검수(경이)
+    │ 할 일 추출(윤정) → 카테고리 분류·중요도(경이)
     │ → 쉬운 한국어 + 선택 언어 번역(세종 NLLB)
-    │ → 학교 용어사전 검수 → 선택 언어 Edge-TTS 음성 생성
+    │ → 학교 용어사전(176개) 검수 → Edge-TTS 음성 생성
     ▼
 [학부모 Android 앱]
     체크리스트 + 쉬운 한국어 + 모국어 번역(9개 중 선택) + 음성 재생
@@ -65,6 +71,7 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | 엔드포인트 | 메서드 | 권한 | 설명 |
 | --- | --- | --- | --- |
 | `/notice/send` | POST | teacher 본인 | 선생님이 학부모에게 가정통신문 발송 (body의 `teacher_id`가 헤더와 일치해야 함) |
+| `/notice/upload` | POST | teacher 본인 | HWP·PDF·TXT·이미지 파일 업로드 → 텍스트 변환 후 저장 |
 | `/notice/inbox/{parent_id}` | GET | parent 본인 | 학부모 본인 수신함 조회 |
 | `/notice/inbox/{parent_id}` | DELETE | parent 본인 | 본인 수신함 초기화 (시연용) |
 | `/notice/analyze/{notice_id}` | POST | parent 본인 | body의 `target_language`(vi/en/ru/ms/mn/zh/th/ja/ko_easy)로 분석 결과 생성 |
@@ -82,7 +89,7 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 - [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성
 - [x] 윤정: KoELECTRA 하이브리드 추출 모델 구현 + HuggingFace Hub 배포
 - [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 (accuracy 0.857, MAE 0.038) + API 서버
-- [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전 검수 루프 + Edge-TTS 음성 출력 (언어별 보이스 매핑)
+- [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전(176개) 검수 루프 + Edge-TTS 음성 출력 + 카메라 OCR (ML Kit Korean + OpenCV + Quality Gate)
 - [x] 찬영: Android 선생님/학부모 화면 및 실기기 데모 1차 구현
 - [x] 팀 공통: 모델 A·B·C 백엔드 연결 및 E2E 파이프라인 실기기 검증 완료
 
@@ -98,6 +105,7 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | 용어사전 전/후 품질 | 엄격 재평가 NLLB 39.0점 → 사전 적용 89.6점 | `docs/experiments/2026-04-28-translation-glossary-quality.md` |
 | Round-trip 의미 검증 | 18개 공지 A 50.1점 / B 54.1점, 반복 왜곡 유형 도출 | `docs/roundtrip-full-eval-2026-04-28.md` |
 | 데이터/권한/사전 자동 테스트 | backend pytest 27개 + GitHub Actions PR 게이트 | `backend/tests/`, `.github/workflows/backend-tests.yml` |
+| OCR 모델 비교 · 전처리 실험 | ML Kit Korean F1 0.95~0.97, CER 28.2% (정면 BEST) — EasyOCR·Tesseract 한국어 실패(CER 97%) | `docs/experiments/2026-05-01-ocr-mlkit-korean-results.md` |
 
 번역 품질평가는 단순 용어 포함 여부가 아니라 현지 상용 표현, 학교 문맥, 정보 보존, 한국어 의미 역번역(Round-trip)을 함께 봅니다.
 
@@ -110,8 +118,8 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose, REST API, X-User-Id 헤더 인증 |
 | 윤정 | KoELECTRA-base-v3, HuggingFace Hub, PyTorch, Regex, Transformers |
 | 경이 | numpy TF-IDF, scikit-learn LR, SBERT + LightGBM, Ridge 회귀, FastAPI |
-| 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, fallback 처리 |
-| 찬영 | Android Studio, Java, Android SDK, HttpURLConnection, JSONObject, MediaPlayer |
+| 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, ML Kit Korean OCR, OpenCV 4.9, Tesseract-OCR |
+| 찬영 | 발표자료 |
 
 ---
 
@@ -190,3 +198,36 @@ feature/xxx  기능 단위 브랜치 (PR → dev)
 | 제출 | 동의서, 신청서, 확인서, 예방접종 서류 |
 | 비용 | 체험학습비, 급식비, 방과후 수업비 |
 | 건강·안전 | 독감 예방, 알레르기 조사, 안전교육 |
+
+---
+
+## Todo 라벨 초안 생성
+
+JSONL 문장 데이터의 기존 `is_todo`를 `original_is_todo`로 보존하고, 사람이 검수할 수 있는 `draft_is_todo`, `reason`, `review_required` 초안을 생성합니다.
+
+```bash
+python scripts/prepare_todo_labels.py \
+  --input_path data/raw/todo_raw.jsonl \
+  --output_jsonl_path data/processed/todo_labeled_draft.jsonl \
+  --output_csv_path data/processed/todo_labeled_draft.csv
+```
+
+Gemini API 키가 있으면 긴 원문을 먼저 의미 단위로 나눈 뒤 draft 라벨을 만들 수 있습니다. 실제 API 키는 `.env`에 넣고, `.env`는 GitHub에 올리지 않습니다. 공유용 샘플은 `.env.example`만 올립니다.
+
+```bash
+cp .env.example .env
+```
+
+`.env` 파일에 본인 Gemini API 키를 입력합니다.
+
+```bash
+python scripts/prepare_todo_labels.py \
+  --input_path data/raw/todo_raw.jsonl \
+  --output_jsonl_path data/processed/todo_labeled_draft.jsonl \
+  --output_csv_path data/processed/todo_labeled_draft.csv \
+  --use_gemini_segment
+```
+
+API 키가 없거나 Gemini 응답 파싱에 실패하면 기존 rule split으로 자동 fallback됩니다.
+
+이 스크립트의 결과는 정답 라벨이 아니라 검수용 초안입니다. `review_required=true` 행을 먼저 확인한 뒤 최종 라벨을 확정하세요.

@@ -22,4 +22,8 @@ android {
 
 dependencies {
     implementation 'androidx.core:core:1.13.1'
+    // ML Kit Korean OCR — CER ~35%, F1 0.95+ (ocr_lab_schoolbridge Round 5 결과)
+    implementation 'com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1'
+    // OpenCV 4.9 — 이미지 전처리 (grayscale, CLAHE, Perspective Transform)
+    implementation 'org.opencv:opencv:4.9.0'
 }
