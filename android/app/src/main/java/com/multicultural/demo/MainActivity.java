@@ -76,13 +76,13 @@ public class MainActivity extends Activity {
     private static final int COLOR_INK4         = Color.parseColor("#C4B6A8");
     private static final int COLOR_LINE         = Color.parseColor("#EAD9C4");
 
-    private static final String[] LANG_CODES  = {"en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
-    private static final String[] LANG_LABELS = {"🇺🇸 영어", "🇷🇺 러시아어", "🇲🇾 말레이시아어", "🇲🇳 몽골어", "🇻🇳 베트남어", "🇨🇳 중국어", "🇹🇭 태국어", "🇯🇵 일본어"};
-    private static final String[] LANG_NAMES  = {"영어", "러시아어", "말레이시아어", "몽골어", "베트남어", "중국어", "태국어", "일본어"};
-    private static final String[] LANG_FLAGS  = {"EN", "RU", "MY", "MN", "VN", "CN", "TH", "JP"};
-    private static final String[] LANG_NATIVE = {"English", "Русский", "Bahasa", "Монгол", "Tiếng Việt", "中文", "ไทย", "日本語"};
+    private static final String[] LANG_CODES  = {"vi_demo", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
+    private static final String[] LANG_LABELS = {"🇻🇳 Tiếng Việt (시연용)", "🇺🇸 English", "🇷🇺 Русский", "🇲🇾 Bahasa Melayu", "🇲🇳 Монгол", "🇻🇳 Tiếng Việt", "🇨🇳 中文", "🇹🇭 ไทย", "🇯🇵 日本語"};
+    private static final String[] LANG_NAMES  = {"베트남어 (시연용)", "영어", "러시아어", "말레이시아어", "몽골어", "베트남어", "중국어", "태국어", "일본어"};
+    private static final String[] LANG_FLAGS  = {"VN", "EN", "RU", "MY", "MN", "VN", "CN", "TH", "JP"};
+    private static final String[] LANG_NATIVE = {"Tiếng Việt (시연용)", "English", "Русский", "Bahasa", "Монгол", "Tiếng Việt", "中文", "ไทย", "日本語"};
 
-    private static String selectedLanguage = "vi";
+    private static String selectedLanguage = "ko_easy";
     private String currentUserId = "";
     private String pendingRole = "";
 
@@ -156,6 +156,7 @@ public class MainActivity extends Activity {
         buildScreen(null, "가정통신문 AI", "AI 번역 · 9개 언어 지원", false, -1, false);
 
         content.addView(heroLoginCard());
+        content.addView(languageSelectCard());
 
         if (pendingRole.isEmpty()) {
             content.addView(sectionLabel("역할 선택"));
@@ -188,7 +189,6 @@ public class MainActivity extends Activity {
                 if (role.equals("teacher")) showTeacherHome();
                 else {
                     showParentHome();
-                    showInitialLanguageDialogIfNeeded();
                 }
             }));
             content.addView(outlineButton("← 역할 다시 선택", v -> {
@@ -275,6 +275,45 @@ public class MainActivity extends Activity {
         box.addView(col);
 
         TextView arrow = text("→", 20, inkColor, true);
+        box.addView(arrow);
+        return box;
+    }
+
+    private LinearLayout languageSelectCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(18), dp(16), dp(18), dp(16));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR, cardGradient(COLOR_SKY));
+        bg.setCornerRadius(dp(18));
+        box.setBackground(bg);
+        box.setElevation(dp(1));
+        box.setClickable(true);
+        box.setFocusable(true);
+        box.setOnClickListener(v -> showLanguageDialog());
+
+        TextView ic = new TextView(this);
+        ic.setText("🌐");
+        ic.setTextSize(28);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        ip.setMargins(0, 0, dp(14), 0);
+        ic.setLayoutParams(ip);
+        box.addView(ic);
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        TextView t = text("Language", 16, COLOR_INK, true);
+        col.addView(t);
+        TextView d = text(selectedLanguageNative() + " · Tap to change", 12, COLOR_INK2, false);
+        d.setPadding(0, dp(2), 0, 0);
+        col.addView(d);
+        box.addView(col);
+
+        TextView arrow = text("→", 20, COLOR_INK, true);
         box.addView(arrow);
         return box;
     }
@@ -443,20 +482,22 @@ public class MainActivity extends Activity {
     private void showParentHome() {
         clearScreenRefs();
         buildScreen("Xin chào,", currentUserId + "님 👋",
-                    "받은 가정통신문", true, 0, true);
+                    uiText("received_notices"), true, 0, true);
+
+        content.addView(languageSelectCard());
 
         inboxListBox = new LinearLayout(this);
         inboxListBox.setOrientation(LinearLayout.VERTICAL);
         inboxListBox.setLayoutParams(spacedParams());
-        content.addView(sectionLabel("새 통신문"));
+        content.addView(sectionLabel(uiText("new_notice")));
         content.addView(inboxListBox);
 
-        inboxEmptyText = text("수신함을 불러오는 중...", 13, COLOR_INK3, false);
+        inboxEmptyText = text(uiText("loading_inbox"), 13, COLOR_INK3, false);
         inboxEmptyText.setPadding(dp(4), dp(8), dp(4), 0);
         inboxListBox.addView(inboxEmptyText);
 
-        content.addView(outlineButton("🔄  수신함 새로고침", v -> loadInbox()));
-        content.addView(outlineButton("← 로그아웃", v -> showLoginScreen()));
+        content.addView(outlineButton("🔄  " + uiText("refresh_inbox"), v -> loadInbox()));
+        content.addView(outlineButton("← " + uiText("logout"), v -> showLoginScreen()));
 
         loadInbox();
     }
@@ -465,7 +506,7 @@ public class MainActivity extends Activity {
         inbox.clear();
         if (inboxEmptyText != null) {
             inboxEmptyText.setVisibility(View.VISIBLE);
-            inboxEmptyText.setText("수신함을 불러오는 중...");
+            inboxEmptyText.setText(uiText("loading_inbox"));
         }
         if (inboxListBox != null) {
             int childCount = inboxListBox.getChildCount();
@@ -475,14 +516,14 @@ public class MainActivity extends Activity {
         }
         getJson("/notice/inbox/" + currentUserId, result -> {
             if (!result.error.isEmpty()) {
-                if (inboxEmptyText != null) inboxEmptyText.setText("서버 연결 실패\n" + result.error);
+                if (inboxEmptyText != null) inboxEmptyText.setText(uiText("server_error") + "\n" + result.error);
                 return;
             }
             try {
                 JSONObject json = new JSONObject(result.body);
                 JSONArray data = json.optJSONArray("data");
                 if (data == null || data.length() == 0) {
-                    if (inboxEmptyText != null) inboxEmptyText.setText("받은 가정통신문이 없습니다.");
+                    if (inboxEmptyText != null) inboxEmptyText.setText(uiText("empty_inbox"));
                     return;
                 }
                 for (int i = 0; i < data.length(); i++) {
@@ -693,7 +734,7 @@ public class MainActivity extends Activity {
 
     private Button aiPillButton(View.OnClickListener listener) {
         Button b = new Button(this);
-        b.setText("✨ AI 번역");
+        b.setText("✨ " + uiText("ai_translate"));
         b.setTextSize(13);
         b.setTextColor(Color.WHITE);
         b.setAllCaps(false);
@@ -787,7 +828,7 @@ public class MainActivity extends Activity {
         Button close = iconButton("✕", v -> showNoticeDetail(notice));
         topBar.addView(close);
 
-        TextView center = text("AI 번역", 13, COLOR_INK2, true);
+        TextView center = text(uiText("ai_translate"), 13, COLOR_INK2, true);
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
         clp.setMargins(dp(8), 0, dp(8), 0);
@@ -811,13 +852,13 @@ public class MainActivity extends Activity {
         caption.setPadding(dp(2), dp(2), 0, dp(2));
         content.addView(caption);
 
-        TextView title = text(languageDisplayName(selectedLanguage) + " 번역",
+        TextView title = text(languageDisplayName(selectedLanguage) + " " + uiText("translation"),
                 22, COLOR_INK, true);
         title.setLetterSpacing(-0.02f);
         title.setPadding(dp(2), 0, dp(2), dp(2));
         content.addView(title);
 
-        TextView sub = text("모국어 번역 · 쉬운 한국어 · 음성 안내", 12, COLOR_INK3, false);
+        TextView sub = text(uiText("ai_subtitle"), 12, COLOR_INK3, false);
         sub.setPadding(dp(2), 0, 0, dp(12));
         content.addView(sub);
 
@@ -825,7 +866,7 @@ public class MainActivity extends Activity {
         content.addView(textSizeControls());
 
         // 분석 진행 상태 (먼저 보임 → 결과 도착하면 GONE)
-        analysisStatusText = text("AI가 분석 중입니다...", 13, COLOR_INK3, false);
+        analysisStatusText = text(uiText("analyzing"), 13, COLOR_INK3, false);
         analysisStatusText.setLineSpacing(0, 1.5f);
         LinearLayout statusCard = new LinearLayout(this);
         statusCard.setOrientation(LinearLayout.VERTICAL);
@@ -842,22 +883,21 @@ public class MainActivity extends Activity {
         // 체크리스트 (peach hero) — 처음에는 빈 상태
         checklistText = text("", (int) currentTextSize, COLOR_PEACH_INK, false);
         checklistText.setLineSpacing(0, 1.6f);
-        LinearLayout checklistCard = cardWithView("📋  해야 할 일", checklistText, COLOR_PEACH);
+        LinearLayout checklistCard = cardWithView("📋  " + uiText("todo"), checklistText, COLOR_PEACH);
         checklistCard.setVisibility(View.GONE);
         content.addView(checklistCard);
 
         // 쉬운 한국어
         easyKoText = text("", (int) currentTextSize, COLOR_INK, false);
         easyKoText.setLineSpacing(0, 1.6f);
-        LinearLayout easyKoCard = cardWithView("🇰🇷  쉬운 한국어", easyKoText, Color.WHITE);
+        LinearLayout easyKoCard = cardWithView("🇰🇷  " + uiText("easy_korean"), easyKoText, Color.WHITE);
         easyKoCard.setVisibility(View.GONE);
         content.addView(easyKoCard);
 
         // 모국어 번역
         translationText = text("", (int) currentTextSize, COLOR_INK, false);
         translationText.setLineSpacing(0, 1.6f);
-        String langHeading = LANG_FLAGS[langIndex(selectedLanguage)] + "  " +
-                LANG_NATIVE[langIndex(selectedLanguage)];
+        String langHeading = selectedLanguageFlag() + "  " + selectedLanguageNative();
         LinearLayout transCard = cardWithView(langHeading, translationText, Color.WHITE);
         transCard.setVisibility(View.GONE);
         content.addView(transCard);
@@ -866,23 +906,23 @@ public class MainActivity extends Activity {
         glossaryChipsBox = new LinearLayout(this);
         glossaryChipsBox.setOrientation(LinearLayout.VERTICAL);
         glossaryChipsBox.setVisibility(View.GONE);
-        LinearLayout glossaryWrap = cardWithView("📖  사용된 학교 용어", glossaryChipsBox, COLOR_LEMON);
+        LinearLayout glossaryWrap = cardWithView("📖  " + uiText("school_terms"), glossaryChipsBox, COLOR_LEMON);
         glossaryWrap.setVisibility(View.GONE);
         content.addView(glossaryWrap);
 
         // TTS 듣기 버튼
-        playButton = bigPrimaryButton("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기",
+        playButton = bigPrimaryButton(ttsLabel(),
                 v -> playTts());
         playButton.setVisibility(View.GONE);
         content.addView(playButton);
 
-        easyKoPlayButton = bigPrimaryButton("🔊  쉬운 한국어 듣기",
-                v -> playTtsUrl(currentEasyKoTtsUrl, easyKoPlayButton, "🔊  쉬운 한국어 듣기", false));
+        easyKoPlayButton = bigPrimaryButton(easyKoTtsLabel(),
+                v -> playTtsUrl(currentEasyKoTtsUrl, easyKoPlayButton, easyKoTtsLabel(), false));
         easyKoPlayButton.setVisibility(View.GONE);
         content.addView(easyKoPlayButton);
 
         // 닫기
-        content.addView(outlineButton("← 통신문으로 돌아가기", v -> showNoticeDetail(notice)));
+        content.addView(outlineButton("← " + uiText("back_to_notice"), v -> showNoticeDetail(notice)));
 
         // refs to cards for visibility toggling
         easyKoCard.setTag("easyKoCard");
@@ -907,19 +947,19 @@ public class MainActivity extends Activity {
     private void analyzeSelectedNotice() {
         if (selectedNotice == null) return;
         if (analysisStatusText != null) {
-            analysisStatusText.setText("AI가 분석 중입니다...\n(쉬운 한국어 → 모국어 번역 → 음성 생성)");
+            analysisStatusText.setText(uiText("analyzing_detail"));
         }
         toggleResultCards(false);
 
         JSONObject payload = new JSONObject();
         selectedLanguage = getSavedLanguage();
-        try { payload.put("target_language", selectedLanguage); } catch (Exception ignored) {}
+        try { payload.put("target_language", backendLanguageCode(selectedLanguage)); } catch (Exception ignored) {}
         postJson("/notice/analyze/" + selectedNotice.noticeId, payload, result -> {
             if (!result.error.isEmpty()) {
                 if (analysisStatusText != null) {
                     String message = result.error.toLowerCase().contains("timed out")
-                            ? "분석 시간이 초과되었습니다.\n긴 통신문은 처리 시간이 오래 걸릴 수 있습니다.\n\n잠시 후 다시 시도해 주세요."
-                            : "서버 연결 실패\n" + result.error;
+                            ? uiText("timeout")
+                            : uiText("server_error") + "\n" + result.error;
                     analysisStatusText.setText(message);
                     ((View) analysisStatusText.getParent()).setVisibility(View.VISIBLE);
                 }
@@ -970,7 +1010,7 @@ public class MainActivity extends Activity {
             ((View) checklistText.getParent()).setVisibility(View.VISIBLE);
         }
         if (translationText != null) {
-            if (!translation.isEmpty()) {
+            if (!selectedLanguage.equals("ko_easy") && !translation.isEmpty()) {
                 translationText.setText(translation);
                 translationText.setTextColor(COLOR_INK);
                 ((View) translationText.getParent()).setVisibility(View.VISIBLE);
@@ -999,13 +1039,13 @@ public class MainActivity extends Activity {
 
         // === TTS ===
         currentTtsUrl = optStringDeep(data, "tts_url", "tts_path", "audio_url");
-        if (playButton != null && !currentTtsUrl.isEmpty()) {
-            playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
+        if (playButton != null && !selectedLanguage.equals("ko_easy") && !currentTtsUrl.isEmpty()) {
+            playButton.setText(ttsLabel());
             playButton.setVisibility(View.VISIBLE);
         }
         currentEasyKoTtsUrl = optStringDeep(data, "tts_url_easy_ko");
         if (easyKoPlayButton != null && !currentEasyKoTtsUrl.isEmpty()) {
-            easyKoPlayButton.setText("🔊  쉬운 한국어 듣기");
+            easyKoPlayButton.setText(easyKoTtsLabel());
             easyKoPlayButton.setVisibility(View.VISIBLE);
         }
 
@@ -1480,7 +1520,7 @@ public class MainActivity extends Activity {
     // ============================================================
     private void playTts() {
         playTtsUrl(currentTtsUrl, playButton,
-                "🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기", true);
+                ttsLabel(), true);
     }
 
     private void playTtsUrl(String ttsUrl, Button activeButton, String idleLabel, boolean allowFallback) {
@@ -1529,9 +1569,9 @@ public class MainActivity extends Activity {
 
     private void resetTtsButtons() {
         if (playButton != null)
-            playButton.setText("🔊  " + LANG_NATIVE[langIndex(selectedLanguage)] + " 듣기");
+            playButton.setText(ttsLabel());
         if (easyKoPlayButton != null)
-            easyKoPlayButton.setText("🔊  쉬운 한국어 듣기");
+            easyKoPlayButton.setText(easyKoTtsLabel());
     }
 
     // ============================================================
@@ -1539,8 +1579,7 @@ public class MainActivity extends Activity {
     // ============================================================
     private Button makeLangPillButton() {
         Button b = new Button(this);
-        int idx = langIndex(selectedLanguage);
-        b.setText("🌐  " + LANG_NATIVE[idx] + "  ▾");
+        b.setText(langPillText());
         b.setTextSize(12);
         b.setAllCaps(false);
         b.setTextColor(COLOR_INK);
@@ -1563,14 +1602,13 @@ public class MainActivity extends Activity {
 
     private void showLanguageDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("번역 언어 선택");
+        builder.setTitle("Language / 언어 선택");
         builder.setItems(LANG_LABELS, (dialog, which) -> {
             if (LANG_CODES[which].equals(selectedLanguage)) return;
             selectedLanguage = LANG_CODES[which];
             saveLanguage(selectedLanguage);
             if (langPillBtn != null) {
-                int idx = langIndex(selectedLanguage);
-                langPillBtn.setText("🌐  " + LANG_NATIVE[idx] + "  ▾");
+                langPillBtn.setText(langPillText());
             }
             releasePlayer();
             currentTtsUrl = "";
@@ -1586,13 +1624,12 @@ public class MainActivity extends Activity {
     private void showInitialLanguageDialogIfNeeded() {
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).contains(PREF_KEY_LANG)) return;
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("학부모 언어 선택");
+        builder.setTitle("Language / 언어 선택");
         builder.setItems(LANG_LABELS, (dialog, which) -> {
             selectedLanguage = LANG_CODES[which];
             saveLanguage(selectedLanguage);
             if (langPillBtn != null) {
-                int idx = langIndex(selectedLanguage);
-                langPillBtn.setText("🌐  " + LANG_NATIVE[idx] + "  ▾");
+                langPillBtn.setText(langPillText());
             }
         });
         builder.show();
@@ -2046,6 +2083,7 @@ public class MainActivity extends Activity {
             case "ru": return optStringDeep(data, "ru_text", "russian", "translation_ru");
             case "ms": return optStringDeep(data, "ms_text", "malay", "translation_ms");
             case "mn": return optStringDeep(data, "mn_text", "mongolian", "translation_mn");
+            case "vi_demo":
             case "vi": return optStringDeep(data, "corrected_vi_text", "corrected_translation",
                     "vi_corrected_translation", "final_vi_text", "vi_text", "vietnamese", "translation_vi");
             case "zh": return optStringDeep(data, "zh_text", "chinese", "translation_zh");
@@ -2056,16 +2094,256 @@ public class MainActivity extends Activity {
     }
 
     private String languageDisplayName(String code) {
+        if ("ko_easy".equals(code)) return uiText("easy_korean");
         for (int i = 0; i < LANG_CODES.length; i++) {
             if (LANG_CODES[i].equals(code)) return LANG_NAMES[i];
         }
         return code;
     }
 
+    private String backendLanguageCode(String code) {
+        return "vi_demo".equals(code) ? "vi" : code;
+    }
+
+    private String ttsLabel() {
+        return "🔊  " + selectedLanguageNative() + " " + uiText("listen");
+    }
+
+    private String easyKoTtsLabel() {
+        return "🔊  " + uiText("listen_easy_korean");
+    }
+
+    private String langPillText() {
+        return "🌐  " + selectedLanguageNative() + "  ▾";
+    }
+
+    private String selectedLanguageNative() {
+        if ("ko_easy".equals(selectedLanguage)) return "쉬운 한국어";
+        return LANG_NATIVE[langIndex(selectedLanguage)];
+    }
+
+    private String selectedLanguageFlag() {
+        if ("ko_easy".equals(selectedLanguage)) return "KR";
+        return LANG_FLAGS[langIndex(selectedLanguage)];
+    }
+
+    private String uiText(String key) {
+        String lang = isSupportedLanguage(selectedLanguage) ? selectedLanguage : "vi";
+        if ("vi_demo".equals(lang)) lang = "ko";
+        switch (lang) {
+            case "en":
+                switch (key) {
+                    case "ai_translate": return "AI Translate";
+                    case "translation": return "Translation";
+                    case "ai_subtitle": return "Native language · Easy Korean · Audio";
+                    case "analyzing": return "AI is analyzing...";
+                    case "analyzing_detail": return "AI is analyzing...\n(Easy Korean → Native language → Audio)";
+                    case "timeout": return "Analysis timed out.\nLong notices can take more time.\n\nPlease try again.";
+                    case "server_error": return "Server connection failed";
+                    case "todo": return "To do";
+                    case "easy_korean": return "Easy Korean";
+                    case "school_terms": return "School terms";
+                    case "listen": return "Listen";
+                    case "listen_easy_korean": return "Listen to Easy Korean";
+                    case "back_to_notice": return "Back to notice";
+                    case "refresh_inbox": return "Refresh inbox";
+                    case "logout": return "Log out";
+                    case "loading_inbox": return "Loading inbox...";
+                    case "empty_inbox": return "No notices yet.";
+                    case "received_notices": return "Received notices";
+                    case "new_notice": return "New notices";
+                }
+                break;
+            case "vi":
+                switch (key) {
+                    case "ai_translate": return "Dịch bằng AI";
+                    case "translation": return "Bản dịch";
+                    case "ai_subtitle": return "Tiếng mẹ đẻ · Tiếng Hàn dễ hiểu · Âm thanh";
+                    case "analyzing": return "AI đang phân tích...";
+                    case "analyzing_detail": return "AI đang phân tích...\n(Tiếng Hàn dễ hiểu → Tiếng mẹ đẻ → Âm thanh)";
+                    case "timeout": return "Quá thời gian phân tích.\nThông báo dài có thể cần nhiều thời gian hơn.\n\nVui lòng thử lại.";
+                    case "server_error": return "Không thể kết nối máy chủ";
+                    case "todo": return "Việc cần làm";
+                    case "easy_korean": return "Tiếng Hàn dễ hiểu";
+                    case "school_terms": return "Từ ngữ trường học";
+                    case "listen": return "Nghe";
+                    case "listen_easy_korean": return "Nghe tiếng Hàn dễ hiểu";
+                    case "back_to_notice": return "Quay lại thông báo";
+                    case "refresh_inbox": return "Tải lại hộp thư";
+                    case "logout": return "Đăng xuất";
+                    case "loading_inbox": return "Đang tải hộp thư...";
+                    case "empty_inbox": return "Chưa có thông báo.";
+                    case "received_notices": return "Thông báo đã nhận";
+                    case "new_notice": return "Thông báo mới";
+                }
+                break;
+            case "ja":
+                switch (key) {
+                    case "ai_translate": return "AI翻訳";
+                    case "translation": return "翻訳";
+                    case "ai_subtitle": return "母語 · やさしい韓国語 · 音声";
+                    case "analyzing": return "AIが分析中です...";
+                    case "analyzing_detail": return "AIが分析中です...\n(やさしい韓国語 → 母語 → 音声)";
+                    case "timeout": return "分析がタイムアウトしました。\n長いお知らせは時間がかかる場合があります。\n\nもう一度お試しください。";
+                    case "server_error": return "サーバー接続に失敗しました";
+                    case "todo": return "やること";
+                    case "easy_korean": return "やさしい韓国語";
+                    case "school_terms": return "学校用語";
+                    case "listen": return "聞く";
+                    case "listen_easy_korean": return "やさしい韓国語を聞く";
+                    case "back_to_notice": return "お知らせに戻る";
+                    case "refresh_inbox": return "受信箱を更新";
+                    case "logout": return "ログアウト";
+                    case "loading_inbox": return "受信箱を読み込み中...";
+                    case "empty_inbox": return "お知らせはありません。";
+                    case "received_notices": return "受信したお知らせ";
+                    case "new_notice": return "新しいお知らせ";
+                }
+                break;
+            case "zh":
+                switch (key) {
+                    case "ai_translate": return "AI翻译";
+                    case "translation": return "翻译";
+                    case "ai_subtitle": return "母语 · 简易韩语 · 语音";
+                    case "analyzing": return "AI正在分析...";
+                    case "analyzing_detail": return "AI正在分析...\n(简易韩语 → 母语 → 语音)";
+                    case "timeout": return "分析超时。\n较长通知可能需要更多时间。\n\n请稍后重试。";
+                    case "server_error": return "服务器连接失败";
+                    case "todo": return "待办事项";
+                    case "easy_korean": return "简易韩语";
+                    case "school_terms": return "学校用语";
+                    case "listen": return "收听";
+                    case "listen_easy_korean": return "收听简易韩语";
+                    case "back_to_notice": return "返回通知";
+                    case "refresh_inbox": return "刷新收件箱";
+                    case "logout": return "退出登录";
+                    case "loading_inbox": return "正在加载收件箱...";
+                    case "empty_inbox": return "暂无通知。";
+                    case "received_notices": return "收到的通知";
+                    case "new_notice": return "新通知";
+                }
+                break;
+            case "ru":
+                switch (key) {
+                    case "ai_translate": return "AI-перевод";
+                    case "translation": return "Перевод";
+                    case "ai_subtitle": return "Родной язык · Простой корейский · Аудио";
+                    case "analyzing": return "AI анализирует...";
+                    case "analyzing_detail": return "AI анализирует...\n(Простой корейский → Родной язык → Аудио)";
+                    case "timeout": return "Время анализа истекло.\nДлинные уведомления могут обрабатываться дольше.\n\nПопробуйте еще раз.";
+                    case "server_error": return "Ошибка подключения к серверу";
+                    case "todo": return "Что нужно сделать";
+                    case "easy_korean": return "Простой корейский";
+                    case "school_terms": return "Школьные термины";
+                    case "listen": return "Слушать";
+                    case "listen_easy_korean": return "Слушать простой корейский";
+                    case "back_to_notice": return "Назад к уведомлению";
+                    case "refresh_inbox": return "Обновить";
+                    case "logout": return "Выйти";
+                    case "loading_inbox": return "Загрузка...";
+                    case "empty_inbox": return "Уведомлений нет.";
+                    case "received_notices": return "Полученные уведомления";
+                    case "new_notice": return "Новые уведомления";
+                }
+                break;
+            case "ms":
+                switch (key) {
+                    case "ai_translate": return "Terjemah AI";
+                    case "translation": return "Terjemahan";
+                    case "ai_subtitle": return "Bahasa ibunda · Korea mudah · Audio";
+                    case "analyzing": return "AI sedang menganalisis...";
+                    case "analyzing_detail": return "AI sedang menganalisis...\n(Korea mudah → Bahasa ibunda → Audio)";
+                    case "timeout": return "Analisis tamat masa.\nNotis panjang mungkin mengambil masa.\n\nSila cuba lagi.";
+                    case "server_error": return "Gagal sambung ke pelayan";
+                    case "todo": return "Perlu dibuat";
+                    case "easy_korean": return "Korea mudah";
+                    case "school_terms": return "Istilah sekolah";
+                    case "listen": return "Dengar";
+                    case "listen_easy_korean": return "Dengar Korea mudah";
+                    case "back_to_notice": return "Kembali ke notis";
+                    case "refresh_inbox": return "Muat semula";
+                    case "logout": return "Log keluar";
+                    case "loading_inbox": return "Memuatkan...";
+                    case "empty_inbox": return "Tiada notis.";
+                    case "received_notices": return "Notis diterima";
+                    case "new_notice": return "Notis baharu";
+                }
+                break;
+            case "mn":
+                switch (key) {
+                    case "ai_translate": return "AI орчуулга";
+                    case "translation": return "Орчуулга";
+                    case "ai_subtitle": return "Эх хэл · Хялбар солонгос · Аудио";
+                    case "analyzing": return "AI шинжилж байна...";
+                    case "analyzing_detail": return "AI шинжилж байна...\n(Хялбар солонгос → Эх хэл → Аудио)";
+                    case "timeout": return "Шинжилгээний хугацаа дууслаа.\nУрт мэдэгдэл илүү удаж болно.\n\nДахин оролдоно уу.";
+                    case "server_error": return "Сервертэй холбогдож чадсангүй";
+                    case "todo": return "Хийх зүйл";
+                    case "easy_korean": return "Хялбар солонгос";
+                    case "school_terms": return "Сургуулийн үг";
+                    case "listen": return "Сонсох";
+                    case "listen_easy_korean": return "Хялбар солонгос сонсох";
+                    case "back_to_notice": return "Мэдэгдэл рүү буцах";
+                    case "refresh_inbox": return "Дахин ачаалах";
+                    case "logout": return "Гарах";
+                    case "loading_inbox": return "Ачаалж байна...";
+                    case "empty_inbox": return "Мэдэгдэл алга.";
+                    case "received_notices": return "Ирсэн мэдэгдэл";
+                    case "new_notice": return "Шинэ мэдэгдэл";
+                }
+                break;
+            case "th":
+                switch (key) {
+                    case "ai_translate": return "แปลด้วย AI";
+                    case "translation": return "คำแปล";
+                    case "ai_subtitle": return "ภาษาแม่ · เกาหลีแบบง่าย · เสียง";
+                    case "analyzing": return "AI กำลังวิเคราะห์...";
+                    case "analyzing_detail": return "AI กำลังวิเคราะห์...\n(เกาหลีแบบง่าย → ภาษาแม่ → เสียง)";
+                    case "timeout": return "หมดเวลาการวิเคราะห์\nประกาศยาวอาจใช้เวลานาน\n\nกรุณาลองอีกครั้ง";
+                    case "server_error": return "เชื่อมต่อเซิร์ฟเวอร์ไม่สำเร็จ";
+                    case "todo": return "สิ่งที่ต้องทำ";
+                    case "easy_korean": return "เกาหลีแบบง่าย";
+                    case "school_terms": return "คำศัพท์โรงเรียน";
+                    case "listen": return "ฟัง";
+                    case "listen_easy_korean": return "ฟังเกาหลีแบบง่าย";
+                    case "back_to_notice": return "กลับไปประกาศ";
+                    case "refresh_inbox": return "รีเฟรช";
+                    case "logout": return "ออกจากระบบ";
+                    case "loading_inbox": return "กำลังโหลด...";
+                    case "empty_inbox": return "ยังไม่มีประกาศ";
+                    case "received_notices": return "ประกาศที่ได้รับ";
+                    case "new_notice": return "ประกาศใหม่";
+                }
+                break;
+        }
+        switch (key) {
+            case "ai_translate": return "AI 번역";
+            case "translation": return "번역";
+            case "ai_subtitle": return "모국어 번역 · 쉬운 한국어 · 음성 안내";
+            case "analyzing": return "AI가 분석 중입니다...";
+            case "analyzing_detail": return "AI가 분석 중입니다...\n(쉬운 한국어 → 모국어 번역 → 음성 생성)";
+            case "timeout": return "분석 시간이 초과되었습니다.\n긴 통신문은 처리 시간이 오래 걸릴 수 있습니다.\n\n잠시 후 다시 시도해 주세요.";
+            case "server_error": return "서버 연결 실패";
+            case "todo": return "해야 할 일";
+            case "easy_korean": return "쉬운 한국어";
+            case "school_terms": return "사용된 학교 용어";
+            case "listen": return "듣기";
+            case "listen_easy_korean": return "쉬운 한국어 듣기";
+            case "back_to_notice": return "통신문으로 돌아가기";
+            case "refresh_inbox": return "수신함 새로고침";
+            case "logout": return "로그아웃";
+            case "loading_inbox": return "수신함을 불러오는 중...";
+            case "empty_inbox": return "받은 가정통신문이 없습니다.";
+            case "received_notices": return "받은 가정통신문";
+            case "new_notice": return "새 통신문";
+            default: return key;
+        }
+    }
+
     private String getSavedLanguage() {
         String lang = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
-                .getString(PREF_KEY_LANG, "vi");
-        return isSupportedLanguage(lang) ? lang : "vi";
+                .getString(PREF_KEY_LANG, "ko_easy");
+        return isSupportedLanguage(lang) ? lang : "ko_easy";
     }
 
     private void saveLanguage(String langCode) {
@@ -2078,6 +2356,7 @@ public class MainActivity extends Activity {
 
     private boolean isSupportedLanguage(String code) {
         if (code == null) return false;
+        if (code.equals("ko_easy")) return true;
         for (String lang : LANG_CODES) {
             if (lang.equals(code)) return true;
         }
