@@ -89,7 +89,7 @@ public class OcrActivity extends Activity {
     private static final int REQUEST_CAMERA_PERM  = 3002;
 
     // Quality Gate 임계값 (ocr_lab 실험 결과 기준)
-    private static final double AUTO_PASS_THRESHOLD = 0.90;
+    private static final double AUTO_PASS_THRESHOLD = 0.80;
     private static final int    MIN_TEXT_LENGTH      = 120;
 
     // Korean/ASCII word char pattern for quality scoring

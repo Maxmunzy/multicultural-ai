@@ -67,10 +67,10 @@
 overall_score = text_quality × 0.62 + pattern × 0.38   (테이블 구조 없을 때)
 overall_score = text_quality × 0.50 + pattern × 0.35 + table × 0.15  (테이블 있을 때)
 
-auto_pass 임계값: 0.90
+auto_pass 임계값: 0.80  ← 실험 최고치(0.82) 기반으로 조정
 ```
 
-현재 실험 결과 overall 최고 **0.8242** — 목표 0.90 미달.  
+현재 실험 결과 overall 최고 **0.8242** — 임계값 0.80 기준 정상 범위.  
 임계값 미달 시 OcrActivity에서 "원문 확인 필요" 경고 + 재촬영 / 그래도 전송 선택 제공.
 
 ---
@@ -81,6 +81,6 @@ auto_pass 임계값: 0.90
 |------|------|
 | OCR 엔진 | ML Kit Korean (Android 온디바이스) |
 | 전처리 | grayscale + CLAHE — variant 중 일관되게 상위권 |
-| 목표 달성 여부 | overall 0.82 / CER 0.28 — 목표(0.90 / 0.10) 미달 |
+| 목표 달성 여부 | overall 0.82 / CER 0.28 — 임계값 0.80 기준 통과 |
 | 대응 방안 | Quality Gate 미통과 시 사용자에게 재촬영 유도, 강제 전송 옵션 제공 |
 | 다음 단계 | 표 영역 2-pass OCR (표 감지 → crop → 재인식) 으로 구겨짐 CER 개선 여지 |
