@@ -190,3 +190,36 @@ feature/xxx  기능 단위 브랜치 (PR → dev)
 | 제출 | 동의서, 신청서, 확인서, 예방접종 서류 |
 | 비용 | 체험학습비, 급식비, 방과후 수업비 |
 | 건강·안전 | 독감 예방, 알레르기 조사, 안전교육 |
+
+---
+
+## Todo 라벨 초안 생성
+
+JSONL 문장 데이터의 기존 `is_todo`를 `original_is_todo`로 보존하고, 사람이 검수할 수 있는 `draft_is_todo`, `reason`, `review_required` 초안을 생성합니다.
+
+```bash
+python scripts/prepare_todo_labels.py \
+  --input_path data/raw/todo_raw.jsonl \
+  --output_jsonl_path data/processed/todo_labeled_draft.jsonl \
+  --output_csv_path data/processed/todo_labeled_draft.csv
+```
+
+Gemini API 키가 있으면 긴 원문을 먼저 의미 단위로 나눈 뒤 draft 라벨을 만들 수 있습니다. 실제 API 키는 `.env`에 넣고, `.env`는 GitHub에 올리지 않습니다. 공유용 샘플은 `.env.example`만 올립니다.
+
+```bash
+cp .env.example .env
+```
+
+`.env` 파일에 본인 Gemini API 키를 입력합니다.
+
+```bash
+python scripts/prepare_todo_labels.py \
+  --input_path data/raw/todo_raw.jsonl \
+  --output_jsonl_path data/processed/todo_labeled_draft.jsonl \
+  --output_csv_path data/processed/todo_labeled_draft.csv \
+  --use_gemini_segment
+```
+
+API 키가 없거나 Gemini 응답 파싱에 실패하면 기존 rule split으로 자동 fallback됩니다.
+
+이 스크립트의 결과는 정답 라벨이 아니라 검수용 초안입니다. `review_required=true` 행을 먼저 확인한 뒤 최종 라벨을 확정하세요.
