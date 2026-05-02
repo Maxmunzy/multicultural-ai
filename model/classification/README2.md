@@ -272,12 +272,13 @@ model/classification/
 ├── checkpoints/                     ← 학습 후 모델 파일 저장 위치
 ├── docs/
 │   └── devlog_2026-04-30.md         ← 오늘 개발일지
-└── README2.md                       ← 경이님 상세 가이드
-경이님이 지금 바로 실행할 순서:
+└── README2.md                       ← 상세 가이드
+
+# 지금 바로 실행할 순서:
 
 python scripts/split_dataset.py → 데이터 분할
 python src/classifier_simple.py → 베이스라인 학습
 Colab에서 notebooks/01_train_kcelectra.ipynb → KcELECTRA 파인튜닝 (GPU)
 python scripts/evaluate_compare.py → 두 모델 성능 비교
 notebooks/02_evaluate_compare.ipynb → 시각화 차트 생성 (발표 근거 자료)
-백엔드가 호출하는 predict_one() 인터페이스는 기존과 완전히 호환되며, model="simple" / "kcelectra" / "auto" 세 가지 모드를 지원합니다. 자세한 설명은 README2.md와 devlog_2026-04-30.md를 참고하세요.
+백엔드가 호출하는 predict_one() 인터페이스는 기존과 완전히 호환되며, model="simple" / "kcelectra" / "auto" 세 가지 모드를 지원합니다. 자세한 설명은 README2.md와 devlog_2026-04-30.md를 참고.
