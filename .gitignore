@@ -62,3 +62,7 @@ multicultural-school-ai/
 
 # 미팅 자료 (디코로만 공유, 깃에는 안 올림)
 docs/meetings/
+
+# 학습 데이터 draft (대용량, 미완성)
+data/processed/
+data/raw/
