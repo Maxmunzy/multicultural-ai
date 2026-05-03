@@ -42,6 +42,12 @@ import org.opencv.core.Size;
 import org.opencv.imgproc.CLAHE;
 import org.opencv.imgproc.Imgproc;
 
+import android.graphics.Rect;
+import org.opencv.core.Core;
+import org.opencv.core.MatOfPoint;
+import org.opencv.core.MatOfPoint2f;
+import org.opencv.core.Point;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -64,8 +70,8 @@ import java.util.regex.Pattern;
  * 흐름:
  *   1. 카메라 Intent로 원본 사진 촬영 (FileProvider URI)
  *   2. EXIF 회전 보정
- *   3. 전처리 2종 (원본 / grayscale+CLAHE) 병렬 OCR
- *   4. Quality Gate: text_quality 0.62 + pattern 0.38 ≥ 0.90 → auto_pass
+ *   3. 전처리 2종 (원본 / grayscale+CLAHE) 병렬 OCR → best 선택 → 표 감지 → 2-pass 재인식
+ *   4. Quality Gate: 표 없음 text 0.62 + pattern 0.38 / 표 있음 text 0.50 + pattern 0.35 + table 0.15 ≥ 0.80 → auto_pass
  *   5. pass: 백엔드 /notice/upload → notice_id 반환 → MainActivity
  *      fail: "원문 확인 필요" 경고 + 재촬영 / 그래도 전송 선택
  *
@@ -340,7 +346,6 @@ public class OcrActivity extends Activity {
     }
 
     private void onAllVariantsDone(String[] texts, double[] scores) {
-        // 가장 높은 text_quality 변형 선택
         int bestIdx = 0;
         for (int i = 1; i < scores.length; i++) {
             if (scores[i] > scores[bestIdx]) bestIdx = i;
@@ -348,9 +353,122 @@ public class OcrActivity extends Activity {
         bestOcrText = texts[bestIdx] != null ? texts[bestIdx] : "";
         bestScore = scores[bestIdx];
 
-        double patternScore = calculatePatternScore(bestOcrText);
-        // 테이블 구조 없음 → weights: text 0.62, pattern 0.38
-        double overall = bestScore * 0.62 + patternScore * 0.38;
+        executor.execute(() -> {
+            Bitmap original = loadAndRotateBitmap(photoFile.getAbsolutePath());
+            List<Rect> tableRegions = original != null
+                    ? detectTableRegions(original) : new ArrayList<>();
+            if (!tableRegions.isEmpty() && original != null) {
+                runTablePassOcr(original, tableRegions);
+            } else {
+                finalizeOcr(bestOcrText, bestScore, false);
+            }
+        });
+    }
+
+    private List<Rect> detectTableRegions(Bitmap src) {
+        List<Rect> regions = new ArrayList<>();
+        try {
+            Mat mat = new Mat();
+            Utils.bitmapToMat(src, mat);
+            Mat gray = new Mat();
+            Imgproc.cvtColor(mat, gray, Imgproc.COLOR_RGB2GRAY);
+
+            Mat thresh = new Mat();
+            Imgproc.adaptiveThreshold(gray, thresh, 255,
+                    Imgproc.ADAPTIVE_THRESH_MEAN_C,
+                    Imgproc.THRESH_BINARY_INV, 15, 10);
+
+            int cols = gray.cols();
+            int rows = gray.rows();
+            Mat hKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(cols / 8, 1));
+            Mat hLines = new Mat();
+            Imgproc.erode(thresh, hLines, hKernel);
+            Imgproc.dilate(hLines, hLines, hKernel);
+
+            Mat vKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(1, rows / 8));
+            Mat vLines = new Mat();
+            Imgproc.erode(thresh, vLines, vKernel);
+            Imgproc.dilate(vLines, vLines, vKernel);
+
+            Mat combined = new Mat();
+            Core.add(hLines, vLines, combined);
+            Mat dilKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(5, 5));
+            Imgproc.dilate(combined, combined, dilKernel);
+
+            List<MatOfPoint> contours = new ArrayList<>();
+            Imgproc.findContours(combined, contours, new Mat(),
+                    Imgproc.RETR_EXTERNAL, Imgproc.CHAIN_APPROX_SIMPLE);
+
+            double minArea = (double) src.getWidth() * src.getHeight() / 50.0;
+            for (MatOfPoint contour : contours) {
+                org.opencv.core.Rect r = Imgproc.boundingRect(contour);
+                if (r.area() >= minArea) {
+                    int pad = 8;
+                    int x = Math.max(0, r.x - pad);
+                    int y = Math.max(0, r.y - pad);
+                    int w = Math.min(src.getWidth() - x, r.width + pad * 2);
+                    int h = Math.min(src.getHeight() - y, r.height + pad * 2);
+                    regions.add(new Rect(x, y, x + w, y + h));
+                }
+            }
+        } catch (Exception e) {
+            // fall through, return empty
+        }
+        return regions;
+    }
+
+    private void runTablePassOcr(Bitmap original, List<Rect> regions) {
+        final int total = regions.size();
+        final int[] pending = {total};
+        final String[] tableParts = new String[total];
+
+        for (int i = 0; i < total; i++) {
+            final int idx = i;
+            Rect r = regions.get(i);
+            try {
+                Bitmap crop = Bitmap.createBitmap(original, r.left, r.top, r.width(), r.height());
+                Bitmap proc = toGrayscaleClahe(crop);
+                InputImage img = InputImage.fromBitmap(proc != null ? proc : crop, 0);
+                recognizer.process(img)
+                        .addOnSuccessListener(result -> {
+                            tableParts[idx] = extractTextFromResult(result);
+                            synchronized (pending) {
+                                if (--pending[0] == 0) mergeAndFinalize(tableParts);
+                            }
+                        })
+                        .addOnFailureListener(e -> {
+                            tableParts[idx] = "";
+                            synchronized (pending) {
+                                if (--pending[0] == 0) mergeAndFinalize(tableParts);
+                            }
+                        });
+            } catch (Exception e) {
+                tableParts[idx] = "";
+                synchronized (pending) {
+                    if (--pending[0] == 0) mergeAndFinalize(tableParts);
+                }
+            }
+        }
+    }
+
+    private void mergeAndFinalize(String[] tableParts) {
+        StringBuilder sb = new StringBuilder(bestOcrText);
+        boolean hasTableText = false;
+        for (String part : tableParts) {
+            if (part != null && !part.isEmpty()) {
+                sb.append("\n").append(part);
+                hasTableText = true;
+            }
+        }
+        finalizeOcr(sb.toString(), bestScore, hasTableText);
+    }
+
+    private void finalizeOcr(String text, double textScore, boolean hasTable) {
+        bestOcrText = text;
+        double patternScore = calculatePatternScore(text);
+        double overall = hasTable
+                ? textScore * 0.50 + patternScore * 0.35 + calculateTextQualityScore(text) * 0.15
+                : textScore * 0.62 + patternScore * 0.38;
 
         final double finalOverall = overall;
         runOnUiThread(() -> {
@@ -360,7 +478,6 @@ public class OcrActivity extends Activity {
                 showRetry(false);
                 return;
             }
-
             if (finalOverall >= AUTO_PASS_THRESHOLD) {
                 setStatus(String.format("✅ OCR 완료 (점수 %.2f) — 업로드 중…", finalOverall));
                 uploadOcrText(bestOcrText);
@@ -374,11 +491,89 @@ public class OcrActivity extends Activity {
         List<Bitmap> variants = new ArrayList<>();
         variants.add(src);
 
-        // grayscale + CLAHE contrast
         Bitmap gray = toGrayscaleClahe(src);
         if (gray != null) variants.add(gray);
 
+        Bitmap warped = warpDocument(src);
+        if (warped != null) {
+            variants.add(warped);
+            Bitmap warpedGray = toGrayscaleClahe(warped);
+            if (warpedGray != null) variants.add(warpedGray);
+        }
+
         return variants;
+    }
+
+    private Bitmap warpDocument(Bitmap src) {
+        try {
+            Mat mat = new Mat();
+            Utils.bitmapToMat(src, mat);
+            Mat gray = new Mat();
+            Imgproc.cvtColor(mat, gray, Imgproc.COLOR_RGB2GRAY);
+
+            Mat blurred = new Mat();
+            Imgproc.GaussianBlur(gray, blurred, new Size(5, 5), 0);
+            Mat edges = new Mat();
+            Imgproc.Canny(blurred, edges, 75, 200);
+            Mat dilKernel = Imgproc.getStructuringElement(Imgproc.MORPH_RECT, new Size(3, 3));
+            Imgproc.dilate(edges, edges, dilKernel);
+
+            List<MatOfPoint> contours = new ArrayList<>();
+            Imgproc.findContours(edges, contours, new Mat(),
+                    Imgproc.RETR_LIST, Imgproc.CHAIN_APPROX_SIMPLE);
+
+            MatOfPoint2f docContour = null;
+            double maxArea = src.getWidth() * src.getHeight() * 0.2;
+            for (MatOfPoint contour : contours) {
+                MatOfPoint2f c2f = new MatOfPoint2f(contour.toArray());
+                double peri = Imgproc.arcLength(c2f, true);
+                MatOfPoint2f approx = new MatOfPoint2f();
+                Imgproc.approxPolyDP(c2f, approx, 0.02 * peri, true);
+                if (approx.total() == 4) {
+                    double area = Imgproc.contourArea(approx);
+                    if (area > maxArea) {
+                        maxArea = area;
+                        docContour = approx;
+                    }
+                }
+            }
+            if (docContour == null) return null;
+
+            Point[] ordered = orderPoints(docContour.toArray());
+            double w = Math.max(
+                    Math.hypot(ordered[2].x - ordered[3].x, ordered[2].y - ordered[3].y),
+                    Math.hypot(ordered[1].x - ordered[0].x, ordered[1].y - ordered[0].y));
+            double h = Math.max(
+                    Math.hypot(ordered[1].x - ordered[2].x, ordered[1].y - ordered[2].y),
+                    Math.hypot(ordered[0].x - ordered[3].x, ordered[0].y - ordered[3].y));
+
+            MatOfPoint2f dst = new MatOfPoint2f(
+                    new Point(0, 0), new Point(w - 1, 0),
+                    new Point(w - 1, h - 1), new Point(0, h - 1));
+            Mat M = Imgproc.getPerspectiveTransform(new MatOfPoint2f(ordered), dst);
+            Mat result = new Mat();
+            Imgproc.warpPerspective(mat, result, M, new Size(w, h));
+
+            Bitmap bmp = Bitmap.createBitmap(result.cols(), result.rows(), Bitmap.Config.ARGB_8888);
+            Utils.matToBitmap(result, bmp);
+            return bmp;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Point[] orderPoints(Point[] pts) {
+        Point tl = pts[0], tr = pts[0], br = pts[0], bl = pts[0];
+        double minSum = Double.MAX_VALUE, maxSum = -Double.MAX_VALUE;
+        double minDiff = Double.MAX_VALUE, maxDiff = -Double.MAX_VALUE;
+        for (Point p : pts) {
+            double sum = p.x + p.y, diff = p.y - p.x;
+            if (sum < minSum) { minSum = sum; tl = p; }
+            if (sum > maxSum) { maxSum = sum; br = p; }
+            if (diff < minDiff) { minDiff = diff; tr = p; }
+            if (diff > maxDiff) { maxDiff = diff; bl = p; }
+        }
+        return new Point[]{tl, tr, br, bl};
     }
 
     private Bitmap toGrayscaleClahe(Bitmap src) {

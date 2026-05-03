@@ -27,8 +27,8 @@
     │ 방법 2: HWP·PDF·TXT 파일 선택
     ▼ POST /notice/upload  → parser(태수): HWP→ODT→텍스트 / PDF→pdfplumber
     │
-    │ 방법 3: 카메라 사진 촬영 (OcrActivity)
-    │   ML Kit Korean OCR → Quality Gate(0.90) → TXT → POST /notice/upload
+    │ 방법 3: 카메라 사진 촬영 (OcrActivity, 학부모 홈)
+    │   ML Kit Korean OCR (4종 전처리 + 2-pass 표 재인식) → Quality Gate(0.80) → POST /notice/upload-self
     ▼
 [FastAPI 서버]
     │ 권한 검증 (teacher 역할) · 가정통신문 저장
@@ -72,6 +72,7 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | --- | --- | --- | --- |
 | `/notice/send` | POST | teacher 본인 | 선생님이 학부모에게 가정통신문 발송 (body의 `teacher_id`가 헤더와 일치해야 함) |
 | `/notice/upload` | POST | teacher 본인 | HWP·PDF·TXT·이미지 파일 업로드 → 텍스트 변환 후 저장 |
+| `/notice/upload-self` | POST | parent 본인 | 학부모 자가 업로드 (종이 통신문 사진 촬영 → OcrActivity → 서버 전송) |
 | `/notice/inbox/{parent_id}` | GET | parent 본인 | 학부모 본인 수신함 조회 |
 | `/notice/inbox/{parent_id}` | DELETE | parent 본인 | 본인 수신함 초기화 (시연용) |
 | `/notice/analyze/{notice_id}` | POST | parent 본인 | body의 `target_language`(vi/en/ru/ms/mn/zh/th/ja/ko_easy)로 분석 결과 생성 |

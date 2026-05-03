@@ -44,13 +44,13 @@ Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출�
 
 ---
 
-## 현재 구현 상태 (2026-04-29 갱신)
+## 현재 구현 상태 (2026-05-03 갱신)
 
 | 영역 | 상태 | 메모 |
 | --- | --- | --- |
 | Backend | 완료 | FastAPI, Docker, `/notice`, `/tts`, `/user`, `/health` 라우터. X-User-Id 헤더 + 역할 권한 검증. v2 분업 응답 구조(`summary` 8슬롯 + `items`) 적용 완료 |
-| Android | 완료 | Java 단일 Activity. 선생님 화면에 PDF/HWP 파일 업로드 버튼 추가, 학부모 화면은 새 슬롯 응답(action_hint, urls/phones 칩 포함) 렌더링 |
-| 데이터 | 진행 중 | 갈산초 281장 .txt 변환 완료 (`data/raw/galsan_txt/`), 윤정님께 전달. 학습 라벨링 진행 중 |
+| Android | 완료 | Java 단일 Activity. 선생님 화면 PDF/HWP 파일 업로드, 학부모 홈 카메라 OCR(OcrActivity — ML Kit Korean, 4종 전처리, 2-pass 표 재인식), 슬롯 응답 렌더링 |
+| 데이터 | 진행 중 | v3_school_dedup.jsonl 20,843행 확보. 팀장님 Claude Haiku로 is_todo + is_title 이중 라벨링 진행 중 |
 | 파일 입력 | 완료 | `services/parser.py` — HWP/PDF/text → clean_text 통합. LibreOffice + H2Orestart + 한글폰트 Dockerfile 영구 설치. `POST /notice/upload` multipart 엔드포인트 |
 | URL/전화 보호 | 완료 | NLLB가 깨먹는 패턴 방어 — 슬롯 단위 ko 그대로 + 본문은 `⟦P0⟧` placeholder 마스킹 |
 | 번역/TTS | 완료 | NLLB 다국어 번역(vi/en/ru/ms/mn/zh/th/ja), 용어사전 검수, Edge-TTS 9개 보이스 매핑, 통화 오번역 후처리 포함 |
