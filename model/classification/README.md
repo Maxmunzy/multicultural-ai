@@ -177,34 +177,37 @@ simple v1이 이미 75% 정확도라 시연 박살 안 남
 
 경이님이 비교 실험 의지 있는 건 좋음. 다만 제대로 비교해야 가치 있고, 시연 4주 안 압박도 있으니 셋업이 중요.
 
-비교 실험 설계 가이드
-후보 모델 선정 (3~4개가 최대)
-모델    카테고리    학습 시간    강점    약점
-TF-IDF + LogReg    베이스라인 (필수)    수초    빠름, 가벼움    OOV·문맥 약
-SBERT + LightGBM    임베딩 ML    분    의미 유사도    도메인 적응 약
-KcELECTRA-small fine-tune    한국어 BERT    20~30분    도메인 학습    base 한국 일반
-KoBERT fine-tune    한국어 BERT    20~30분    한국어 특화    KcELECTRA와 비슷
+# 비교 실험 설계 가이드
+1. 후보 모델 선정 (3~4개가 최대)
+모델                              카테고리           학습 시간       강점               
+TF-IDF + LogReg                베이스라인 (필수)       수초          빠름              
+SBERT + LightGBM                임베딩 ML             분         의미 유사도           
+KcELECTRA-small fine-tune      한국어 BERT          20~30분      도메인 학습          
+KoBERT fine-tune               한국어 BERT          20~30분      한국어 특화  
+
 → 3개 권장: TF-IDF (baseline) + SBERT + KcELECTRA. 4개는 시간 박살.
 
 2. 공정 비교를 위한 절대 규칙
 (a) 동일 train/val/test 분할 강제
-
 
 scripts/split_dataset.py 만들어서 ONE TIME 실행:
 random.seed(42)  # 무조건 고정
 labels = stratified_split(data, train=0.8, val=0.1, test=0.1)
 
 split_v1.csv 라는 단일 파일로 저장 → 모든 모델이 같은 분할 사용
+
 (b) Metric 통일
 
 Macro F1 (메인) — 클래스 불균형 대비
 Per-class F1 — "비용은 잘 잡는데 건강·안전은 못 잡는다" 같은 진단
 Confusion matrix — 어디서 헷갈리는지 시각화
+
 (c) Seed 고정 — numpy, torch, random 모두 42
 
 추천2.  모델: klue/roberta-base
 
-KoELECTRA(A단계)와 겹치지 않고, KLUE 벤치마크에서 한국어 분류 SOTA. 파인튜닝이 안정적이고 허깅페이스에서 바로 쓸 수 있음.
+KoELECTRA(A단계)와 겹치지 않고, KLUE 벤치마크에서 한국어 분류 SOTA. 
+파인튜닝이 안정적이고 허깅페이스에서 바로 쓸 수 있음.
 
 
 
