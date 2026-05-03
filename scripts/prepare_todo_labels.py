@@ -445,57 +445,6 @@ def make_gemini_rows(
     return rows, next_id
 
 
-def make_draft_rows(
-    source_rows: list[dict[str, Any]],
-    use_gemini_segment: bool = False,
-    gemini_model: str = GEMINI_DEFAULT_MODEL,
-    gemini_timeout: int = 30,
-) -> list[dict[str, Any]]:
-    """원본 row를 문장 단위 draft row로 변환한다."""
-    draft_rows: list[dict[str, Any]] = []
-    next_id = 1
-    api_key = gemini_api_key() if use_gemini_segment else ""
-
-    if use_gemini_segment and not api_key:
-        print("[WARN] GEMINI_API_KEY 또는 GOOGLE_API_KEY가 없어 rule_split만 수행합니다.", file=sys.stderr)
-
-    for source in source_rows:
-        original_text = str(source.get("text", "") or "")
-        original_is_todo = source.get("is_todo")
-        use_gemini_for_row = use_gemini_segment and bool(api_key) and should_use_gemini_segment(original_text)
-
-        if use_gemini_for_row:
-            try:
-                rows, next_id = make_gemini_rows(
-                    original_text=original_text,
-                    original_is_todo=original_is_todo,
-                    start_id=next_id,
-                    api_key=api_key,
-                    model=gemini_model,
-                    timeout=gemini_timeout,
-                )
-                draft_rows.extend(rows)
-                continue
-            except Exception as exc:
-                preview = original_text[:80].replace("\n", " ")
-                print(f"[WARN] Gemini segmentation 실패, rule_split fallback: {exc} | text={preview}", file=sys.stderr)
-
-        rows, next_id = make_rule_rows(
-            original_text=original_text,
-            original_is_todo=original_is_todo,
-            start_id=next_id,
-        )
-        draft_rows.extend(rows)
-
-    return draft_rows
-
-
-def write_jsonl(path: Path, rows: list[dict[str, Any]]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8", newline="") as f:
-        for row in rows:
-            f.write(json.dumps(row, ensure_ascii=False) + "\n")
-
 
 def write_csv(path: Path, rows: list[dict[str, Any]]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -539,17 +488,57 @@ def main() -> None:
     output_csv_path = Path(args.output_csv_path)
 
     source_rows = iter_jsonl(input_path)
-    draft_rows = make_draft_rows(
-        source_rows,
-        use_gemini_segment=args.use_gemini_segment,
-        gemini_model=args.gemini_model,
-        gemini_timeout=args.gemini_timeout,
-    )
-    write_jsonl(output_jsonl_path, draft_rows)
-    write_csv(output_csv_path, draft_rows)
+    total = len(source_rows)
+    print(f"[START] 입력 row: {total}", flush=True)
 
-    print(f"[OK] 입력 row: {len(source_rows)}")
-    print(f"[OK] draft row: {len(draft_rows)}")
+    output_jsonl_path.parent.mkdir(parents=True, exist_ok=True)
+    api_key = gemini_api_key() if args.use_gemini_segment else ""
+    if args.use_gemini_segment and not api_key:
+        print("[WARN] GEMINI_API_KEY 또는 GOOGLE_API_KEY가 없어 rule_split만 수행합니다.", file=sys.stderr)
+
+    all_rows: list[dict[str, Any]] = []
+    next_id = 1
+    gemini_ok = 0
+    gemini_fail = 0
+
+    with output_jsonl_path.open("w", encoding="utf-8", newline="") as jf:
+        for idx, source in enumerate(source_rows):
+            original_text = str(source.get("text", "") or "")
+            original_is_todo = source.get("is_todo")
+            use_gemini_for_row = args.use_gemini_segment and bool(api_key) and should_use_gemini_segment(original_text)
+
+            if use_gemini_for_row:
+                try:
+                    rows, next_id = make_gemini_rows(
+                        original_text=original_text,
+                        original_is_todo=original_is_todo,
+                        start_id=next_id,
+                        api_key=api_key,
+                        model=args.gemini_model,
+                        timeout=args.gemini_timeout,
+                    )
+                    gemini_ok += 1
+                except Exception as exc:
+                    preview = original_text[:80].replace("\n", " ")
+                    print(f"[WARN] Gemini segmentation 실패, rule_split fallback: {exc} | text={preview}", file=sys.stderr, flush=True)
+                    gemini_fail += 1
+                    rows, next_id = make_rule_rows(original_text, original_is_todo, next_id)
+            else:
+                rows, next_id = make_rule_rows(original_text, original_is_todo, next_id)
+
+            for row in rows:
+                jf.write(json.dumps(row, ensure_ascii=False) + "\n")
+            all_rows.extend(rows)
+
+            if (idx + 1) % 500 == 0:
+                jf.flush()
+                pct = (idx + 1) / total * 100
+                print(f"[PROGRESS] {idx+1}/{total} ({pct:.1f}%) | draft rows: {len(all_rows)} | gemini ok/fail: {gemini_ok}/{gemini_fail}", flush=True)
+
+    write_csv(output_csv_path, all_rows)
+    print(f"[OK] 입력 row: {total}")
+    print(f"[OK] draft row: {len(all_rows)}")
+    print(f"[OK] Gemini 성공/실패: {gemini_ok}/{gemini_fail}")
     print(f"[OK] JSONL 저장: {output_jsonl_path}")
     print(f"[OK] CSV 저장: {output_csv_path}")
 
