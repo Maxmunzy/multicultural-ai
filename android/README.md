@@ -5,10 +5,11 @@
 ## 포함 기능
 
 - 시작 화면: 선생님 / 학부모 모드 선택
-- 선생님 화면: 가정통신문 작성 후 `POST /notice/send`
+- 선생님 화면: 가정통신문 작성 후 `POST /notice/send` / HWP·PDF 파일 업로드 `POST /notice/upload`
 - 학부모 화면: `GET /notice/inbox/{parent_id}`로 수신함 조회
+- **학부모 홈 카메라 OCR**: 종이 통신문 촬영 → ML Kit Korean (4종 전처리 + 2-pass 표 재인식) → Quality Gate(0.80) → `POST /notice/upload-self`
 - 분석 버튼: `POST /notice/analyze/{notice_id}`
-- 분석 결과 표시: 해야 할 일, 쉬운 한국어, 베트남어 번역, 용어 검수 결과
+- 분석 결과 표시: 해야 할 일, 쉬운 한국어, 선택 언어 번역(9개국어), 용어 검수 결과
 - TTS 재생: 서버 TTS URL이 있으면 해당 파일 재생, 없으면 앱 내장 mp3 재생
 
 ## 준비물

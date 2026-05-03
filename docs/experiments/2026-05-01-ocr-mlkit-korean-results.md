@@ -99,4 +99,4 @@ auto_pass 임계값: 0.80  ← 실험 최고치(0.82) 기반으로 조정
 | 전처리 | grayscale + CLAHE — variant 중 일관되게 상위권 |
 | 목표 달성 여부 | overall 0.82 / CER 0.28 — 임계값 0.80 기준 통과 |
 | 대응 방안 | Quality Gate 미통과 시 사용자에게 재촬영 유도, 강제 전송 옵션 제공 |
-| 다음 단계 | 표 영역 2-pass OCR (표 감지 → crop → 재인식) 으로 구겨짐 CER 개선 여지 |
+| 다음 단계 | ✅ 05.03 완료 — 2-pass 표 OCR + warped 4종 전처리 Android 구현 (feature/sejong-data-tts) |

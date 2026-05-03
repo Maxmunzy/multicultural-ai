@@ -27,12 +27,13 @@
 | 용어사전 검수 | 학교 안내 핵심 용어 누락 확인 | 완료 (용어 확장) |
 | TTS 재생 | 언어별 Edge-TTS 음성(9개) 또는 앱 내장 mp3 fallback | 완료 |
 | Android 실기기 데모 | Java 단일 Activity 앱 | 완료 |
+| HWP/PDF/텍스트 파일 업로드 | `POST /notice/upload` — LibreOffice + H2Orestart 변환, `services/parser.py` | 완료 |
+| 카메라 OCR (학부모) | `OcrActivity` — ML Kit Korean 온디바이스, 4종 전처리, 2-pass 표 재인식, `POST /notice/upload-self` | 완료 |
 
 ### 제외
 
 | 기능 | 제외 이유 |
 | --- | --- |
-| OCR 이미지/PDF 인식 | 텍스트 입력 흐름 검증을 우선 |
 | 실제 학교 시스템 연동 | MVP 이후 확장 범위 |
 | 자동 문자/푸시 알림 | 앱 내 수신함 시연을 우선 |
 | 자동 일정 등록 | 핵심 안내 이해를 우선 |
@@ -78,10 +79,13 @@
 - [x] Docker 실행 환경 구성
 - [x] 공통 응답 형식: `{ status, data, message }`
 - [x] `POST /notice/send` (teacher 권한 + body.teacher_id 일치 검증)
+- [x] `POST /notice/upload` (HWP/PDF/text multipart, teacher 권한)
+- [x] `POST /notice/upload-self` (parent 자가 업로드 — 종이 통신문 촬영본)
 - [x] `GET /notice/inbox/{parent_id}` (parent 본인만)
 - [x] `DELETE /notice/inbox/{parent_id}` (parent 본인만, 시연용)
 - [x] `POST /notice/analyze/{notice_id}` (parent 본인만, target_language 동적)
 - [x] `POST /tts/generate` (언어별 Edge-TTS 보이스 자동 매핑)
+- [x] `services/parser.py` — HWP/PDF/text/이미지 → clean_text (LibreOffice + H2Orestart + Tesseract fallback)
 - [x] `GET /user/{id}`, `POST /user/`
 - [x] `GET /health`
 - [x] X-User-Id 헤더 인증 + 역할 기반 권한(teacher/parent) 검증
@@ -100,6 +104,8 @@
 - [x] TTS 재생/정지 토글
 - [x] 내장 데모 산출물 fallback (서버 연결 실패 시)
 - [x] 내장 mp3 TTS 재생
+- [x] 학부모 홈 카메라 OCR (OcrActivity — ML Kit Korean, 4종 전처리, 2-pass 표 재인식)
+- [x] 선생님 홈 HWP/PDF 파일 업로드
 - [ ] `BASE_URL` 환경별 설정 방식 개선
 
 ### 문서

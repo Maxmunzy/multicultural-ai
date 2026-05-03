@@ -196,10 +196,10 @@ MVP의 중요한 관찰 지점입니다. NLLB 원번역은 자연스럽지 않�
 | 제한사항 | 설명 |
 | --- | --- |
 | DB 없음 | 가정통신문은 서버 메모리에 저장되므로 재시작 시 사라짐 |
-| OCR 없음 | 이미지/PDF가 아니라 텍스트 입력 기준 |
+| OCR | 학부모 홈 카메라 촬영 → ML Kit Korean 온디바이스 인식 (OcrActivity). HWP/PDF는 서버사이드 파서 직접 처리 |
 | 실제 학교 시스템 연동 없음 | MVP에서는 앱 내부 발송/수신 흐름만 시연 |
 | Android IP 수동 설정 | 네트워크가 바뀌면 `BASE_URL` 수정 필요 |
-| 학습 데이터 부족 | 147행 / 클래스 불균형 17.5:1. 학교 홈페이지 디지털 원본 수동 다운로드로 확보 진행 중 |
+| 학습 데이터 | v3_school_dedup.jsonl 20,843행 확보 완료. 팀장님 Claude Haiku로 is_todo + is_title 이중 라벨링 진행 중 |
 
 ---
 
@@ -419,18 +419,22 @@ docker compose run -e PARSER_LIBREOFFICE_TIMEOUT=600 backend
   -> 기존 앱 화면에 표시
 ```
 
-### 왜 OCR은 이번 MVP에서 제외했나
+### OCR 입력 경로 (현재 구현 상태)
 
-OCR은 이미지나 PDF에서 글자를 읽어 오는 별도 문제입니다. 이번 MVP에서는 OCR까지 넣으면 입력 품질, 이미지 촬영 환경, 문서 레이아웃 처리 문제가 함께 들어와서 핵심 검증 범위가 흐려질 수 있습니다.
+카메라 입력 경로와 디지털 파일 경로 두 가지가 구현되어 있습니다.
 
-그래서 현재는 텍스트 가정통신문을 입력으로 고정하고, 아래 흐름을 먼저 검증합니다.
+**카메라 (학부모 홈 — OcrActivity)**
+- ML Kit Korean 온디바이스 인식
+- 전처리 4종 병렬: raw / grayscale+CLAHE / warped(원근 보정) / warped+CLAHE
+- 2-pass 표 OCR: 전체 인식 → OpenCV 표 감지 → 표 영역 crop 재인식
+- Quality Gate (overall ≥ 0.80) 미통과 시 재촬영 / 강제 전송 선택 UI
+- 업로드: `POST /notice/upload-self`
 
-- 선생님이 텍스트 가정통신문을 발송한다.
-- 학부모가 수신함에서 확인한다.
-- 서버가 체크리스트/번역/검수/TTS 결과를 만든다.
-- Android 실기기에서 결과와 음성을 확인한다.
-
-OCR은 이후 단계에서 앞단 입력 모듈로 붙일 수 있습니다. 즉 OCR을 뺀 것은 기능 포기가 아니라, MVP에서 검증할 핵심을 `텍스트 이해 -> 번역/검수 -> 음성 안내`로 좁힌 설계 결정입니다.
+**디지털 파일 (선생님 홈 — 서버사이드 parser.py)**
+- HWP/HWPX: LibreOffice headless → pdfplumber
+- PDF: pdfplumber 직접 처리
+- 이미지(.jpg/.png 등): Tesseract fallback
+- 업로드: `POST /notice/upload`
 
 ---
 
