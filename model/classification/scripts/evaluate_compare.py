@@ -23,6 +23,7 @@
 import argparse
 import json
 import sys
+from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
@@ -44,6 +45,32 @@ LABELS = ["일정", "준비물", "제출", "비용", "건강·안전", "기타"]
 OUT_DIR = _BASE / "data"
 
 
+def _fill_per_class_from_cm(res: dict) -> dict:
+    """Colab 저장 JSON에 per_class가 없을 때 confusion_matrix에서 보완."""
+    if res.get("per_class"):
+        return res
+    cm = res.get("confusion_matrix")
+    labels = res.get("labels", LABELS)
+    if not cm:
+        return res
+    per_class = {}
+    for i, label in enumerate(labels):
+        tp = cm[i][i]
+        fp = sum(cm[r][i] for r in range(len(cm))) - tp
+        fn = sum(cm[i]) - tp
+        precision = tp / (tp + fp) if (tp + fp) > 0 else 0.0
+        recall    = tp / (tp + fn) if (tp + fn) > 0 else 0.0
+        f1        = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
+        per_class[label] = {
+            "precision": round(precision, 4),
+            "recall":    round(recall, 4),
+            "f1":        round(f1, 4),
+            "support":   sum(cm[i]),
+        }
+    res["per_class"] = per_class
+    return res
+
+
 def evaluate_simple(split: str = "test") -> dict:
     texts, true_labels = load_data(split)
     if not texts:
@@ -61,7 +88,12 @@ def evaluate_kcelectra(split: str = "test") -> dict:
     if cached_json.exists() and not kcelectra_ready():
         print(f"[compare] Colab 결과 파일 사용: {cached_json.name}")
         with open(cached_json, encoding="utf-8") as f:
-            return json.load(f)
+            result = json.load(f)
+        result = _fill_per_class_from_cm(result)
+        # per_class 보완된 내용을 다시 저장
+        with open(cached_json, "w", encoding="utf-8") as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
+        return result
 
     if not kcelectra_ready():
         print("[compare] KcELECTRA 체크포인트 없음. 01_train_kcelectra.ipynb 먼저 실행하세요.")
@@ -111,12 +143,18 @@ def _make_result(model_name: str, true: list, pred: list) -> dict:
 
 
 def save_and_compare(simple_res: dict, kcelectra_res: dict) -> None:
-    with open(OUT_DIR / "eval_results_simple.json", "w", encoding="utf-8") as f:
-        json.dump(simple_res, f, ensure_ascii=False, indent=2)
+    ts = datetime.now().strftime("%Y%m%d")
 
+    def _write_json(data: dict, canonical: str) -> None:
+        with open(OUT_DIR / canonical, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        stem = canonical.replace(".json", "")
+        with open(OUT_DIR / f"{stem}_{ts}.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+
+    _write_json(simple_res, "eval_results_simple.json")
     if kcelectra_res:
-        with open(OUT_DIR / "eval_results_kcelectra.json", "w", encoding="utf-8") as f:
-            json.dump(kcelectra_res, f, ensure_ascii=False, indent=2)
+        _write_json(kcelectra_res, "eval_results_kcelectra.json")
 
     rows = []
     for res in [simple_res, kcelectra_res]:
@@ -135,6 +173,7 @@ def save_and_compare(simple_res: dict, kcelectra_res: dict) -> None:
 
     summary_df = pd.DataFrame(rows)
     summary_df.to_csv(OUT_DIR / "eval_comparison_summary.csv", index=False, encoding="utf-8-sig")
+    summary_df.to_csv(OUT_DIR / f"eval_comparison_summary_{ts}.csv", index=False, encoding="utf-8-sig")
     print(f"\n[compare] 결과 저장 완료 → {OUT_DIR}")
     print("\n── 성능 요약 ──")
     print(summary_df[["model", "macro_f1", "macro_precision", "macro_recall"]].to_string(index=False))

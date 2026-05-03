@@ -3,6 +3,14 @@
   "macro_f1": 0.2948,
   "macro_precision": 0.386,
   "macro_recall": 0.3417,
+  "per_class": {
+    "일정":     {"precision": 1.0,    "recall": 0.8,    "f1": 0.8889, "support": 5},
+    "준비물":   {"precision": 1.0,    "recall": 0.25,   "f1": 0.4,    "support": 4},
+    "제출":     {"precision": 0.0,    "recall": 0.0,    "f1": 0.0,    "support": 4},
+    "비용":     {"precision": 0.0,    "recall": 0.0,    "f1": 0.0,    "support": 2},
+    "건강·안전": {"precision": 0.3158, "recall": 1.0,    "f1": 0.4800, "support": 6},
+    "기타":     {"precision": 0.0,    "recall": 0.0,    "f1": 0.0,    "support": 3}
+  },
   "confusion_matrix": [
     [
       4,
