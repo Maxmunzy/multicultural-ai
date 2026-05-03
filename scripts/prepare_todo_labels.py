@@ -75,12 +75,18 @@ GEMINI_MIXED_HINTS = ("준비물:", "준비물：", "기타:", "기타：", "검
 GEMINI_DEFAULT_MODEL = "gemini-1.5-flash"
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
 
+TITLE_ENDING_RE = re.compile(r"(안내|공지|알림|통보|조사|신청|수납|모집)\s*(제\s*\d{4,}-\d+호)?$")
+TITLE_MAX_LEN = 80
+SENTENCE_END_RE = re.compile(r"[.!?。？！]")
+SECTION_PREFIX_RE = re.compile(r"^[\d가나다라마바사아자차카타파하][.)]\s")
+
 OUTPUT_FIELDS = [
     "id",
     "original_text",
     "split_text",
     "original_is_todo",
     "draft_is_todo",
+    "draft_is_title",
     "reason",
     "review_required",
     "segment_source",
@@ -88,7 +94,7 @@ OUTPUT_FIELDS = [
     "gemini_segment_reason",
 ]
 
-GEMINI_SEGMENT_PROMPT = """너는 초등학교 가정통신문 원문을 학습 데이터용 의미 단위로 분리하고, 각 단위가 학부모/학생의 할 일인지 분류하는 데이터 라벨러다.
+GEMINI_SEGMENT_PROMPT = """너는 초등학교 가정통신문 원문을 학습 데이터용 의미 단위로 분리하고, 각 단위의 is_todo와 is_title을 분류하는 데이터 라벨러다.
 
 목표:
 원문 한 줄을 그대로 학습에 넣지 말고, 하나의 행동 또는 하나의 정보가 담긴 단위로 나눈다.
@@ -118,6 +124,15 @@ is_todo=false 기준:
 - 단순 참고사항
 - 학교에서 자체적으로 처리하는 내용
 
+is_title=true 기준:
+- 통신문 전체의 제목 (예: "2026 해원 놀이 한마당 안내", "겨울방학 돌봄교실 중식비 수납 안내 제2021-264호")
+- 짧고(80자 이내), 문장 부호(. ! ?)로 끝나지 않으며, 항목 번호(1., 가.)로 시작하지 않는 행
+- 공문 번호(제YYYY-NNN호)가 붙은 행
+- is_title=true이면 is_todo는 반드시 false
+
+is_title=false 기준:
+- 제목이 아닌 모든 행 (인사말, 본문 내용, 항목 번호, 날짜, 서명 등)
+
 출력은 반드시 JSON 배열 하나로만 반환한다.
 
 형식:
@@ -125,6 +140,7 @@ is_todo=false 기준:
   {
     "split_text": "의미 단위 문장",
     "is_todo": true,
+    "is_title": false,
     "reason": "짧은 판단 이유",
     "review_required": false,
     "segment_reason": "분리 이유"
@@ -140,6 +156,7 @@ is_todo=false 기준:
   {
     "split_text": "검사 전날 지나치게 많은 야채나 과일, 비타민 C를 섭취하지 않습니다.",
     "is_todo": true,
+    "is_title": false,
     "reason": "검사 전날 피해야 할 행동이 있음",
     "review_required": false,
     "segment_reason": "금지 행동 하나를 별도 단위로 분리"
@@ -147,6 +164,7 @@ is_todo=false 기준:
   {
     "split_text": "심하게 운동하지 않습니다.(검사 결과에 영향을 줄 수 있습니다)",
     "is_todo": true,
+    "is_title": false,
     "reason": "검사 전날 피해야 할 행동이 있음",
     "review_required": false,
     "segment_reason": "금지 행동과 그 이유를 하나의 단위로 분리"
@@ -154,12 +172,24 @@ is_todo=false 기준:
   {
     "split_text": "소변은 처음과 마지막 소변이 아닌 중간에 나오는 소변을 컵에 받습니다.",
     "is_todo": true,
+    "is_title": false,
     "reason": "검사 시 학생이 수행해야 할 행동이 있음",
     "review_required": false,
     "segment_reason": "검사 수행 행동을 별도 단위로 분리"
   }
 ]
 """
+
+
+def is_title_heuristic(text: str) -> bool:
+    """rule 기반 제목 감지: 짧고 문장 부호 없으며 '안내/공지' 등으로 끝나는 행."""
+    if not (10 <= len(text) <= TITLE_MAX_LEN):
+        return False
+    if SENTENCE_END_RE.search(text):
+        return False
+    if SECTION_PREFIX_RE.match(text):
+        return False
+    return bool(TITLE_ENDING_RE.search(text))
 
 
 def split_text_units(text: str) -> list[str]:
@@ -319,6 +349,7 @@ def normalize_gemini_segments(items: list[dict[str, Any]]) -> list[dict[str, Any
             {
                 "split_text": split_text,
                 "draft_is_todo": coerce_bool(item.get("is_todo", False)),
+                "draft_is_title": coerce_bool(item.get("is_title", False)),
                 "reason": normalize_space(str(item.get("reason", "") or "Gemini draft 라벨")),
                 "review_required": coerce_bool(item.get("review_required", False)),
                 "gemini_segment_reason": normalize_space(str(item.get("segment_reason", "") or "")),
@@ -397,6 +428,7 @@ def make_rule_rows(
                 "split_text": split_text,
                 "original_is_todo": original_is_todo,
                 "draft_is_todo": draft_is_todo,
+                "draft_is_title": is_title_heuristic(split_text),
                 "reason": reason,
                 "review_required": review_required,
                 "segment_source": segment_source,
@@ -433,6 +465,7 @@ def make_gemini_rows(
                 "split_text": segment["split_text"],
                 "original_is_todo": original_is_todo,
                 "draft_is_todo": segment["draft_is_todo"],
+                "draft_is_title": segment.get("draft_is_title", is_title_heuristic(segment["split_text"])),
                 "reason": segment["reason"],
                 "review_required": segment["review_required"],
                 "segment_source": "gemini_segment",
