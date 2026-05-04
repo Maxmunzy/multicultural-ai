@@ -1,8 +1,10 @@
 package com.multicultural.demo;
 
+import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -11,6 +13,10 @@ import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.OpenableColumns;
+import android.speech.RecognitionListener;
+import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
@@ -41,7 +47,11 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -116,17 +126,128 @@ public class MainActivity extends Activity {
     private MediaPlayer player;
     private String currentTtsUrl = "";
     private String currentEasyKoTtsUrl = "";
+    private float ttsSpeed = 1.0f;
+    private Button[] speedButtons;
+
+    // STT / 음성 질문
+    private JSONArray currentCards = null;
+    private JSONArray currentAnalysisItems = null;
+    private String currentNoticeTitle = "";
+    private SpeechRecognizer speechRecognizer;
+    private TextToSpeech ttsEngine;
+    private Button sttButton;
+    private boolean ttsEngineReady = false;
+
+    // lang → { category → [팁 문장, 매칭키워드1, 매칭키워드2, ...] }
+    private static final Map<String, Map<String, String[]>> STT_TIPS = new LinkedHashMap<>();
+    static {
+        // 한국어 (ko_easy, 데모 기본)
+        Map<String, String[]> ko = new LinkedHashMap<>();
+        ko.put("주제",   new String[]{"이번 주제가 뭐예요?",      "주제", "제목"});
+        ko.put("준비물", new String[]{"준비물이 뭐예요?",          "준비물", "뭐 챙"});
+        ko.put("일정",   new String[]{"일정이 언제예요?",          "일정", "날짜", "언제"});
+        ko.put("비용",   new String[]{"비용이 얼마예요?",          "비용", "얼마", "돈"});
+        ko.put("제출",   new String[]{"뭘 제출해야 해요?",         "제출", "내야", "서류"});
+        ko.put("건강",   new String[]{"건강 안전 내용 알려주세요",  "건강", "안전"});
+        STT_TIPS.put("ko_easy", ko);
+
+        // 베트남어
+        Map<String, String[]> vi = new LinkedHashMap<>();
+        vi.put("주제",   new String[]{"Chủ đề thông báo là gì?",    "chủ đề", "tiêu đề"});
+        vi.put("준비물", new String[]{"Cần mang gì?",                "mang", "đồ dùng", "cần mang"});
+        vi.put("일정",   new String[]{"Lịch là khi nào?",            "lịch", "khi nào", "ngày"});
+        vi.put("비용",   new String[]{"Chi phí là bao nhiêu?",       "phí", "tiền", "bao nhiêu"});
+        vi.put("제출",   new String[]{"Cần nộp gì?",                 "nộp", "cần nộp"});
+        vi.put("건강",   new String[]{"Thông tin sức khỏe?",         "sức khỏe", "an toàn"});
+        STT_TIPS.put("vi", vi);
+        STT_TIPS.put("vi_demo", vi);
+
+        // 영어
+        Map<String, String[]> en = new LinkedHashMap<>();
+        en.put("주제",   new String[]{"What is this notice about?",   "about", "topic", "subject"});
+        en.put("준비물", new String[]{"What do I need to bring?",     "bring", "supplies", "need to bring"});
+        en.put("일정",   new String[]{"When is the schedule?",        "when", "schedule", "date"});
+        en.put("비용",   new String[]{"How much does it cost?",       "cost", "how much", "fee"});
+        en.put("제출",   new String[]{"What do I need to submit?",    "submit", "hand in"});
+        en.put("건강",   new String[]{"Any health or safety info?",   "health", "safety"});
+        STT_TIPS.put("en", en);
+
+        // 러시아어
+        Map<String, String[]> ru = new LinkedHashMap<>();
+        ru.put("주제",   new String[]{"О чём это уведомление?",      "о чём", "тема"});
+        ru.put("준비물", new String[]{"Что нужно принести?",         "принести", "взять"});
+        ru.put("일정",   new String[]{"Когда по расписанию?",        "когда", "расписание", "дата"});
+        ru.put("비용",   new String[]{"Сколько стоит?",              "сколько", "стоит", "деньги"});
+        ru.put("제출",   new String[]{"Что нужно сдать?",            "сдать", "нужно сдать"});
+        ru.put("건강",   new String[]{"Информация о здоровье?",      "здоровье", "безопасность"});
+        STT_TIPS.put("ru", ru);
+
+        // 말레이어
+        Map<String, String[]> ms = new LinkedHashMap<>();
+        ms.put("주제",   new String[]{"Apakah topik notis ini?",     "topik", "tajuk"});
+        ms.put("준비물", new String[]{"Apa yang perlu dibawa?",      "bawa", "perlu dibawa"});
+        ms.put("일정",   new String[]{"Bila jadualnya?",             "bila", "jadual", "tarikh"});
+        ms.put("비용",   new String[]{"Berapakah kosnya?",           "kos", "berapa", "wang"});
+        ms.put("제출",   new String[]{"Apa yang perlu diserahkan?",  "serahkan", "hantar"});
+        ms.put("건강",   new String[]{"Maklumat kesihatan?",         "kesihatan", "keselamatan"});
+        STT_TIPS.put("ms", ms);
+
+        // 몽골어
+        Map<String, String[]> mn = new LinkedHashMap<>();
+        mn.put("주제",   new String[]{"Энэ мэдэгдэл юуны тухай вэ?", "юуны тухай", "гарчиг"});
+        mn.put("준비물", new String[]{"Юу авчрах хэрэгтэй вэ?",      "авчрах", "юу авч"});
+        mn.put("일정",   new String[]{"Хуваарь хэзээ вэ?",           "хуваарь", "хэзээ", "огноо"});
+        mn.put("비용",   new String[]{"Хэдэн төгрөг вэ?",            "төгрөг", "хэдэн", "мөнгө"});
+        mn.put("제출",   new String[]{"Юу өгөх хэрэгтэй вэ?",       "өгөх", "юу өг"});
+        mn.put("건강",   new String[]{"Эрүүл мэндийн мэдээлэл?",    "эрүүл мэнд", "аюулгүй"});
+        STT_TIPS.put("mn", mn);
+
+        // 중국어
+        Map<String, String[]> zh = new LinkedHashMap<>();
+        zh.put("주제",   new String[]{"这次通知的主题是什么？",  "主题", "内容"});
+        zh.put("준비물", new String[]{"需要带什么？",            "带什么", "准备"});
+        zh.put("일정",   new String[]{"日程是什么时候？",        "日程", "什么时候", "日期"});
+        zh.put("비용",   new String[]{"费用是多少？",            "费用", "多少钱", "钱"});
+        zh.put("제출",   new String[]{"需要提交什么？",          "提交", "交什么"});
+        zh.put("건강",   new String[]{"有健康安全信息吗？",      "健康", "安全"});
+        STT_TIPS.put("zh", zh);
+
+        // 태국어
+        Map<String, String[]> th = new LinkedHashMap<>();
+        th.put("주제",   new String[]{"หัวข้อของประกาศนี้คืออะไร?", "หัวข้อ", "เรื่อง"});
+        th.put("준비물", new String[]{"ต้องนำอะไรมาบ้าง?",          "นำอะไร", "เตรียม"});
+        th.put("일정",   new String[]{"ตารางเวลาเมื่อไหร่?",        "ตาราง", "เมื่อไหร่", "วัน"});
+        th.put("비용",   new String[]{"ค่าใช้จ่ายเท่าไหร่?",       "ค่าใช้จ่าย", "เท่าไหร่", "เงิน"});
+        th.put("제출",   new String[]{"ต้องส่งอะไรบ้าง?",          "ส่งอะไร", "ยื่น"});
+        th.put("건강",   new String[]{"ข้อมูลสุขภาพมีอะไรบ้าง?",  "สุขภาพ", "ความปลอดภัย"});
+        STT_TIPS.put("th", th);
+
+        // 일본어
+        Map<String, String[]> ja = new LinkedHashMap<>();
+        ja.put("주제",   new String[]{"このお知らせのテーマは何ですか？", "テーマ", "内容"});
+        ja.put("준비물", new String[]{"何を持ってきますか？",            "持ってきます", "準備"});
+        ja.put("일정",   new String[]{"スケジュールはいつですか？",      "スケジュール", "いつ", "日程"});
+        ja.put("비용",   new String[]{"費用はいくらですか？",            "費用", "いくら", "お金"});
+        ja.put("제출",   new String[]{"何を提出しますか？",              "提出", "出します"});
+        ja.put("건강",   new String[]{"健康・安全情報を教えてください",  "健康", "安全"});
+        STT_TIPS.put("ja", ja);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         selectedLanguage = getSavedLanguage();
+        ttsEngine = new TextToSpeech(this, status -> {
+            ttsEngineReady = (status == TextToSpeech.SUCCESS);
+        });
         showLoginScreen();
     }
 
     @Override
     protected void onDestroy() {
         releasePlayer();
+        if (speechRecognizer != null) { speechRecognizer.destroy(); speechRecognizer = null; }
+        if (ttsEngine != null) { ttsEngine.stop(); ttsEngine.shutdown(); ttsEngine = null; }
         executor.shutdownNow();
         super.onDestroy();
     }
@@ -925,6 +1046,17 @@ public class MainActivity extends Activity {
         easyKoPlayButton.setVisibility(View.GONE);
         content.addView(easyKoPlayButton);
 
+        // 재생 속도 조절
+        LinearLayout speedRow = buildSpeedControl();
+        speedRow.setVisibility(View.GONE);
+        speedRow.setTag("speedRow");
+        content.addView(speedRow);
+
+        // 음성 질문 (STT)
+        LinearLayout sttSection = buildSttSection();
+        sttSection.setTag("sttSection");
+        content.addView(sttSection);
+
         // 닫기
         content.addView(outlineButton("← " + uiText("back_to_notice"), v -> showNoticeDetail(notice)));
 
@@ -990,14 +1122,24 @@ public class MainActivity extends Activity {
         StringBuilder easyBuilder = new StringBuilder();
 
         JSONArray cards = data.optJSONArray("cards");
+        currentCards = cards;
+        currentAnalysisItems = sortItemsByImportance(data.optJSONArray("items"));
+        if (selectedNotice != null && !selectedNotice.text.isEmpty()) {
+            String[] lines = selectedNotice.text.split("\n");
+            currentNoticeTitle = lines[0].trim();
+        } else {
+            currentNoticeTitle = "";
+        }
+        String extractedTitle = data.optString("title", "");
+        if (!extractedTitle.isEmpty()) currentNoticeTitle = extractedTitle;
+
         if (cards != null && cards.length() > 0) {
             appendCardLines(cards, koBuilder, easyBuilder, trBuilder);
         } else {
             // fallback: deprecated items 구조
-            JSONArray items = sortItemsByImportance(data.optJSONArray("items"));
-            if (items != null) {
-                for (int i = 0; i < items.length(); i++) {
-                    JSONObject item = items.optJSONObject(i);
+            if (currentAnalysisItems != null) {
+                for (int i = 0; i < currentAnalysisItems.length(); i++) {
+                    JSONObject item = currentAnalysisItems.optJSONObject(i);
                     if (item == null) continue;
                     appendItemLine(koBuilder, item, true);
                     appendItemLine(trBuilder, item, false);
@@ -1052,6 +1194,10 @@ public class MainActivity extends Activity {
             easyKoPlayButton.setText(easyKoTtsLabel());
             easyKoPlayButton.setVisibility(View.VISIBLE);
         }
+        boolean hasTts = (playButton != null && playButton.getVisibility() == View.VISIBLE)
+                || (easyKoPlayButton != null && easyKoPlayButton.getVisibility() == View.VISIBLE);
+        View speedRow = playButton != null ? findTaggedSibling(playButton, "speedRow") : null;
+        if (speedRow != null) speedRow.setVisibility(hasTts ? View.VISIBLE : View.GONE);
 
         // status hide
         if (analysisStatusText != null) {
@@ -1547,6 +1693,269 @@ public class MainActivity extends Activity {
                 ttsLabel(), true);
     }
 
+    private LinearLayout buildSpeedControl() {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER);
+        row.setPadding(dp(16), dp(4), dp(16), dp(4));
+
+        String[] labels = {"느리게", "보통", "빠르게"};
+        float[] speeds = {0.75f, 1.0f, 1.25f};
+        speedButtons = new Button[3];
+
+        for (int i = 0; i < 3; i++) {
+            final int idx = i;
+            Button b = new Button(this);
+            b.setText(labels[i]);
+            b.setTextSize(13);
+            b.setAllCaps(false);
+            b.setPadding(dp(20), dp(6), dp(20), dp(6));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            lp.setMargins(dp(4), 0, dp(4), 0);
+            b.setLayoutParams(lp);
+            final float speed = speeds[i];
+            b.setOnClickListener(v -> {
+                ttsSpeed = speed;
+                updateSpeedButtonStyles();
+                if (player != null) {
+                    try {
+                        android.media.PlaybackParams pp = new android.media.PlaybackParams();
+                        pp.setSpeed(ttsSpeed);
+                        player.setPlaybackParams(pp);
+                    } catch (IllegalStateException ignored) { }
+                }
+            });
+            speedButtons[i] = b;
+            row.addView(b);
+        }
+        updateSpeedButtonStyles();
+        return row;
+    }
+
+    private void updateSpeedButtonStyles() {
+        if (speedButtons == null) return;
+        float[] speeds = {0.75f, 1.0f, 1.25f};
+        for (int i = 0; i < speedButtons.length; i++) {
+            boolean selected = Math.abs(ttsSpeed - speeds[i]) < 0.01f;
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp(20));
+            bg.setColor(selected ? COLOR_PEACH_DEEP : Color.parseColor("#E8E8E8"));
+            speedButtons[i].setBackground(bg);
+            speedButtons[i].setTextColor(selected ? Color.WHITE : COLOR_INK);
+            speedButtons[i].setTypeface(null, selected ? Typeface.BOLD : Typeface.NORMAL);
+        }
+    }
+
+    private View findTaggedSibling(View anchor, String tag) {
+        if (!(anchor.getParent() instanceof ViewGroup)) return null;
+        ViewGroup parent = (ViewGroup) anchor.getParent();
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            View child = parent.getChildAt(i);
+            if (tag.equals(child.getTag())) return child;
+        }
+        return null;
+    }
+
+    // ============================================================
+    //  STT 음성 질문
+    // ============================================================
+    private LinearLayout buildSttSection() {
+        LinearLayout section = new LinearLayout(this);
+        section.setOrientation(LinearLayout.VERTICAL);
+        section.setPadding(dp(16), dp(8), dp(16), dp(8));
+
+        // 팁 카드
+        LinearLayout tipCard = new LinearLayout(this);
+        tipCard.setOrientation(LinearLayout.VERTICAL);
+        tipCard.setPadding(dp(16), dp(12), dp(16), dp(12));
+        GradientDrawable tipBg = new GradientDrawable();
+        tipBg.setCornerRadius(dp(12));
+        tipBg.setColor(Color.parseColor("#FFF3E6"));
+        tipBg.setStroke(dp(1), COLOR_LINE);
+        tipCard.setBackground(tipBg);
+
+        TextView tipTitle = new TextView(this);
+        tipTitle.setText("💬  이렇게 말해보세요");
+        tipTitle.setTextSize(12);
+        tipTitle.setTextColor(COLOR_PEACH_INK);
+        tipTitle.setTypeface(null, Typeface.BOLD);
+        tipTitle.setPadding(0, 0, 0, dp(6));
+        tipCard.addView(tipTitle);
+
+        Map<String, String[]> tips = STT_TIPS.get(selectedLanguage);
+        if (tips == null) tips = STT_TIPS.get("ko_easy");
+        for (Map.Entry<String, String[]> entry : tips.entrySet()) {
+            TextView tv = new TextView(this);
+            tv.setText("• " + entry.getValue()[0]);
+            tv.setTextSize(13);
+            tv.setTextColor(COLOR_INK2);
+            tv.setPadding(dp(4), dp(2), 0, dp(2));
+            tipCard.addView(tv);
+        }
+        section.addView(tipCard);
+
+        // 마이크 버튼
+        sttButton = new Button(this);
+        sttButton.setText("🎤  말해서 물어보기");
+        sttButton.setTextSize(15);
+        sttButton.setTextColor(Color.WHITE);
+        sttButton.setAllCaps(false);
+        sttButton.setTypeface(null, Typeface.BOLD);
+        sttButton.setPadding(dp(20), dp(14), dp(20), dp(14));
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        btnLp.topMargin = dp(10);
+        sttButton.setLayoutParams(btnLp);
+        GradientDrawable sttBg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{Color.parseColor("#7B61FF"), Color.parseColor("#5A45D4")});
+        sttBg.setCornerRadius(dp(14));
+        sttButton.setBackground(sttBg);
+        sttButton.setOnClickListener(v -> startStt());
+        section.addView(sttButton);
+
+        return section;
+    }
+
+    private void startStt() {
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, 200);
+            return;
+        }
+        if (speechRecognizer != null) speechRecognizer.destroy();
+        speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
+        speechRecognizer.setRecognitionListener(new RecognitionListener() {
+            @Override public void onReadyForSpeech(Bundle p) {
+                runOnUiThread(() -> sttButton.setText("🎤  듣고 있어요..."));
+            }
+            @Override public void onResults(Bundle results) {
+                ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+                runOnUiThread(() -> {
+                    sttButton.setText("🎤  말해서 물어보기");
+                    if (matches != null && !matches.isEmpty()) handleSttResult(matches.get(0));
+                });
+            }
+            @Override public void onError(int error) {
+                runOnUiThread(() -> {
+                    sttButton.setText("🎤  말해서 물어보기");
+                    Toast.makeText(MainActivity.this, "인식 실패, 다시 시도해주세요", Toast.LENGTH_SHORT).show();
+                });
+            }
+            @Override public void onBeginningOfSpeech() {}
+            @Override public void onRmsChanged(float v) {}
+            @Override public void onBufferReceived(byte[] b) {}
+            @Override public void onEndOfSpeech() {}
+            @Override public void onPartialResults(Bundle b) {}
+            @Override public void onEvent(int t, Bundle b) {}
+        });
+
+        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
+        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, sttLocale());
+        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+        speechRecognizer.startListening(intent);
+    }
+
+    private String sttLocale() {
+        switch (selectedLanguage) {
+            case "vi": case "vi_demo": return "vi-VN";
+            case "en":  return "en-US";
+            case "ru":  return "ru-RU";
+            case "ms":  return "ms-MY";
+            case "mn":  return "mn-MN";
+            case "zh":  return "zh-CN";
+            case "th":  return "th-TH";
+            case "ja":  return "ja-JP";
+            default:    return "ko-KR";
+        }
+    }
+
+    private void handleSttResult(String recognized) {
+        String category = matchCategory(recognized);
+        if (category == null) {
+            Toast.makeText(this, "\"" + recognized + "\"\n인식했지만 해당 항목을 찾지 못했어요", Toast.LENGTH_LONG).show();
+            return;
+        }
+        String spoken = buildSpokenText(category);
+        if (spoken.isEmpty()) {
+            Toast.makeText(this, category + " 항목이 없습니다", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        speakText(spoken);
+    }
+
+    private String matchCategory(String recognized) {
+        String lower = recognized.toLowerCase();
+        Map<String, String[]> tips = STT_TIPS.get(selectedLanguage);
+        if (tips == null) tips = STT_TIPS.get("ko_easy");
+        for (Map.Entry<String, String[]> entry : tips.entrySet()) {
+            String[] phrases = entry.getValue();
+            for (int i = 1; i < phrases.length; i++) {
+                if (lower.contains(phrases[i].toLowerCase())) return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    private String buildSpokenText(String category) {
+        if ("주제".equals(category)) {
+            return currentNoticeTitle.isEmpty() ? "" : currentNoticeTitle;
+        }
+        StringBuilder sb = new StringBuilder();
+        // cards 구조에서 chip으로 필터
+        if (currentCards != null) {
+            for (int i = 0; i < currentCards.length(); i++) {
+                JSONObject card = currentCards.optJSONObject(i);
+                if (card == null) continue;
+                String chip = safeString(card, "chip");
+                if (!chip.contains(category)) continue;
+                String val = firstNonBlank(
+                        safeString(card, "value_translated"),
+                        safeString(card, "value_ko"));
+                if (!val.isEmpty()) sb.append(val).append(". ");
+            }
+        }
+        // items 구조 fallback
+        if (sb.length() == 0 && currentAnalysisItems != null) {
+            for (int i = 0; i < currentAnalysisItems.length(); i++) {
+                JSONObject item = currentAnalysisItems.optJSONObject(i);
+                if (item == null) continue;
+                String cat = safeString(item, "category");
+                if (!cat.contains(category)) continue;
+                String title = firstNonBlank(
+                        safeString(item, "title_translated"),
+                        safeString(item, "title_ko"));
+                if (!title.isEmpty()) sb.append(title).append(". ");
+            }
+        }
+        return sb.toString().trim();
+    }
+
+    private void speakText(String text) {
+        if (!ttsEngineReady || ttsEngine == null) {
+            Toast.makeText(this, text, Toast.LENGTH_LONG).show();
+            return;
+        }
+        Locale locale;
+        switch (selectedLanguage) {
+            case "vi": case "vi_demo": locale = new Locale("vi", "VN"); break;
+            case "en":  locale = Locale.US; break;
+            case "ru":  locale = new Locale("ru", "RU"); break;
+            case "ms":  locale = new Locale("ms", "MY"); break;
+            case "mn":  locale = new Locale("mn", "MN"); break;
+            case "zh":  locale = Locale.CHINA; break;
+            case "th":  locale = new Locale("th", "TH"); break;
+            case "ja":  locale = Locale.JAPAN; break;
+            default:    locale = Locale.KOREAN; break;
+        }
+        int result = ttsEngine.setLanguage(locale);
+        if (result == TextToSpeech.LANG_MISSING_DATA || result == TextToSpeech.LANG_NOT_SUPPORTED) {
+            ttsEngine.setLanguage(Locale.KOREAN);
+        }
+        ttsEngine.setSpeechRate(ttsSpeed);
+        ttsEngine.speak(text, TextToSpeech.QUEUE_FLUSH, null, "stt_response");
+    }
+
     private void playTtsUrl(String ttsUrl, Button activeButton, String idleLabel, boolean allowFallback) {
         if (player != null) {
             try {
@@ -1565,6 +1974,13 @@ public class MainActivity extends Activity {
                 player = new MediaPlayer();
                 player.setDataSource(url);
                 player.setOnPreparedListener(mp -> {
+                    if (ttsSpeed != 1.0f) {
+                        try {
+                            android.media.PlaybackParams pp = new android.media.PlaybackParams();
+                            pp.setSpeed(ttsSpeed);
+                            mp.setPlaybackParams(pp);
+                        } catch (IllegalStateException ignored) { }
+                    }
                     mp.start();
                     if (activeButton != null) activeButton.setText("⏸  정지");
                 });
@@ -1575,6 +1991,13 @@ public class MainActivity extends Activity {
                 player.prepareAsync();
             } else if (allowFallback) {
                 player = MediaPlayer.create(this, R.raw.tts_output);
+                if (ttsSpeed != 1.0f) {
+                    try {
+                        android.media.PlaybackParams pp = new android.media.PlaybackParams();
+                        pp.setSpeed(ttsSpeed);
+                        player.setPlaybackParams(pp);
+                    } catch (IllegalStateException ignored) { }
+                }
                 player.start();
                 if (activeButton != null) activeButton.setText("⏸  정지");
                 player.setOnCompletionListener(mp -> {
