@@ -145,7 +145,7 @@ public class OcrActivity extends Activity {
         parentId  = getIntent().getStringExtra(EXTRA_PARENT_ID);
         if (baseUrl == null) baseUrl = "http://172.30.1.45:8000";
 
-        recognizer = TextRecognition.getClient(KoreanTextRecognizerOptions.DEFAULT_OPTIONS);
+        recognizer = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
         buildUI();
         checkCameraPermission();
     }
