@@ -24,11 +24,11 @@ except ImportError:
     _HF_AVAILABLE = False
 
 _BASE = Path(__file__).parent.parent
-_CKPT_DIR = _BASE / "checkpoints" / "kcelectra-category"
+_CKPT_DIR = _BASE / "checkpoints" / "kcelectra-category" # 파인튜닝된 로컬 모델
 _LABELS_FILE = _CKPT_DIR / "label2id.json"
 
 # HF Hub fallback — 로컬 체크포인트 없을 때 사용 (학습 전엔 이 경로로 불러옴)
-_BASE_MODEL_ID = "monologg/koelectra-small-v3-discriminator"
+_BASE_MODEL_ID = "monologg/koelectra-small-v3-discriminator" # HuggingFace Hub
 
 LABELS = ["일정", "준비물", "제출", "비용", "건강·안전", "기타"]
 
@@ -37,6 +37,10 @@ _model     = None
 _id2label: dict[int, str] = {}
 _device = "cpu"
 
+# 가장 핵심적인 함수입니다. 3가지 작업을 합니다.
+# ① 로컬 체크포인트 vs Hub 자동 선택
+# ② GPU/CPU 자동 선택
+# ③ 라벨 맵핑 로드
 
 def _load_model() -> None:
     global _tokenizer, _model, _id2label, _device
@@ -99,6 +103,7 @@ def predict_kcelectra(text: str) -> dict:
         max_length=128,
     ).to(_device)
 
+    # 추론 시 gradient 계산을 끄는 것입니다. 학습이 아닌 예측만 하므로 메모리를 절약하고 속도를 높입니다.
     with torch.no_grad():
         logits = _model(**inputs).logits
         probs  = torch.softmax(logits, dim=-1)[0]
