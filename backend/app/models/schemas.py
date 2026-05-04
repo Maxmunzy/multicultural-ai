@@ -117,6 +117,9 @@ class NoticeAnalyzeResponse(BaseModel):
     notice_id: str
     raw_text: str
     target_language: str
+    # 통신문 제목 (윤정님 PR #90 extract_title heuristic) — 못 찾으면 ""
+    title: str = ""
+    title_translated: str = ""
     # 신규 — 안드 슬롯 카드 UI 대상 (단계적 마이그레이션, 본 필드가 메인)
     cards: list[SlotCard] = []
     # deprecated — 안드 마이그레이션 완료 후 다음 PR에서 폐기 예정

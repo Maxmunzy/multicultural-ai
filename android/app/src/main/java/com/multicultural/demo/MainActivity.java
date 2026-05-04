@@ -133,6 +133,7 @@ public class MainActivity extends Activity {
     private JSONArray currentCards = null;
     private JSONArray currentAnalysisItems = null;
     private String currentNoticeTitle = "";
+    private String currentNoticeTitleTranslated = "";
     private SpeechRecognizer speechRecognizer;
     private TextToSpeech ttsEngine;
     private Button sttButton;
@@ -1132,6 +1133,7 @@ public class MainActivity extends Activity {
         }
         String extractedTitle = data.optString("title", "");
         if (!extractedTitle.isEmpty()) currentNoticeTitle = extractedTitle;
+        currentNoticeTitleTranslated = data.optString("title_translated", "");
 
         if (cards != null && cards.length() > 0) {
             appendCardLines(cards, koBuilder, easyBuilder, trBuilder);
@@ -1899,6 +1901,8 @@ public class MainActivity extends Activity {
 
     private String buildSpokenText(String category) {
         if ("주제".equals(category)) {
+            // 모국어 음성 답변용 — 번역본 우선, 없으면 한국어 fallback
+            if (!currentNoticeTitleTranslated.isEmpty()) return currentNoticeTitleTranslated;
             return currentNoticeTitle.isEmpty() ? "" : currentNoticeTitle;
         }
         StringBuilder sb = new StringBuilder();
