@@ -12,7 +12,7 @@
 | 태수 | FastAPI 서버, API 설계, 모델 연결, Android 통신 | `backend/` |
 | 윤정 | 가정통신문에서 할 일 문장 추출 모델 | `model/extraction/` |
 | 경이 | 추출 문장 카테고리 분류 및 중요도 모델 | `model/classification/` |
-| 세종 | 다국어 번역, 학교 용어사전, 번역 검수 루프, TTS 출력, 카메라 OCR (Android ML Kit) | `model/translation_tts/` · `android/` (OcrActivity) |
+| 세종 | 다국어 번역, 학교 용어사전, 번역 검수 루프, TTS 출력, TTS 속도 조절, STT 음성 질문, 카메라 OCR (Android ML Kit) | `model/translation_tts/` · `android/` (OcrActivity) |
 | 찬영 | 발표자료 | `docs/` |
 
 ---
@@ -90,7 +90,7 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 - [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성
 - [x] 윤정: KoELECTRA 하이브리드 추출 모델 구현 + HuggingFace Hub 배포
 - [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 (accuracy 0.857, MAE 0.038) + API 서버
-- [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전(176개) 검수 루프 + Edge-TTS 음성 출력 + 카메라 OCR (ML Kit Korean + OpenCV + Quality Gate)
+- [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전(176개) 검수 루프 + Edge-TTS 음성 출력 + TTS 속도 조절(단어별/천천히/오리지날) + STT 음성 질문(9개 언어×6카테고리) + 카메라 OCR (ML Kit Korean + OpenCV + Quality Gate)
 - [x] 찬영: Android 선생님/학부모 화면 및 실기기 데모 1차 구현
 - [x] 팀 공통: 모델 A·B·C 백엔드 연결 및 E2E 파이프라인 실기기 검증 완료
 
@@ -119,7 +119,7 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose, REST API, X-User-Id 헤더 인증 |
 | 윤정 | KoELECTRA-base-v3, HuggingFace Hub, PyTorch, Regex, Transformers |
 | 경이 | numpy TF-IDF, scikit-learn LR, SBERT + LightGBM, Ridge 회귀, FastAPI |
-| 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, ML Kit Korean OCR, OpenCV 4.9, Tesseract-OCR |
+| 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, ML Kit Korean OCR, OpenCV 4.9, Tesseract-OCR, Android SpeechRecognizer, Android TextToSpeech |
 | 찬영 | 발표자료 |
 
 ---
