@@ -61,6 +61,38 @@ _TITLE_MAX_LEN = 80
 _TITLE_SENT_END_RE = re.compile(r"[.!?。？！]")
 _TITLE_SECTION_RE = re.compile(r"^[\d가나다라마바사아자차카타파하][.)]\s")
 
+# koelectra-title 체크포인트 경로 — 없으면 heuristic fallback
+_TITLE_CHECKPOINT_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "checkpoints", "koelectra-title"
+)
+TITLE_THRESHOLD = 0.4  # 임계값: train_koelectra_title.ipynb 임계값 분석 결과로 조정
+
+_title_tokenizer: Optional[AutoTokenizer] = None
+_title_model: Optional[AutoModelForSequenceClassification] = None
+
+
+def _load_title_model() -> bool:
+    """koelectra-title 체크포인트가 있으면 로드하고 True 반환. 없으면 False."""
+    global _title_tokenizer, _title_model
+    if _title_model is not None:
+        return True
+    local_ready = (
+        any(
+            os.path.exists(os.path.join(_TITLE_CHECKPOINT_DIR, f))
+            for f in ("pytorch_model.bin", "model.safetensors")
+        )
+        and os.path.exists(os.path.join(_TITLE_CHECKPOINT_DIR, "config.json"))
+    )
+    if not local_ready:
+        return False
+    _title_tokenizer = AutoTokenizer.from_pretrained(_TITLE_CHECKPOINT_DIR)
+    _title_model = AutoModelForSequenceClassification.from_pretrained(
+        _TITLE_CHECKPOINT_DIR, num_labels=2
+    )
+    _title_model.to(_device)
+    _title_model.eval()
+    return True
+
 
 def is_title_heuristic(text: str) -> bool:
     """rule 기반 제목 감지.
@@ -83,16 +115,37 @@ def is_title_heuristic(text: str) -> bool:
 def extract_title(notice_text: str) -> Optional[str]:
     """가정통신문에서 제목 문장을 추출. 없으면 None.
 
-    split_sentences()의 _HEADER_ONLY 필터가 제목 줄을 차단하기 전에
-    원본 줄을 직접 스캔하므로 반드시 predict() 와 별도로, 원문에 대해 호출할 것.
+    - koelectra-title 체크포인트가 있으면 ML 모델로 전체 줄 스코어링 → 최고점 반환
+    - 없으면 heuristic(is_title_heuristic) fallback → 첫 번째 통과 줄 반환
+
+    split_sentences()의 _HEADER_ONLY 필터가 제목 줄을 차단하므로
+    반드시 predict() 와 별도로, 원문에 대해 호출할 것.
 
     사용 예:
         title = extract_title(notice_text)
         items = predict(notice_text, source=filename)
     """
-    for line in notice_text.splitlines():
-        line = line.strip()
-        if line and is_title_heuristic(line):
+    lines = [line.strip() for line in notice_text.splitlines() if line.strip()]
+
+    if _load_title_model():
+        best_line: Optional[str] = None
+        best_prob = TITLE_THRESHOLD
+        for line in lines:
+            if len(line) < 10:
+                continue
+            inputs = _title_tokenizer(
+                line, return_tensors="pt", truncation=True, max_length=128
+            ).to(_device)
+            with torch.no_grad():
+                prob = float(torch.softmax(_title_model(**inputs).logits, dim=-1)[0][1].item())
+            if prob > best_prob:
+                best_prob = prob
+                best_line = line
+        return best_line
+
+    # heuristic fallback
+    for line in lines:
+        if is_title_heuristic(line):
             return line
     return None
 
