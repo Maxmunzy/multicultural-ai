@@ -21,8 +21,6 @@ INPUT = Path('model/classification/data/notice_sample_v5_full_20260504.csv')
 OUTPUT = Path('model/classification/data/notice_sample_v5_clean_full_20260504.csv')
 CHANGES = Path('model/classification/data/v5_postproc_changes_20260504.csv')
 
-LABELS = {'일정', '준비물', '제출', '비용', '건강·안전', '기타'}
-
 # === 룰 정의 ===
 
 def classify_change(text, current):
@@ -33,7 +31,7 @@ def classify_change(text, current):
     if current == '준비물':
         if ('교 재' in t or '교재명 :' in t) and '준비사항' in t and ('주 주제' in t or '비고' in t):
             return 'none', 'R1_syllabus'
-        if '로블록스 스튜디오 설치' in t or '메타버스' in t and ('스튜디오' in t or '플레이스' in t):
+        if ('로블록스 스튜디오 설치' in t) or ('메타버스' in t and ('스튜디오' in t or '플레이스' in t)):
             return 'none', 'R1_syllabus'
 
     # R2. 준비물 → 기타: 단말기/앱 설치
