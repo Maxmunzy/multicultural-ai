@@ -133,6 +133,11 @@ public class MainActivity extends Activity {
     private JSONArray currentCards = null;
     private JSONArray currentAnalysisItems = null;
     private String currentNoticeTitle = "";
+    private String currentNoticeTitleTranslated = "";
+    // 분석 화면 헤더 — 응답 도착 시 heuristic title / 번역 부제로 갱신
+    private TextView noticeTitleView;
+    private TextView noticeTitleLangChip;   // "🌐 ENGLISH" 같은 언어 라벨
+    private TextView noticeTitleSubView;    // 번역된 제목 본문
     private SpeechRecognizer speechRecognizer;
     private TextToSpeech ttsEngine;
     private Button sttButton;
@@ -798,11 +803,27 @@ public class MainActivity extends Activity {
 
         String[] lines = notice.text.split("\\r?\\n", 2);
         String title = lines.length > 0 ? lines[0] : notice.text;
-        TextView titleView = text(title, 22, COLOR_INK, true);
-        titleView.setLetterSpacing(-0.02f);
-        titleView.setLineSpacing(0, 1.2f);
-        titleView.setPadding(dp(2), 0, dp(2), dp(4));
-        content.addView(titleView);
+        noticeTitleView = text(title, 22, COLOR_INK, true);
+        noticeTitleView.setLetterSpacing(-0.02f);
+        noticeTitleView.setLineSpacing(0, 1.2f);
+        noticeTitleView.setPadding(dp(2), 0, dp(2), dp(4));
+        content.addView(noticeTitleView);
+
+        // 번역 부제 — 분석 응답 도착 후 채워짐 (없으면 두 view 모두 GONE)
+        // 가시성: "🌐 영어" 라벨 칩 + 본문 16sp 진한 잉크 — 한국어 제목과 명확히 구분
+        noticeTitleLangChip = text("", 11, COLOR_INK3, true);
+        noticeTitleLangChip.setLetterSpacing(0.06f);
+        noticeTitleLangChip.setAllCaps(true);
+        noticeTitleLangChip.setPadding(dp(2), dp(2), dp(2), dp(2));
+        noticeTitleLangChip.setVisibility(View.GONE);
+        content.addView(noticeTitleLangChip);
+
+        noticeTitleSubView = text("", 16, COLOR_INK, false);
+        noticeTitleSubView.setLetterSpacing(-0.01f);
+        noticeTitleSubView.setLineSpacing(0, 1.3f);
+        noticeTitleSubView.setPadding(dp(2), 0, dp(2), dp(6));
+        noticeTitleSubView.setVisibility(View.GONE);
+        content.addView(noticeTitleSubView);
 
         TextView sender = text("👩‍🏫 " + notice.teacherId, 12, COLOR_INK3, false);
         sender.setPadding(dp(2), 0, 0, dp(14));
@@ -1132,6 +1153,25 @@ public class MainActivity extends Activity {
         }
         String extractedTitle = data.optString("title", "");
         if (!extractedTitle.isEmpty()) currentNoticeTitle = extractedTitle;
+        currentNoticeTitleTranslated = data.optString("title_translated", "");
+
+        // 헤더 갱신 — heuristic 결과로 첫 줄 fallback 덮어쓰기 + 번역 부제 표시
+        if (noticeTitleView != null && !extractedTitle.isEmpty()) {
+            noticeTitleView.setText(extractedTitle);
+        }
+        boolean showSub = !currentNoticeTitleTranslated.isEmpty()
+                && !"ko".equals(selectedLanguage) && !"ko_easy".equals(selectedLanguage);
+        if (noticeTitleSubView != null && noticeTitleLangChip != null) {
+            if (showSub) {
+                noticeTitleLangChip.setText("🌐  " + languageDisplayName(selectedLanguage));
+                noticeTitleLangChip.setVisibility(View.VISIBLE);
+                noticeTitleSubView.setText(currentNoticeTitleTranslated);
+                noticeTitleSubView.setVisibility(View.VISIBLE);
+            } else {
+                noticeTitleLangChip.setVisibility(View.GONE);
+                noticeTitleSubView.setVisibility(View.GONE);
+            }
+        }
 
         if (cards != null && cards.length() > 0) {
             appendCardLines(cards, koBuilder, easyBuilder, trBuilder);
@@ -1899,6 +1939,8 @@ public class MainActivity extends Activity {
 
     private String buildSpokenText(String category) {
         if ("주제".equals(category)) {
+            // 모국어 음성 답변용 — 번역본 우선, 없으면 한국어 fallback
+            if (!currentNoticeTitleTranslated.isEmpty()) return currentNoticeTitleTranslated;
             return currentNoticeTitle.isEmpty() ? "" : currentNoticeTitle;
         }
         StringBuilder sb = new StringBuilder();

@@ -28,6 +28,24 @@ except ImportError as error:
 _AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\s*원")
 
 
+def extract_title(notice_text: str) -> str | None:
+    """가정통신문 원문 → 제목 한 줄. 못 찾으면 None.
+
+    윤정님 PR #90 (predict.py:extract_title) — split_sentences()의
+    _HEADER_ONLY 필터가 제목을 차단하기 전에 원문 줄을 직접 스캔.
+    predict()와 별도 호출.
+    """
+    if not notice_text or not notice_text.strip():
+        return None
+    if _yunjeong is None or not hasattr(_yunjeong, "extract_title"):
+        return None
+    try:
+        return _yunjeong.extract_title(notice_text)
+    except Exception as error:
+        print(f"[extractor] extract_title failed: {error}")
+        return None
+
+
 def extract_todos(notice_text: str, source: str | None = None) -> list[YunjeongTodo]:
     """가정통신문 원문 → list[YunjeongTodo]. 할일 없으면 []."""
     if not notice_text or not notice_text.strip():

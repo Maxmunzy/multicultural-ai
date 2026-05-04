@@ -6,7 +6,7 @@ from app.models.schemas import (
     NoticeSendRequest, SlotCard, SlotEntry, SummarySlots, UserProfile,
     YunjeongTodo,
 )
-from app.services.extractor import extract_todos
+from app.services.extractor import extract_todos, extract_title
 from app.services.parser import ParserError, parse_bytes_to_text
 from app.services.translator import translate_short_sentence, translate_term
 from app.services.classifier import classify_category
@@ -313,6 +313,12 @@ async def analyze_notice(
         print(f"[analyze] extractor failed: {error}")
         todos = MOCK_TODOS
 
+    # [3'] 제목 추출 (윤정님 PR #90 heuristic) — split_sentences 이전, 원문 직접 스캔
+    title_ko = extract_title(notice.text) or ""
+    title_translated = (
+        translate_short_sentence(title_ko, target_lang) if title_ko else ""
+    )
+
     # [2] 정규식 슬롯 (전체 통신문 단위, summary 재료)
     regex_slots = extract_summary_regex_slots(notice.text, target_lang)
 
@@ -344,6 +350,8 @@ async def analyze_notice(
         "notice_id": notice_id,
         "raw_text": notice.text,
         "target_language": target_lang,
+        "title": title_ko,
+        "title_translated": title_translated,
         "cards": [c.model_dump() for c in cards],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
