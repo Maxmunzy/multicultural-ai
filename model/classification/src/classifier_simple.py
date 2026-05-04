@@ -78,14 +78,23 @@ def build_pipeline() -> Pipeline:
     """TF-IDF + Logistic Regression 파이프라인.
 
     TF-IDF 파라미터:
-      - analyzer="char_wb": 한국어는 글자 단위 n-gram이 어절 단위보다 OOV에 강함
-      - ngram_range=(2, 4): 2~4글자 조합으로 형태소 정보 간접 포착
+      - analyzer="char_wb": 한국어는 글자 단위 n-gram이 어절 단위보다 OOV((Out-of-Vocabulary)에 강함 : 단어 분리 없이 글자 단위 n-gram 사용 → 형태소 분석기 불필요, 미등록어(OOV)에 강함
+      - 글자 n-gram은 조사/어미가 달라도 어근 조각이 겹치기 때문에 자연스럽게 대응
+      - 글자 조각(n-gram)으로 쪼개면 처음 보는 표현도 익숙한 조각들로 분해되어 의미를 파악할 수 있다.
+      - ngram_range=(2, 4): 2~4글자 조합으로 어미/조사 같은 형태소 정보 간접 포착
       - max_features=30000: 메모리·속도 균형
-      - sublinear_tf=True: log(1+tf)로 빈도 폭발 억제
+      - sublinear_tf=True: 빈도를 log(1+tf)로 변환해 특정 단어의 과도한 영향 억제
     LogReg 파라미터:
-      - C=1.0: 기본 정규화 (오버피팅 방지)
+      - C=1.0: 기본 정규화 (오버피팅 방지) / C=1.0 — 정규화 강도
+      - 정규화의 필요성: 모델이 학습 데이터에 너무 딱 맞게 학습되면 새로운 데이터에서 성능이 떨어집니다 (오버피팅).
+      - C는 정규화의 반대 개념입니다.
+      - C 값이 작을수록  →  정규화 강함  →  가중치를 강하게 억제  →  단순한 모델 
+      - C 값이 클수록   →  정규화 약함  →  가중치를 자유롭게 키움  →  복잡한 모델
       - max_iter=1000: 수렴 보장
+      - 초기 가중치 → 예측 → 오차 계산 → 가중치 조정 → 예측 → 오차 계산 → ...
+        (1번째 iter)                        (2번째 iter)
       - class_weight="balanced": 클래스 불균형 대응
+      - solver="lbfgs": 다중 클래스에 적합한 최적화 알고리즘
     """
     return Pipeline([
         ("tfidf", TfidfVectorizer(
