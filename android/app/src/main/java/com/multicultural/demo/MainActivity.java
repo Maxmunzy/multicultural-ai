@@ -57,7 +57,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // 각자 PC의 내부 IP로 수정. 자세한 가이드는 android/README.md 참고.
-    private static final String BASE_URL = "http://192.168.45.93:8000";
+    private static final String BASE_URL = "http://192.168.x.x:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
     private static final String PREFS_NAME = "app";
@@ -1971,35 +1971,33 @@ public class MainActivity extends Activity {
     }
 
     private String buildSpokenText(String category) {
+        boolean useKo = "vi_demo".equals(selectedLanguage);
         if ("주제".equals(category)) {
-            // 모국어 음성 답변용 — 번역본 우선, 없으면 한국어 fallback
-            if (!currentNoticeTitleTranslated.isEmpty()) return currentNoticeTitleTranslated;
+            if (!useKo && !currentNoticeTitleTranslated.isEmpty()) return currentNoticeTitleTranslated;
             return currentNoticeTitle.isEmpty() ? "" : currentNoticeTitle;
         }
         StringBuilder sb = new StringBuilder();
-        // cards 구조에서 chip으로 필터
         if (currentCards != null) {
             for (int i = 0; i < currentCards.length(); i++) {
                 JSONObject card = currentCards.optJSONObject(i);
                 if (card == null) continue;
                 String chip = safeString(card, "chip");
                 if (!chip.contains(category)) continue;
-                String val = firstNonBlank(
-                        safeString(card, "value_translated"),
-                        safeString(card, "value_ko"));
+                String val = useKo
+                        ? safeString(card, "value_ko")
+                        : firstNonBlank(safeString(card, "value_translated"), safeString(card, "value_ko"));
                 if (!val.isEmpty()) sb.append(val).append(". ");
             }
         }
-        // items 구조 fallback
         if (sb.length() == 0 && currentAnalysisItems != null) {
             for (int i = 0; i < currentAnalysisItems.length(); i++) {
                 JSONObject item = currentAnalysisItems.optJSONObject(i);
                 if (item == null) continue;
                 String cat = safeString(item, "category");
                 if (!cat.contains(category)) continue;
-                String title = firstNonBlank(
-                        safeString(item, "title_translated"),
-                        safeString(item, "title_ko"));
+                String title = useKo
+                        ? safeString(item, "title_ko")
+                        : firstNonBlank(safeString(item, "title_translated"), safeString(item, "title_ko"));
                 if (!title.isEmpty()) sb.append(title).append(". ");
             }
         }
@@ -2013,7 +2011,8 @@ public class MainActivity extends Activity {
         }
         Locale locale;
         switch (selectedLanguage) {
-            case "vi": case "vi_demo": locale = new Locale("vi", "VN"); break;
+            case "vi":      locale = new Locale("vi", "VN"); break;
+            case "vi_demo": locale = Locale.KOREAN; break;
             case "en":  locale = Locale.US; break;
             case "ru":  locale = new Locale("ru", "RU"); break;
             case "ms":  locale = new Locale("ms", "MY"); break;
