@@ -19,6 +19,10 @@ OCR은 A단계 이전에 처리되므로 이 스크립트는 항상 순수 str �
 ─────────────────────────────────────────
 OCR 추출 텍스트 (str)
     ↓
+[0] extract_title()         원본 줄에서 제목 감지 (heuristic)
+                            → split_sentences() 이전에 실행해야 함
+                              (_HEADER_ONLY 필터가 제목 줄을 걸러내므로)
+    ↓
 [1] split_sentences()       줄글 → 문장 리스트
                             (OCR 아티팩트 줄 조기 차단 포함)
     ↓
@@ -32,6 +36,8 @@ OCR 추출 텍스트 (str)
 predict() → list[dict]
     {"text": str, "source": str|None, "due_date": str|None,
      "amount": int|None, "confidence": float, "action_hint": str|None}
+
+제목 추출: extract_title(notice_text) → str | None  (predict()와 별도 호출)
 ─────────────────────────────────────────
 """
 
@@ -45,6 +51,50 @@ import torch
 
 warnings.filterwarnings("ignore", category=UserWarning, module="torch")
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+
+# ─────────────────────────────────────────
+# 0. 제목 감지 heuristic
+# ─────────────────────────────────────────
+_TITLE_ENDING_RE = re.compile(r"(안내|공지|알림|통보|조사|신청|수납|모집)\s*(제\s*\d{4,}-\d+호)?$")
+_TITLE_MAX_LEN = 80
+_TITLE_SENT_END_RE = re.compile(r"[.!?。？！]")
+_TITLE_SECTION_RE = re.compile(r"^[\d가나다라마바사아자차카타파하][.)]\s")
+
+
+def is_title_heuristic(text: str) -> bool:
+    """rule 기반 제목 감지.
+
+    조건 (모두 만족해야 True):
+      - 10자 이상, 80자 이하
+      - 문장 부호(. ! ?) 없음
+      - 항목 번호(1. 가. 등)로 시작하지 않음
+      - '안내/공지/알림/통보/조사/신청/수납/모집'으로 끝남
+    """
+    if not (10 <= len(text) <= _TITLE_MAX_LEN):
+        return False
+    if _TITLE_SENT_END_RE.search(text):
+        return False
+    if _TITLE_SECTION_RE.match(text):
+        return False
+    return bool(_TITLE_ENDING_RE.search(text))
+
+
+def extract_title(notice_text: str) -> Optional[str]:
+    """가정통신문에서 제목 문장을 추출. 없으면 None.
+
+    split_sentences()의 _HEADER_ONLY 필터가 제목 줄을 차단하기 전에
+    원본 줄을 직접 스캔하므로 반드시 predict() 와 별도로, 원문에 대해 호출할 것.
+
+    사용 예:
+        title = extract_title(notice_text)
+        items = predict(notice_text, source=filename)
+    """
+    for line in notice_text.splitlines():
+        line = line.strip()
+        if line and is_title_heuristic(line):
+            return line
+    return None
 
 
 # ─────────────────────────────────────────
