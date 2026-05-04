@@ -1309,8 +1309,9 @@ public class MainActivity extends Activity {
 
     private void appendSlotCardLine(StringBuilder sb, String header, String value, String chip) {
         if (value.isEmpty()) return;
-        if (!chip.isEmpty()) sb.append("[").append(chip).append("] ");
-        if (!header.isEmpty()) sb.append(header).append(": ");
+        // chip prefix는 별도 카드 chip 영역(renderCardChips)에서 표시되므로 본문에 중복 X
+        // header가 "기타"면 의미 없는 슬롯 라벨이라 skip — 의미 있는 헤더("일시"/"마감"/"준비물" 등)만 유지
+        if (!header.isEmpty() && !"기타".equals(header)) sb.append(header).append(": ");
         sb.append(value).append('\n');
     }
 
