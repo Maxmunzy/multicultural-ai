@@ -1,40 +1,44 @@
 """
 evaluate_model.py
 =================
-Base 모델 vs Fine-tuned 모델 성능 비교 (강사님 제출용)
+Base 모델 vs v2 Fine-tuned vs v3 Fine-tuned 성능 비교
 
 [실행 전 준비]
-  1. test_data.jsonl 준비 — 학습에 쓰지 않은 문장 데이터
-     형식: {"text": "문장...", "is_todo": true/false}
-  2. Fine-tuned 모델 다운로드 후 아래 경로에 압축 해제
-     checkpoints/koelectra-binary/
+  1. test_data.jsonl 준비
+       python scripts/export_predict_output.py  # 자동 생성
+  2. 체크포인트 배치
+       checkpoints/koelectra-binary/       ← 현재(v3) 모델
+       checkpoints/koelectra-binary-v2/    ← 이전(v2) 모델 (선택)
 
 [사용법]
+  # Base vs v3
   python file/evaluate_model.py
-  python file/evaluate_model.py --test_data data/test_data.jsonl
+
+  # Base vs v2 vs v3
+  python file/evaluate_model.py --v2_model ../checkpoints/koelectra-binary-v2
+
+  # 테스트 데이터 직접 지정
+  python file/evaluate_model.py --test_data ../data/train/test_data.jsonl
 """
 
 import argparse
 import sys
 from pathlib import Path
 
-import pandas as pd
 from sklearn.metrics import accuracy_score, classification_report, f1_score
 from transformers import pipeline
 
-# Windows 터미널 UTF-8 출력
 if sys.stdout.encoding and sys.stdout.encoding.lower() != "utf-8":
     sys.stdout.reconfigure(encoding="utf-8")
 
-# 스크립트 위치 기준 기본 경로
 _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
 
-DEFAULT_TEST_DATA      = _ROOT / "data" / "test_data.jsonl"
-BASE_MODEL_PATH        = "monologg/koelectra-small-v3-discriminator"
-FINETUNED_MODEL_PATH   = str(_ROOT / "checkpoints" / "koelectra-binary")
+DEFAULT_TEST_DATA    = _ROOT / "data" / "train" / "test_data.jsonl"
+BASE_MODEL_ID        = "monologg/koelectra-small-v3-discriminator"
+V3_MODEL_PATH        = str(_ROOT / "checkpoints" / "koelectra-binary")
+V2_MODEL_PATH        = str(_ROOT / "checkpoints" / "koelectra-binary-v2")
 
-# 파인튜닝 모델의 id2label 이 한국어로 설정되어 있으므로 양쪽 형식 모두 처리
 _LABEL_MAP = {
     "노이즈":  0,
     "할 일":   1,
@@ -43,15 +47,13 @@ _LABEL_MAP = {
 }
 
 
-def _parse_label(raw_label: str) -> int:
-    """pipeline 출력 라벨을 0/1 정수로 변환"""
-    if raw_label in _LABEL_MAP:
-        return _LABEL_MAP[raw_label]
-    # 혹시 LABEL_X 형태인 경우 fallback
+def _parse_label(raw: str) -> int:
+    if raw in _LABEL_MAP:
+        return _LABEL_MAP[raw]
     try:
-        return int(raw_label.split("_")[-1])
+        return int(raw.split("_")[-1])
     except ValueError:
-        raise ValueError(f"알 수 없는 라벨: {raw_label!r}")
+        raise ValueError(f"알 수 없는 라벨: {raw!r}")
 
 
 def evaluate_model(
@@ -60,23 +62,15 @@ def evaluate_model(
     true_labels: list[int],
     model_name: str = "Model",
 ) -> tuple[float, float]:
-    """
-    단일 모델 평가.
-
-    Returns:
-        (accuracy, f1_score) 튜플
-    """
     print(f"\n[{model_name}] 추론 중...")
-
     clf = pipeline(
         "text-classification",
         model=model_path,
         tokenizer=model_path,
-        device=-1,          # CPU 사용 (-1), GPU는 0
-        truncation=True,    # 학습 조건과 일치
+        device=-1,
+        truncation=True,
         max_length=128,
     )
-
     predictions = clf(test_texts, batch_size=16)
     pred_labels = [_parse_label(p["label"]) for p in predictions]
 
@@ -93,12 +87,25 @@ def evaluate_model(
         digits=4,
         zero_division=0,
     ))
-
     return acc, f1
 
 
+def load_test_data(path: Path) -> tuple[list[str], list[int]]:
+    import json
+    texts, labels = [], []
+    for line in path.read_text("utf-8").splitlines():
+        if not line.strip():
+            continue
+        obj = json.loads(line)
+        if "text" not in obj or "is_todo" not in obj:
+            continue
+        texts.append(str(obj["text"]))
+        labels.append(int(bool(obj["is_todo"])))
+    return texts, labels
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Base vs Fine-tuned 모델 성능 비교")
+    parser = argparse.ArgumentParser(description="Base / v2 / v3 모델 성능 비교")
     parser.add_argument(
         "--test_data",
         type=Path,
@@ -106,61 +113,78 @@ def main() -> None:
         help=f"테스트 JSONL 경로 (기본: {DEFAULT_TEST_DATA})",
     )
     parser.add_argument(
-        "--finetuned",
-        default=FINETUNED_MODEL_PATH,
-        help=f"파인튜닝 모델 경로 (기본: {FINETUNED_MODEL_PATH})",
+        "--v3_model",
+        default=V3_MODEL_PATH,
+        help=f"v3 Fine-tuned 모델 경로 (기본: {V3_MODEL_PATH})",
+    )
+    parser.add_argument(
+        "--v2_model",
+        default=None,
+        help="v2 Fine-tuned 모델 경로 (없으면 Base vs v3 비교만 수행)",
     )
     args = parser.parse_args()
 
-    # ── 테스트 데이터 로드 ────────────────────────────────────────────────────
     if not args.test_data.exists():
         print(f"[오류] 테스트 파일이 없습니다: {args.test_data}", file=sys.stderr)
+        print("  먼저 실행: python scripts/export_predict_output.py", file=sys.stderr)
         sys.exit(1)
 
-    df = pd.read_json(args.test_data, lines=True)
-
-    if "text" not in df.columns or "is_todo" not in df.columns:
-        print("[오류] JSONL에 'text', 'is_todo' 컬럼이 필요합니다.", file=sys.stderr)
-        sys.exit(1)
-
-    test_texts  = df["text"].tolist()
-    true_labels = [int(v) for v in df["is_todo"]]   # bool -> 0/1
-
+    test_texts, true_labels = load_test_data(args.test_data)
     print(f"테스트 문장: {len(test_texts)}개")
     print(f"  할 일(1): {sum(true_labels)}개  "
           f"노이즈(0): {len(true_labels) - sum(true_labels)}개")
 
-    # ── Base 모델 평가 ────────────────────────────────────────────────────────
-    print("\n" + "=" * 55)
-    print("Base 모델 평가 (파인튜닝 전, 랜덤 가중치)")
-    print("=" * 55)
+    # ── Base 모델 ─────────────────────────────────────────────────────────
+    print("\n" + "=" * 60)
+    print("Base 모델 (파인튜닝 전, 랜덤 가중치)")
+    print("=" * 60)
     base_acc, base_f1 = evaluate_model(
-        BASE_MODEL_PATH, test_texts, true_labels, "Base 모델"
+        BASE_MODEL_ID, test_texts, true_labels, "Base"
     )
 
-    # ── Fine-tuned 모델 평가 ──────────────────────────────────────────────────
-    print("=" * 55)
-    print("Fine-tuned 모델 평가 (KoELECTRA 이진 분류 학습 후)")
-    print("=" * 55)
-    ft_acc, ft_f1 = evaluate_model(
-        args.finetuned, test_texts, true_labels, "Fine-tuned 모델"
+    # ── v2 Fine-tuned (선택) ──────────────────────────────────────────────
+    v2_acc = v2_f1 = None
+    if args.v2_model:
+        v2_path = Path(args.v2_model)
+        if not v2_path.exists():
+            print(f"[경고] v2 모델 경로 없음: {v2_path} — 건너뜀", file=sys.stderr)
+        else:
+            print("=" * 60)
+            print("v2 Fine-tuned 모델")
+            print("=" * 60)
+            v2_acc, v2_f1 = evaluate_model(
+                str(v2_path), test_texts, true_labels, "v2 Fine-tuned"
+            )
+
+    # ── v3 Fine-tuned ─────────────────────────────────────────────────────
+    print("=" * 60)
+    print("v3 Fine-tuned 모델 (v3_dual_labeled_clean.jsonl 학습)")
+    print("=" * 60)
+    v3_acc, v3_f1 = evaluate_model(
+        args.v3_model, test_texts, true_labels, "v3 Fine-tuned"
     )
 
-    # ── 강사님 제출용 비교 요약 ───────────────────────────────────────────────
-    print("=" * 55)
-    print("[강사님 제출용: Base vs Fine-tuned 성능 비교]")
-    print("=" * 55)
-    print(f"{'모델':<18} {'Accuracy':>10} {'F1-Score':>10}")
-    print("-" * 42)
-    print(f"{'Base 모델':<18} {base_acc*100:>9.2f}% {base_f1:>10.4f}")
-    print(f"{'Fine-tuned 모델':<18} {ft_acc*100:>9.2f}% {ft_f1:>10.4f}")
-    print("-" * 42)
-    acc_delta = (ft_acc - base_acc) * 100
-    f1_delta  = ft_f1 - base_f1
-    sign_acc  = "+" if acc_delta >= 0 else ""
-    sign_f1   = "+" if f1_delta  >= 0 else ""
-    print(f"{'향상 폭':<18} {sign_acc}{acc_delta:>8.2f}%p {sign_f1}{f1_delta:>9.4f}")
-    print("=" * 55)
+    # ── 비교 요약 ─────────────────────────────────────────────────────────
+    print("\n" + "=" * 60)
+    print("[성능 비교 요약]")
+    print("=" * 60)
+    print(f"{'모델':<22} {'Accuracy':>10} {'F1 (할 일)':>12}")
+    print("-" * 48)
+    print(f"{'Base 모델':<22} {base_acc*100:>9.2f}% {base_f1:>12.4f}")
+    if v2_acc is not None:
+        print(f"{'v2 Fine-tuned':<22} {v2_acc*100:>9.2f}% {v2_f1:>12.4f}")
+    print(f"{'v3 Fine-tuned':<22} {v3_acc*100:>9.2f}% {v3_f1:>12.4f}")
+    print("-" * 48)
+
+    ref_acc = v2_acc if v2_acc is not None else base_acc
+    ref_f1  = v2_f1  if v2_f1  is not None else base_f1
+    ref_name = "v2 대비" if v2_acc is not None else "Base 대비"
+    delta_acc = (v3_acc - ref_acc) * 100
+    delta_f1  = v3_f1 - ref_f1
+    print(f"{'v3 향상 폭 (' + ref_name + ')':<22} "
+          f"{'+' if delta_acc>=0 else ''}{delta_acc:>8.2f}%p "
+          f"{'+' if delta_f1>=0 else ''}{delta_f1:>11.4f}")
+    print("=" * 60)
 
 
 if __name__ == "__main__":
