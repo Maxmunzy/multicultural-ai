@@ -402,6 +402,37 @@ PR #53으로 `_BASE_MODEL_ID = "yunjeong116/koelectra-extractor"`. 컨테이너 
 docker compose run -e PARSER_LIBREOFFICE_TIMEOUT=600 backend
 ```
 
+### HWP→ODT 글자 3배 중복 (draw:frame, 2026-05-03 fix)
+
+**증상:** 일부 통신문이 글자 3배 반복으로 추출됨 (`어어어린린린이이이`).
+
+**원인:** HWP→ODT 변환 시 텍스트 상자(`draw:frame`)에 본문과 같은 텍스트가 별도로 저장됨. `_odt_to_text`가 `tree.iter()`로 전체 트리를 순회하면서 본문 + frame 텍스트를 둘 다 추출 → 같은 문장 2~3회 반복.
+
+이전 PDF 경로 doubled-char 문제와 별개의 ODT 측 이슈.
+
+**해결 (PR #79):** 표 inner element 제외 로직과 동일하게 `draw:frame` inner도 제외 처리.
+
+```python
+# parser.py
+_ODT_DRAW_NS = "{urn:oasis:names:tc:opendocument:xmlns:drawing:1.0}"
+
+# _odt_to_text 내부:
+for frame in tree.iter(_ODT_DRAW_NS + "frame"):
+    for elem in frame.iter():
+        table_inner_ids.add(id(elem))  # 본문 처리에서 제외
+```
+
+머지 이후 신규 변환은 정상. 머지 이전에 변환된 학습 데이터는 `scripts/fix_triple_chars.py`로 후처리 정제.
+
+### 학구 안내 통신문 (28만자 단일 행)
+
+**증상:** "통반 명칭 및 관할구역" 같은 행정 문서는 한 행에 수만~수십만 자 (아파트 동/호수 나열). 이런 행이 들어가면 모델 추론에서 token limit 초과.
+
+**대응 방향 (라벨링 후 확정):**
+- `is_title` 분류기로 제목만 추출 → 학부모에게 "어떤 통신문" 알림
+- 본문 분석은 best-effort (실패해도 제목+raw_text는 표시)
+- 통신문 자체는 인박스에 정상 표시되어 학부모가 답답함 없음
+
 ---
 
 ## 설계 결정
