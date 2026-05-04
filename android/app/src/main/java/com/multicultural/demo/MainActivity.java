@@ -57,7 +57,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // 각자 PC의 내부 IP로 수정. 자세한 가이드는 android/README.md 참고.
-    private static final String BASE_URL = "http://172.30.1.45:8000";
+    private static final String BASE_URL = "http://192.168.45.93:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
     private static final String PREFS_NAME = "app";
@@ -165,7 +165,7 @@ public class MainActivity extends Activity {
         vi.put("제출",   new String[]{"Cần nộp gì?",                 "nộp", "cần nộp"});
         vi.put("건강",   new String[]{"Thông tin sức khỏe?",         "sức khỏe", "an toàn"});
         STT_TIPS.put("vi", vi);
-        STT_TIPS.put("vi_demo", vi);
+        STT_TIPS.put("vi_demo", ko); // 시연용: 한국인 발표자가 한국어로 말함
 
         // 영어
         Map<String, String[]> en = new LinkedHashMap<>();
@@ -998,11 +998,29 @@ public class MainActivity extends Activity {
         caption.setPadding(dp(2), dp(2), 0, dp(2));
         content.addView(caption);
 
-        TextView title = text(languageDisplayName(selectedLanguage) + " " + uiText("translation"),
-                22, COLOR_INK, true);
-        title.setLetterSpacing(-0.02f);
-        title.setPadding(dp(2), 0, dp(2), dp(2));
-        content.addView(title);
+        // 통신문 제목 — 클래스 필드에 할당해야 applyAnalysis()의 setText가 자동 연결됨
+        String[] noticeTitleLines = notice.text.split("\\r?\\n", 2);
+        String initialTitle = noticeTitleLines.length > 0 ? noticeTitleLines[0].trim() : "";
+        noticeTitleView = text(initialTitle, 22, COLOR_INK, true);
+        noticeTitleView.setLetterSpacing(-0.02f);
+        noticeTitleView.setLineSpacing(0, 1.2f);
+        noticeTitleView.setPadding(dp(2), 0, dp(2), dp(4));
+        content.addView(noticeTitleView);
+
+        // 번역 부제 칩 + 본문 — applyAnalysis()에서 채워짐
+        noticeTitleLangChip = text("", 11, COLOR_INK3, true);
+        noticeTitleLangChip.setLetterSpacing(0.06f);
+        noticeTitleLangChip.setAllCaps(true);
+        noticeTitleLangChip.setPadding(dp(2), dp(2), dp(2), dp(2));
+        noticeTitleLangChip.setVisibility(View.GONE);
+        content.addView(noticeTitleLangChip);
+
+        noticeTitleSubView = text("", 16, COLOR_INK, false);
+        noticeTitleSubView.setLetterSpacing(-0.01f);
+        noticeTitleSubView.setLineSpacing(0, 1.3f);
+        noticeTitleSubView.setPadding(dp(2), 0, dp(2), dp(6));
+        noticeTitleSubView.setVisibility(View.GONE);
+        content.addView(noticeTitleSubView);
 
         TextView sub = text(uiText("ai_subtitle"), 12, COLOR_INK3, false);
         sub.setPadding(dp(2), 0, 0, dp(12));
@@ -1739,8 +1757,8 @@ public class MainActivity extends Activity {
         row.setGravity(Gravity.CENTER);
         row.setPadding(dp(16), dp(4), dp(16), dp(4));
 
-        String[] labels = {"느리게", "보통", "빠르게"};
-        float[] speeds = {0.75f, 1.0f, 1.25f};
+        String[] labels = {uiText("slow"), uiText("normal"), uiText("fast")};
+        float[] speeds = {0.5f, 0.75f, 1.0f};
         speedButtons = new Button[3];
 
         for (int i = 0; i < 3; i++) {
@@ -1774,7 +1792,7 @@ public class MainActivity extends Activity {
 
     private void updateSpeedButtonStyles() {
         if (speedButtons == null) return;
-        float[] speeds = {0.75f, 1.0f, 1.25f};
+        float[] speeds = {0.5f, 0.75f, 1.0f};
         for (int i = 0; i < speedButtons.length; i++) {
             boolean selected = Math.abs(ttsSpeed - speeds[i]) < 0.01f;
             GradientDrawable bg = new GradientDrawable();
@@ -1815,7 +1833,7 @@ public class MainActivity extends Activity {
         tipCard.setBackground(tipBg);
 
         TextView tipTitle = new TextView(this);
-        tipTitle.setText("💬  이렇게 말해보세요");
+        tipTitle.setText("💬  " + sttTipHeading());
         tipTitle.setTextSize(12);
         tipTitle.setTextColor(COLOR_PEACH_INK);
         tipTitle.setTypeface(null, Typeface.BOLD);
@@ -1836,7 +1854,7 @@ public class MainActivity extends Activity {
 
         // 마이크 버튼
         sttButton = new Button(this);
-        sttButton.setText("🎤  말해서 물어보기");
+        sttButton.setText("🎤  " + uiText("speak_to_ask"));
         sttButton.setTextSize(15);
         sttButton.setTextColor(Color.WHITE);
         sttButton.setAllCaps(false);
@@ -1871,13 +1889,13 @@ public class MainActivity extends Activity {
             @Override public void onResults(Bundle results) {
                 ArrayList<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
                 runOnUiThread(() -> {
-                    sttButton.setText("🎤  말해서 물어보기");
+                    sttButton.setText("🎤  " + uiText("speak_to_ask"));
                     if (matches != null && !matches.isEmpty()) handleSttResult(matches.get(0));
                 });
             }
             @Override public void onError(int error) {
                 runOnUiThread(() -> {
-                    sttButton.setText("🎤  말해서 물어보기");
+                    sttButton.setText("🎤  " + uiText("speak_to_ask"));
                     Toast.makeText(MainActivity.this, "인식 실패, 다시 시도해주세요", Toast.LENGTH_SHORT).show();
                 });
             }
@@ -1898,7 +1916,7 @@ public class MainActivity extends Activity {
 
     private String sttLocale() {
         switch (selectedLanguage) {
-            case "vi": case "vi_demo": return "vi-VN";
+            case "vi":  return "vi-VN";
             case "en":  return "en-US";
             case "ru":  return "ru-RU";
             case "ms":  return "ms-MY";
@@ -1906,7 +1924,21 @@ public class MainActivity extends Activity {
             case "zh":  return "zh-CN";
             case "th":  return "th-TH";
             case "ja":  return "ja-JP";
-            default:    return "ko-KR";
+            default:    return "ko-KR"; // vi_demo 포함
+        }
+    }
+
+    private String sttTipHeading() {
+        switch (selectedLanguage) {
+            case "vi":  return "Hãy nói như thế này";
+            case "en":  return "Try saying this";
+            case "ru":  return "Попробуйте сказать";
+            case "ms":  return "Cuba sebut begini";
+            case "mn":  return "Ингэж хэлж үзээрэй";
+            case "zh":  return "请这样说";
+            case "th":  return "ลองพูดแบบนี้";
+            case "ja":  return "こう話してみてください";
+            default:    return "이렇게 말해보세요"; // ko_easy, vi_demo
         }
     }
 
@@ -2634,6 +2666,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "School terms";
                     case "listen": return "Listen";
                     case "listen_easy_korean": return "Listen to Easy Korean";
+                    case "slow": return "Word by word";
+                    case "normal": return "Slowly";
+                    case "fast": return "Original";
+                    case "speak_to_ask": return "Ask by voice";
                     case "back_to_notice": return "Back to notice";
                     case "refresh_inbox": return "Refresh inbox";
                     case "logout": return "Log out";
@@ -2657,6 +2693,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "Từ ngữ trường học";
                     case "listen": return "Nghe";
                     case "listen_easy_korean": return "Nghe tiếng Hàn dễ hiểu";
+                    case "slow": return "Từng từ";
+                    case "normal": return "Chậm";
+                    case "fast": return "Gốc";
+                    case "speak_to_ask": return "Hỏi bằng giọng nói";
                     case "back_to_notice": return "Quay lại thông báo";
                     case "refresh_inbox": return "Tải lại hộp thư";
                     case "logout": return "Đăng xuất";
@@ -2680,6 +2720,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "学校用語";
                     case "listen": return "聞く";
                     case "listen_easy_korean": return "やさしい韓国語を聞く";
+                    case "slow": return "一語ずつ";
+                    case "normal": return "ゆっくり";
+                    case "fast": return "通常";
+                    case "speak_to_ask": return "音声で質問";
                     case "back_to_notice": return "お知らせに戻る";
                     case "refresh_inbox": return "受信箱を更新";
                     case "logout": return "ログアウト";
@@ -2703,6 +2747,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "学校用语";
                     case "listen": return "收听";
                     case "listen_easy_korean": return "收听简易韩语";
+                    case "slow": return "逐词";
+                    case "normal": return "慢速";
+                    case "fast": return "原速";
+                    case "speak_to_ask": return "语音提问";
                     case "back_to_notice": return "返回通知";
                     case "refresh_inbox": return "刷新收件箱";
                     case "logout": return "退出登录";
@@ -2726,6 +2774,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "Школьные термины";
                     case "listen": return "Слушать";
                     case "listen_easy_korean": return "Слушать простой корейский";
+                    case "slow": return "Пословно";
+                    case "normal": return "Медленно";
+                    case "fast": return "Оригинал";
+                    case "speak_to_ask": return "Спросить голосом";
                     case "back_to_notice": return "Назад к уведомлению";
                     case "refresh_inbox": return "Обновить";
                     case "logout": return "Выйти";
@@ -2749,6 +2801,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "Istilah sekolah";
                     case "listen": return "Dengar";
                     case "listen_easy_korean": return "Dengar Korea mudah";
+                    case "slow": return "Kata demi kata";
+                    case "normal": return "Perlahan";
+                    case "fast": return "Asal";
+                    case "speak_to_ask": return "Tanya dengan suara";
                     case "back_to_notice": return "Kembali ke notis";
                     case "refresh_inbox": return "Muat semula";
                     case "logout": return "Log keluar";
@@ -2772,6 +2828,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "Сургуулийн үг";
                     case "listen": return "Сонсох";
                     case "listen_easy_korean": return "Хялбар солонгос сонсох";
+                    case "slow": return "Үгээр үгд";
+                    case "normal": return "Удаан";
+                    case "fast": return "Эх";
+                    case "speak_to_ask": return "Дуугаар асуух";
                     case "back_to_notice": return "Мэдэгдэл рүү буцах";
                     case "refresh_inbox": return "Дахин ачаалах";
                     case "logout": return "Гарах";
@@ -2795,6 +2855,10 @@ public class MainActivity extends Activity {
                     case "school_terms": return "คำศัพท์โรงเรียน";
                     case "listen": return "ฟัง";
                     case "listen_easy_korean": return "ฟังเกาหลีแบบง่าย";
+                    case "slow": return "ทีละคำ";
+                    case "normal": return "ช้า";
+                    case "fast": return "ต้นฉบับ";
+                    case "speak_to_ask": return "ถามด้วยเสียง";
                     case "back_to_notice": return "กลับไปประกาศ";
                     case "refresh_inbox": return "รีเฟรช";
                     case "logout": return "ออกจากระบบ";
@@ -2818,6 +2882,10 @@ public class MainActivity extends Activity {
             case "school_terms": return "사용된 학교 용어";
             case "listen": return "듣기";
             case "listen_easy_korean": return "쉬운 한국어 듣기";
+            case "slow": return "단어별";
+            case "normal": return "천천히";
+            case "fast": return "오리지날";
+            case "speak_to_ask": return "말해서 물어보기";
             case "back_to_notice": return "통신문으로 돌아가기";
             case "refresh_inbox": return "수신함 새로고침";
             case "logout": return "로그아웃";
