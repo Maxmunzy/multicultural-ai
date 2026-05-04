@@ -155,6 +155,8 @@ def extract_title(notice_text: str) -> Optional[str]:
 # ─────────────────────────────────────────
 # CPU 시연 환경을 위해 small 변형 사용
 _BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub 파인튜닝 모델
+# HF Hub repo 내 모델 파일이 koelectra-extractor/ 서브폴더에 위치
+_HF_SUBFOLDER = "koelectra-extractor"
 _LOCAL_CHECKPOINT_DIR = os.path.join(
     os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary"
 )  # file/../checkpoints = extraction/checkpoints (이전: file/checkpoints — 경로 오류 수정)
@@ -180,12 +182,20 @@ def _load_model() -> None:
         )
         and os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, "config.json"))
     )
-    src = _LOCAL_CHECKPOINT_DIR if _local_ready else _BASE_MODEL_ID
 
-    _tokenizer = AutoTokenizer.from_pretrained(src)
-    _model = AutoModelForSequenceClassification.from_pretrained(
-        src, num_labels=2
-    )
+    if _local_ready:
+        _tokenizer = AutoTokenizer.from_pretrained(_LOCAL_CHECKPOINT_DIR)
+        _model = AutoModelForSequenceClassification.from_pretrained(
+            _LOCAL_CHECKPOINT_DIR, num_labels=2
+        )
+    else:
+        # HF Hub: 파일이 koelectra-extractor/ 서브폴더에 위치
+        _tokenizer = AutoTokenizer.from_pretrained(
+            _BASE_MODEL_ID, subfolder=_HF_SUBFOLDER
+        )
+        _model = AutoModelForSequenceClassification.from_pretrained(
+            _BASE_MODEL_ID, num_labels=2, subfolder=_HF_SUBFOLDER
+        )
     _model.to(_device)
     _model.eval()
 
