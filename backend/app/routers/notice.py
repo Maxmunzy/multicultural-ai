@@ -78,6 +78,35 @@ async def send_notice(
     return ApiResponse.success(data={"notice_id": notice_id}, message="발송 완료")
 
 
+@router.post("/extract-text", response_model=ApiResponse)
+async def extract_text(
+    file: UploadFile = File(...),
+    user: UserProfile = Depends(require_user),
+):
+    """파일 → 텍스트 추출만 (Notice 저장·발송 X). 선생님 발송 전 미리보기용.
+
+    실제 발송은 사용자가 발송 버튼을 누를 때 /notice/upload (파일 동봉) 또는
+    /notice/send (텍스트만)로 호출됨.
+    """
+    raw_bytes = await file.read()
+    try:
+        text = parse_bytes_to_text(raw_bytes, file.filename or "")
+    except ParserError as error:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"파일 변환 실패: {error}",
+        )
+    if not text:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="파일에서 추출된 텍스트가 비어있습니다",
+        )
+    return ApiResponse.success(
+        data={"text": text, "char_count": len(text), "filename": file.filename},
+        message=f"텍스트 추출 완료 ({file.filename})",
+    )
+
+
 @router.post("/upload", response_model=ApiResponse)
 async def upload_notice(
     teacher_id: str = Form(...),
@@ -126,7 +155,7 @@ async def upload_notice(
     )
     _notices[notice_id] = notice
     return ApiResponse.success(
-        data={"notice_id": notice_id, "char_count": len(text)},
+        data={"notice_id": notice_id, "char_count": len(text), "text": text},
         message=f"파일 업로드 완료 ({file.filename})",
     )
 
@@ -175,7 +204,7 @@ async def upload_notice_self(
         mime_type=mime_type,
     )
     return ApiResponse.success(
-        data={"notice_id": notice_id, "char_count": len(text)},
+        data={"notice_id": notice_id, "char_count": len(text), "text": text},
         message=f"업로드 완료 ({file.filename})",
     )
 

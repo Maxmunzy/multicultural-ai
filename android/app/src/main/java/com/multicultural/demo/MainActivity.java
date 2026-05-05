@@ -133,6 +133,9 @@ public class MainActivity extends Activity {
 
     private NoticeItem selectedNotice;
     private MediaPlayer player;
+    // 선생님이 첨부한 파일 (업로드 미리보기 → 발송 버튼 클릭 시 사용)
+    private byte[] pendingFileBytes = null;
+    private String pendingFilename = null;
     private String currentTtsUrl = "";
     private String currentEasyKoTtsUrl = "";
     private float ttsSpeed = 1.0f;
@@ -604,7 +607,7 @@ public class MainActivity extends Activity {
     // ============================================================
     private void showParentHome() {
         clearScreenRefs();
-        buildScreen("Xin chào,", currentUserId + "님 👋",
+        buildScreen(greetingForLanguage(), currentUserId + "님 👋",
                     uiText("received_notices"), true, 0, true);
 
         content.addView(languageSelectCard());
@@ -1018,7 +1021,7 @@ public class MainActivity extends Activity {
             try {
                 URL u = new URL(absUrl);
                 conn = (HttpURLConnection) u.openConnection();
-                conn.setConnectTimeout(5000);
+                conn.setConnectTimeout(30000);
                 conn.setReadTimeout(15000);
                 try (InputStream is = conn.getInputStream()) {
                     bmp = BitmapFactory.decodeStream(is);
@@ -1050,7 +1053,7 @@ public class MainActivity extends Activity {
             try {
                 URL u = new URL(absUrl);
                 conn = (HttpURLConnection) u.openConnection();
-                conn.setConnectTimeout(5000);
+                conn.setConnectTimeout(30000);
                 conn.setReadTimeout(30000);
                 pdfFile = new File(getCacheDir(), "notice_" + noticeId + ".pdf");
                 try (InputStream is = conn.getInputStream();
@@ -1687,17 +1690,50 @@ public class MainActivity extends Activity {
 
     // ============================================================
     //  SEND NOTICE (선생님 발송)
+    //  pendingFileBytes 있으면 → /notice/upload (파일 + 원본 보존, 학부모가 풀화면 PDF/이미지 조회)
+    //  없으면 → /notice/send (텍스트 직송)
     // ============================================================
     private void sendNotice() {
         String title = safe(titleInput.getText().toString());
         String body = safe(bodyInput.getText().toString());
-        String teacherId = currentUserId;
+        final String teacherId = currentUserId;
         String parentIdRaw = safe(parentIdInput.getText().toString());
         final String parentId = parentIdRaw.isEmpty() ? DEFAULT_PARENT_ID : parentIdRaw;
         if (body.isEmpty()) {
             setSendResult("⚠️ 본문을 입력해주세요.", false);
             return;
         }
+
+        // 파일 첨부된 경우 — /notice/upload로 발송 (원본 파일 보존)
+        if (pendingFileBytes != null && pendingFilename != null) {
+            final byte[] bytes = pendingFileBytes;
+            final String filename = pendingFilename;
+            setSendResult("📤 발송 중... (파일 첨부 " + filename + ")", true);
+            executor.execute(() -> {
+                ApiResult result = postMultipartUpload(teacherId, parentId, filename, bytes);
+                runOnUiThread(() -> {
+                    if (!result.error.isEmpty()) {
+                        setSendResult("❌ 발송 실패: " + result.error, false);
+                        return;
+                    }
+                    try {
+                        JSONObject json = new JSONObject(result.body);
+                        JSONObject d = json.optJSONObject("data");
+                        String noticeId = safeString(d, "notice_id");
+                        setSendResult("✅ 발송 완료 (파일 첨부)\n→ " + parentId
+                                + " · #" + shorten(noticeId, 8), true);
+                        // 발송 후 첨부 클리어 (재발송 방지)
+                        pendingFileBytes = null;
+                        pendingFilename = null;
+                    } catch (Exception error) {
+                        setSendResult("응답 파싱 실패\n" + result.body, false);
+                    }
+                });
+            });
+            return;
+        }
+
+        // 텍스트 직송
         String payloadText = title.isEmpty() ? body : title + "\n" + body;
         JSONObject bodyJson = new JSONObject();
         try {
@@ -1861,7 +1897,7 @@ public class MainActivity extends Activity {
             URL url = new URL(BASE_URL + "/notice/upload-self");
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
-            conn.setConnectTimeout(5000);
+            conn.setConnectTimeout(30000);
             conn.setReadTimeout(180000);
             conn.setRequestProperty("Accept", "application/json");
             conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
@@ -1897,12 +1933,10 @@ public class MainActivity extends Activity {
     }
 
     private void uploadSelectedFile(Uri uri, String filename, long sizeBytes) {
-        String parentIdRaw = parentIdInput == null ? "" : safe(parentIdInput.getText().toString());
-        final String parentId = parentIdRaw.isEmpty() ? DEFAULT_PARENT_ID : parentIdRaw;
-        final String teacherId = currentUserId;
-
+        // 미리보기 모드: /notice/extract-text 호출 → 텍스트만 받아서 bodyInput에 표시
+        // 실제 발송은 사용자가 발송 버튼 누를 때 (sendNotice() 분기에서 처리)
         String sizeLabel = sizeBytes > 0 ? " (" + (sizeBytes / 1024) + " KB)" : "";
-        setSendResult("📤 업로드 중... " + filename + sizeLabel, true);
+        setSendResult("📄 미리보기 변환 중... " + filename + sizeLabel, true);
 
         executor.execute(() -> {
             byte[] bytes;
@@ -1915,26 +1949,71 @@ public class MainActivity extends Activity {
                 return;
             }
 
-            ApiResult result = postMultipartUpload(teacherId, parentId, filename, bytes);
+            ApiResult result = postMultipartExtractText(filename, bytes);
             runOnUiThread(() -> {
                 if (!result.error.isEmpty()) {
-                    setSendResult("❌ 업로드 실패: " + result.error, false);
+                    setSendResult("❌ 텍스트 추출 실패: " + result.error, false);
                     return;
                 }
                 try {
                     JSONObject json = new JSONObject(result.body);
                     JSONObject d = json.optJSONObject("data");
-                    String noticeId = safeString(d, "notice_id");
                     int charCount = d == null ? 0 : d.optInt("char_count", 0);
+                    String extractedText = d == null ? "" : d.optString("text", "");
+                    // 디폴트 sample 텍스트 제거하고 추출된 본문으로 채움 (미리보기)
+                    if (bodyInput != null) bodyInput.setText(extractedText);
+                    if (titleInput != null) titleInput.setText("");
+                    // 발송 시 같은 파일 재전송하기 위해 보관
+                    pendingFileBytes = bytes;
+                    pendingFilename = filename;
                     setSendResult(
-                            "✅ 업로드 완료\n→ " + parentId + " · #" + shorten(noticeId, 8)
-                                    + " · 추출 " + charCount + "자",
+                            "📄 미리보기 — " + filename + " · " + charCount + "자\n"
+                                    + "↓ 발송 버튼을 눌러 학부모에게 보내세요.",
                             true);
                 } catch (Exception error) {
                     setSendResult("응답 파싱 실패\n" + result.body, false);
                 }
             });
         });
+    }
+
+    /** 텍스트 추출만 — Notice 저장·발송 X (미리보기용). */
+    private ApiResult postMultipartExtractText(String filename, byte[] fileBytes) {
+        ApiResult result = new ApiResult();
+        HttpURLConnection conn = null;
+        String boundary = "----DaonBoundary" + System.currentTimeMillis();
+        try {
+            URL url = new URL(BASE_URL + "/notice/extract-text");
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(30000);
+            conn.setReadTimeout(180000);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type",
+                    "multipart/form-data; boundary=" + boundary);
+            if (!currentUserId.isEmpty()) {
+                conn.setRequestProperty("X-User-Id", currentUserId);
+            }
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                writeMultipartFile(os, boundary, "file", filename, fileBytes);
+                os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+            }
+
+            int code = conn.getResponseCode();
+            InputStream stream = code >= 200 && code < 300
+                    ? conn.getInputStream() : conn.getErrorStream();
+            result.body = readStream(stream);
+            if (code < 200 || code >= 300) {
+                result.error = "HTTP " + code + "\n" + result.body;
+            }
+        } catch (Exception error) {
+            result.error = error.getMessage() == null ? error.toString() : error.getMessage();
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+        return result;
     }
 
     private ApiResult postMultipartUpload(String teacherId, String parentId,
@@ -1946,7 +2025,7 @@ public class MainActivity extends Activity {
             URL url = new URL(BASE_URL + "/notice/upload");
             conn = (HttpURLConnection) url.openConnection();
             conn.setRequestMethod("POST");
-            conn.setConnectTimeout(5000);
+            conn.setConnectTimeout(30000);
             conn.setReadTimeout(180000);  // LibreOffice 변환은 시간 걸릴 수 있음
             conn.setRequestProperty("Accept", "application/json");
             conn.setRequestProperty("Content-Type",
@@ -2432,9 +2511,28 @@ public class MainActivity extends Activity {
             // AI 화면이면 자동 재분석
             if (selectedNotice != null && analysisStatusText != null) {
                 showAIOverlay(selectedNotice);
+            } else if (inboxListBox != null) {
+                // 학부모 홈 — 인사말 갱신을 위해 화면 재구성
+                showParentHome();
             }
         });
         builder.show();
+    }
+
+    /** 학부모 홈 헤더 인사말 — selectedLanguage에 맞춰 모국어로 표시. */
+    private String greetingForLanguage() {
+        switch (selectedLanguage) {
+            case "vi": return "Xin chào,";
+            case "en": return "Hello,";
+            case "ru": return "Здравствуйте,";
+            case "ms": return "Selamat datang,";
+            case "mn": return "Сайн байна уу,";
+            case "zh": return "您好,";
+            case "th": return "สวัสดี,";
+            case "ja": return "こんにちは,";
+            case "ko_easy": return "안녕하세요,";
+            default: return "Xin chào,";
+        }
     }
 
     private void showInitialLanguageDialogIfNeeded() {
@@ -2872,7 +2970,7 @@ public class MainActivity extends Activity {
                 URL url = new URL(BASE_URL + path);
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod(method);
-                conn.setConnectTimeout(5000);
+                conn.setConnectTimeout(30000);
                 conn.setReadTimeout(180000);  // analyze 파이프라인 (NLLB+TTS) 최대 3분 허용
                 conn.setRequestProperty("Accept", "application/json");
                 if (!currentUserId.isEmpty()) {
