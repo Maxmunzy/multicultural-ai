@@ -1,0 +1,54 @@
+# HF Spaces Docker 빌드 컨텍스트에서 제외 — 이미지 크기·빌드 시간 최소화
+
+# 안드는 백엔드와 무관
+android/
+
+# git/빌드 메타
+.git/
+.github/
+.gitignore
+.dockerignore
+
+# 가상환경
+.venv/
+venv/
+env/
+
+# 컴파일 캐시
+**/__pycache__/
+**/*.pyc
+**/*.pyo
+**/*.pyd
+.pytest_cache/
+
+# 노트북 (서빙엔 불필요, 큼)
+**/*.ipynb
+**/.ipynb_checkpoints/
+
+# 학습 데이터 / 큰 csv·jsonl (서빙엔 불필요)
+data/
+backend/data/
+backend/external_data/
+external_data/
+model/classification/data/
+model/extraction/data/
+model/translation_tts/data/
+
+# 로컬 체크포인트 (HF Hub에서 다운로드되니 image에 포함 안 함)
+model/classification/checkpoints/
+model/extraction/checkpoints/
+
+# 시각화 png·문서 (서빙엔 불필요)
+**/*.png
+**/*.jpg
+docs/
+**/docs/
+
+# 로그·임시
+*.log
+*.tmp
+*.bak
+
+# 백엔드 자체 .env (Spaces secrets 사용)
+backend/.env
+.env
