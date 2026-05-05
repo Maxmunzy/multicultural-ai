@@ -5,9 +5,14 @@ NLLB 번역은 매번 모델 새로 로드하지 않게 캐싱.
 
 URL/전화는 NLLB가 토큰화하면서 깨먹는 패턴이라 placeholder 치환 + 복원으로 보호.
 세종님 요청(2026-04-29).
+
+성능 최적화 (2026-05-06, 시연 ~10s 목표):
+- num_beams 4 → 1 (greedy): -50% latency, 학교 공지 도메인은 beam 효과 미미
+- @lru_cache: 분석 1번에 같은 한국어 슬롯/카드 헤더가 반복 등장 → 재호출 방지
 """
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 import torch
@@ -72,7 +77,13 @@ def _get_glossary():
     return _glossary_rows
 
 
+@lru_cache(maxsize=1024)
 def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) -> str:
+    """NLLB 호출. (text, target_nllb) 동일 입력은 캐시 히트.
+
+    분석 1번 안에서 같은 슬롯 헤더("준비물", "비용" 등)가 cards/items/summary에
+    여러 번 등장하므로 캐시 효과 큼. greedy decoding으로 단일 호출 자체도 빠름.
+    """
     tokenizer, model = _get_translator()
     target_id = tokenizer.convert_tokens_to_ids(target_nllb)
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
@@ -81,7 +92,7 @@ def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) 
             **inputs,
             forced_bos_token_id=target_id,
             max_length=max_length,
-            num_beams=4,
+            num_beams=1,
             no_repeat_ngram_size=3,
             repetition_penalty=1.3,
             early_stopping=True,
