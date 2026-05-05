@@ -228,6 +228,10 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
     윤정님 split_sentences가 헤더 키워드 lookahead("운영시간"/"운영방법"/...)로
     행 안에서 의미 단위 자연 분리하므로 셀 구분자 불필요.
 
+    HWPX(H2Orestart) 중복 방지:
+      - 중첩 text:p (outer 컨테이너 + 자식 paragraph 동시 존재) → leaf만 emit
+      - 같은 본문이 여러 layout table/frame에 복제 → ≥15자 paragraph dedupe
+
     mark_header=True: 각 표의 첫 번째 행 앞에 "[헤더] " 마킹 + 셀을 " | " 구분.
     기본값 False — 기존 호출부(parse_bytes_to_text, batch_convert.py) 변경 없음.
     """
@@ -246,15 +250,23 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
         for elem in frame.iter():
             table_inner_ids.add(id(elem))
 
+    para_tags = (_ODT_TEXT_NS + "p", _ODT_TEXT_NS + "h")
+
+    # HWPX는 outer text:p 안에 자식 text:p가 들어간 중첩 구조를 만든다.
+    # tree.iter() + itertext()는 outer를 거대한 한 줄로 emit하면서 leaf도
+    # 따로 emit해 같은 본문이 합쳐진 채 + 분리된 채 둘 다 들어감.
+    # → 자식 paragraph 가진 outer는 건너뛰고 leaf paragraph만 emit.
     body_parts: list[str] = []
     for elem in tree.iter():
-        tag = elem.tag
-        if tag in (_ODT_TEXT_NS + "p", _ODT_TEXT_NS + "h"):
-            if id(elem) in table_inner_ids:
-                continue
-            text = "".join(elem.itertext()).strip()
-            if text:
-                body_parts.append(text)
+        if elem.tag not in para_tags:
+            continue
+        if id(elem) in table_inner_ids:
+            continue
+        if any(d.tag in para_tags for d in elem.iter() if d is not elem):
+            continue
+        text = "".join(elem.itertext()).strip()
+        if text:
+            body_parts.append(text)
 
     table_blocks: list[str] = []
     for table in tree.iter(_ODT_TABLE_NS + "table"):
@@ -272,6 +284,28 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
                     rows.append(" ".join(cells))
         if rows:
             table_blocks.append("\n".join(rows))
+
+    # ≥15자 라인 dedupe — HWPX는 같은 본문을 layout table 여러 셀에 복제해
+    # 3배 이상 반복되는 아티팩트를 만든다. 짧은 텍스트(<15c)는 합법적 반복
+    # 가능성 있어 보존(예: "예", "○", "학년 반").
+    dedupe_min = 15
+    seen_long: set[str] = set()
+
+    def dedupe_lines(lines: list[str]) -> list[str]:
+        out: list[str] = []
+        for line in lines:
+            if len(line) >= dedupe_min:
+                if line in seen_long:
+                    continue
+                seen_long.add(line)
+            out.append(line)
+        return out
+
+    body_parts = dedupe_lines(body_parts)
+    table_blocks = [
+        "\n".join(dedupe_lines(block.split("\n"))) for block in table_blocks
+    ]
+    table_blocks = [b for b in table_blocks if b.strip()]
 
     parts: list[str] = []
     if body_parts:
