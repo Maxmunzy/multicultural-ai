@@ -24,11 +24,13 @@ except ImportError:
     _HF_AVAILABLE = False
 
 _BASE = Path(__file__).parent.parent
-_CKPT_DIR = _BASE / "checkpoints" / "kcelectra-category" # 파인튜닝된 로컬 모델
+_CKPT_DIR    = _BASE / "checkpoints" / "kcelectra-category-v3"
 _LABELS_FILE = _CKPT_DIR / "label2id.json"
 
-# HF Hub fallback — 로컬 체크포인트 없을 때 사용 (학습 전엔 이 경로로 불러옴)
-_BASE_MODEL_ID = "monologg/koelectra-small-v3-discriminator" # HuggingFace Hub
+# HF Hub fallback — 로컬 체크포인트 없을 때 자동 다운로드
+# upload_classifier_to_hf.py 실행 후 아래 두 값을 채워 주세요.
+_BASE_MODEL_ID = "kysophia/kcelectra-category"
+_HF_SUBFOLDER  = "kcelectra-category-v3"
 
 LABELS = ["일정", "준비물", "제출", "비용", "건강·안전", "기타"]
 
@@ -62,13 +64,27 @@ def _load_model() -> None:
         )
     )
 
-    src = str(_CKPT_DIR) if _local_ready else _BASE_MODEL_ID
-    num_labels = len(LABELS)
+    if _local_ready:
+        _tokenizer = AutoTokenizer.from_pretrained(str(_CKPT_DIR))
+        _model = AutoModelForSequenceClassification.from_pretrained(
+            str(_CKPT_DIR), num_labels=len(LABELS)
+        )
+        src = str(_CKPT_DIR)
+    else:
+        if not _BASE_MODEL_ID:
+            raise RuntimeError(
+                "로컬 체크포인트도 없고 _BASE_MODEL_ID도 비어 있습니다.\n"
+                "scripts/upload_classifier_to_hf.py 를 먼저 실행하고\n"
+                "classifier_kcelectra.py 의 _BASE_MODEL_ID 를 채워 주세요."
+            )
+        _tokenizer = AutoTokenizer.from_pretrained(
+            _BASE_MODEL_ID, subfolder=_HF_SUBFOLDER
+        )
+        _model = AutoModelForSequenceClassification.from_pretrained(
+            _BASE_MODEL_ID, subfolder=_HF_SUBFOLDER, num_labels=len(LABELS)
+        )
+        src = f"{_BASE_MODEL_ID}/{_HF_SUBFOLDER}"
 
-    _tokenizer = AutoTokenizer.from_pretrained(src)
-    _model = AutoModelForSequenceClassification.from_pretrained(
-        src, num_labels=num_labels, ignore_mismatched_sizes=True
-    )
     _model.to(_device)
     _model.eval()
 
@@ -122,9 +138,12 @@ def predict_kcelectra(text: str) -> dict:
 
 
 def is_ready() -> bool:
-    """파인튜닝된 체크포인트가 준비됐는지 확인."""
-    return (
+    """로컬 체크포인트 또는 HF Hub ID 중 하나라도 준비됐는지 확인."""
+    local_ok = (
         _HF_AVAILABLE
         and _CKPT_DIR.exists()
         and (_CKPT_DIR / "config.json").exists()
+        and any((_CKPT_DIR / f).exists() for f in ("pytorch_model.bin", "model.safetensors"))
     )
+    hub_ok = bool(_BASE_MODEL_ID)
+    return local_ok or hub_ok
