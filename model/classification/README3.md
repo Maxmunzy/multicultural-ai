@@ -4,7 +4,7 @@
 model/extraction/data/train/test_data.jsonl    모델 통과 전 — {text, is_todo} 5,560행
 data/processed/predict_output_testset.jsonl    모델 통과 후 — {text, source, due_date, amount, confidence, action_hint, true_is_todo} 5,330행 (정규식 필터 제외 230행)
 
-##  로컬에서 비교 평가 실행
+# 로컬에서 비교 평가 실행
 
 (ai_env) C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification>python scripts/evaluate_compare_v2_20260504.py
 평가 시작 — split: test, 데이터: v4_20260504
