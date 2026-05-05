@@ -11,6 +11,7 @@ from app.routers import notice, tts, user
 STATIC_DIR = Path("/app/static")
 STATIC_DIR.mkdir(parents=True, exist_ok=True)
 (STATIC_DIR / "tts").mkdir(parents=True, exist_ok=True)
+(STATIC_DIR / "notices").mkdir(parents=True, exist_ok=True)
 
 
 @asynccontextmanager
