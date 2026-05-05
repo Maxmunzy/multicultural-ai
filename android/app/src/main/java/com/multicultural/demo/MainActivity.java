@@ -64,7 +64,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // 각자 PC의 내부 IP로 수정. 자세한 가이드는 android/README.md 참고.
-    private static final String BASE_URL = "http://192.168.x.x:8000";
+    private static final String BASE_URL = "https://maxmunzy-schoolbridge.hf.space";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
     private static final String PREFS_NAME = "app";

@@ -2,20 +2,27 @@
 
 ## 문서 목적
 
-MVP 시연 중 자주 막히는 지점과 현재 구현상 제한사항을 정리합니다. 기준일은 2026-04-27이며, 현재 저장소 상태를 기준으로 작성했습니다.
+MVP 시연 중 자주 막히는 지점과 현재 구현상 제한사항을 정리합니다. 기준일은 2026-05-05이며, HF Spaces 실서버(`https://maxmunzy-schoolbridge.hf.space`) 배포 후 상태 기준으로 작성했습니다.
 
 ---
 
 ## 빠른 점검 순서
 
-1. Docker/FastAPI 서버 실행
+**기본 (HF Spaces 실서버)**
+
+1. PC/휴대폰 브라우저에서 `https://maxmunzy-schoolbridge.hf.space/health` 확인 → `{"status":"ok"}`
+1. Android `MainActivity.java`의 `BASE_URL`이 `https://maxmunzy-schoolbridge.hf.space`인지 확인 (기본값)
+1. 앱 로그인 화면에서 시드 계정으로 입장 (teacher_001 / parent_001 등)
+1. 선생님 ID로 발송 (또는 PDF/사진 업로드) 후 같은 `parent_id`의 학부모 ID로 수신함 조회
+1. **카드 클릭 → 원본 PDF/이미지 풀화면** → 우상단 ✨ AI → 분석 결과 표시
+1. 분석 결과가 안 나오면 앱의 고정 데모 fallback 확인
+
+**로컬 백엔드 사용 시 (옵션)**
+
+1. `docker compose up --build`
 1. PC 브라우저에서 `http://localhost:8000/docs` 확인
 1. 같은 네트워크의 휴대폰 브라우저에서 `http://PC_IP:8000/docs` 확인
-1. Android `MainActivity.java`의 `BASE_URL`이 PC IP와 같은지 확인
-1. 앱 로그인 화면에서 시드 계정으로 입장 (teacher_001 / parent_001 등)
-1. 선생님 ID로 발송 후 같은 `parent_id`의 학부모 ID로 수신함 조회
-1. 통신문 상세 → 우측 상단 ✨ AI 번역 → 분석 결과 표시
-1. 분석 결과가 안 나오면 앱의 고정 데모 fallback 확인
+1. `MainActivity.java`의 `BASE_URL`을 PC IP로 임시 변경 (커밋 금지)
 
 ---
 
@@ -127,22 +134,42 @@ http://192.168.0.23:8000/docs
 
 결과가 고정 샘플처럼 보이는 경우: 추출 모델이 해당 텍스트에서 항목을 뽑지 못하면 `MOCK_TODOS`로 fallback됩니다. 실제 가정통신문 형식의 텍스트로 테스트하세요.
 
-### NLLB 첫 실행이 너무 오래 걸림
+### 첫 실행이 너무 오래 걸림 (콜드스타트)
 
-첫 실행 시 HuggingFace Hub에서 모델(약 2.4GB)을 다운로드합니다. 10~15분 소요될 수 있습니다. 이후 `hf_cache` 볼륨에 캐시되어 재시작 시 빠르게 로드됩니다.
+첫 호출 시 HuggingFace Hub에서 모델 가중치를 다운로드합니다:
 
-시연 전 warmup 필수 (시드 계정 사용):
+- KcELECTRA v3 분류 (`kysophia/kcelectra-category` subfolder `kcelectra-category-v3`) ~452MB
+- KoELECTRA 추출 (`yunjeong116/koelectra-extractor`) ~440MB
+- NLLB-200-distilled-600M ~2.4GB
+
+총 ~3.3GB. HF Spaces 환경에선 보통 3-5분, 로컬 첫 docker compose는 10-15분 가능. 이후 컨테이너 캐시(`/root/.cache/huggingface`)에 저장되어 재호출 시 즉시 로드.
+
+**시연 30분 전 warmup 필수**:
+
+배포(HF Spaces):
+
+```bash
+# send
+curl -s -X POST https://maxmunzy-schoolbridge.hf.space/notice/send \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: teacher_001" \
+  -d '{"teacher_id":"teacher_001","parent_id":"parent_001","text":"6월 12일 수요일에 학부모 공개수업이 진행됩니다."}' | python -m json.tool
+
+# 반환된 notice_id로 analyze
+curl -s -X POST https://maxmunzy-schoolbridge.hf.space/notice/analyze/<NOTICE_ID> \
+  -H "Content-Type: application/json" \
+  -H "X-User-Id: parent_001" \
+  -d '{"target_language":"vi"}' | python -m json.tool
+```
+
+로컬:
 
 ```bash
 curl -s -X POST http://localhost:8000/notice/send \
   -H "Content-Type: application/json" \
   -H "X-User-Id: teacher_001" \
-  -d '{"teacher_id":"teacher_001","parent_id":"parent_001","text":"6월 12일 수요일에 학부모 공개수업이 진행됩니다."}' | python -m json.tool
-```
+  -d '{"teacher_id":"teacher_001","parent_id":"parent_001","text":"테스트"}' | python -m json.tool
 
-send 후 반환된 `notice_id`로 analyze 한 번 호출하면 모델이 메모리에 로드됩니다.
-
-```bash
 curl -s -X POST http://localhost:8000/notice/analyze/<NOTICE_ID> \
   -H "Content-Type: application/json" \
   -H "X-User-Id: parent_001" \
@@ -195,11 +222,12 @@ MVP의 중요한 관찰 지점입니다. NLLB 원번역은 자연스럽지 않�
 
 | 제한사항 | 설명 |
 | --- | --- |
-| DB 없음 | 가정통신문은 서버 메모리에 저장되므로 재시작 시 사라짐 |
-| OCR | 학부모 홈 카메라 촬영 → ML Kit Korean 온디바이스 인식 (OcrActivity). HWP/PDF는 서버사이드 파서 직접 처리 |
+| DB 없음 (메모리 + ephemeral) | 가정통신문은 서버 프로세스 메모리에 저장. HF Spaces 컨테이너 재시작 시 업로드된 가통문·원본 파일(`/app/static/notices/`) 모두 초기화. 시연 직전 1회 업로드 권장 |
+| **원본 가정통신문 표시** | 학부모 카드 클릭 → 풀화면 PDF (PdfRenderer 페이지 네비) 또는 이미지 (BitmapFactory) 직접 렌더. 텍스트 직송 케이스는 텍스트 카드 fallback. 우상단 ✨ AI 버튼으로 분석 화면 진입 |
+| OCR | 학부모 홈 카메라 촬영 → ML Kit Korean 온디바이스 인식 (OcrActivity). HWP/PDF/이미지는 서버사이드 파서 직접 처리 |
 | 실제 학교 시스템 연동 없음 | MVP에서는 앱 내부 발송/수신 흐름만 시연 |
-| Android IP 수동 설정 | 네트워크가 바뀌면 `BASE_URL` 수정 필요 |
-| 학습 데이터 | v3_school_dedup.jsonl 20,843행 확보 완료. 팀장님 Claude Haiku로 is_todo + is_title 이중 라벨링 진행 중 |
+| Android `BASE_URL` | 기본 HF Spaces 실서버(`maxmunzy-schoolbridge.hf.space`). 로컬 백엔드 모드는 PC IP 수동 설정 |
+| 학습 데이터 | `v3_dual_labeled.jsonl` 28,890행 확보 (이중 라벨). 분류 모델 학습용 `notice_sample_v5_clean_full.csv` 4,992행 (수동 라벨 142 + Haiku 자동 라벨링 4,850) |
 
 ---
 
@@ -471,12 +499,21 @@ for frame in tree.iter(_ODT_DRAW_NS + "frame"):
 
 ## 시연 전 최종 확인
 
-- [ ] `docker-compose up --build` 실행
-- [ ] PC에서 `http://localhost:8000/docs` 접속
-- [ ] 휴대폰에서 `http://PC_IP:8000/docs` 접속
-- [ ] `MainActivity.java`의 `BASE_URL` 확인
-- [ ] 선생님 화면 발송 성공
-- [ ] 학부모 화면 수신함 조회 성공
-- [ ] 분석 결과 표시
+**기본 (HF Spaces 실서버)**
+
+- [ ] `https://maxmunzy-schoolbridge.hf.space/health` → `{"status":"ok"}` 응답 확인
+- [ ] 시연 30분 전 warmup curl 1회 (위 "콜드스타트" 섹션 명령) → analyze 응답 정상
+- [ ] `MainActivity.java`의 `BASE_URL`이 `https://maxmunzy-schoolbridge.hf.space`인지 확인
+- [ ] 선생님 화면에서 PDF/사진 업로드 또는 발송 성공
+- [ ] 학부모 화면 수신함 조회 — 카드 리스트 표시
+- [ ] **카드 클릭 → 원본 PDF/이미지 풀화면**
+- [ ] **우상단 ✨ AI → 분석 결과 표시**
 - [ ] TTS 재생
 - [ ] 서버 실패 상황에서도 고정 데모 결과 보기 동작
+
+**로컬 백엔드 사용 시 (옵션)**
+
+- [ ] `docker compose up --build`
+- [ ] PC에서 `http://localhost:8000/docs` 접속
+- [ ] 휴대폰에서 `http://PC_IP:8000/docs` 접속
+- [ ] `MainActivity.java`의 `BASE_URL`을 PC IP로 임시 변경 (커밋 금지)

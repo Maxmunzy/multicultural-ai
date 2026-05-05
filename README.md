@@ -81,18 +81,20 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | `/user/` | POST | — | 사용자 프로파일 저장 |
 | `/health` | GET | — | 서버 상태 확인 |
 
-> Swagger UI: `http://localhost:8000/docs`
+> Swagger UI:
+> - 배포 (HF Spaces, 24/7): `https://maxmunzy-schoolbridge.hf.space/docs`
+> - 로컬 개발: `http://localhost:8000/docs`
 
 ---
 
 ## 진도 현황
 
-- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성
+- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **HF Spaces 실서버 배포 (`maxmunzy-schoolbridge.hf.space`)** + **원본 가정통신문 PDF/이미지 표시 기능**
 - [x] 윤정: KoELECTRA 하이브리드 추출 모델 구현 + HuggingFace Hub 배포
-- [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 (accuracy 0.857, MAE 0.038) + API 서버
+- [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 + **KcELECTRA v3 파인튜닝 (Macro F1 0.8545, Simple 베이스라인 0.8116 대비 +4.29%p)** + HF Hub 배포
 - [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전(176개) 검수 루프 + Edge-TTS 음성 출력 + TTS 속도 조절(단어별/천천히/오리지날) + STT 음성 질문(9개 언어×6카테고리) + 카메라 OCR (ML Kit Korean + OpenCV + Quality Gate)
 - [x] 찬영: Android 선생님/학부모 화면 및 실기기 데모 1차 구현
-- [x] 팀 공통: 모델 A·B·C 백엔드 연결 및 E2E 파이프라인 실기기 검증 완료
+- [x] 팀 공통: 모델 A·B·C 백엔드 연결 및 E2E 파이프라인 실기기 검증 완료 + **분류 모델 v3 학습 데이터 v5_clean_full 4,992행으로 확장 (이전 v4 695행 대비 7.2배)**
 
 ---
 
@@ -143,26 +145,23 @@ http://localhost:8000/docs
 
 ### 2. Android 실기기 실행
 
+기본은 **실서버(HF Spaces) 사용** — `MainActivity.java`의 `BASE_URL`이 이미 `https://maxmunzy-schoolbridge.hf.space`로 설정돼 있어 별도 수정 없이 빌드만 하면 됩니다.
+
 1. Android Studio에서 `android/` 폴더를 엽니다.
 1. Android 실기기의 USB 디버깅을 켭니다.
-1. PC와 휴대폰을 같은 Wi-Fi 또는 같은 네트워크에 연결합니다.
-1. Windows에서 `ipconfig`로 PC 내부 IP를 확인합니다.
-1. `android/app/src/main/java/com/multicultural/demo/MainActivity.java` 상단의 `BASE_URL`을 PC 내부 IP로 수정합니다.
-
-   ```java
-   private static final String BASE_URL = "http://192.168.x.x:8000";
-   ```
-
-1. 휴대폰 브라우저에서 아래 주소가 열리는지 확인합니다.
-
-   ```text
-   http://PC_IP:8000/docs
-   ```
-
+1. (실서버 사용 시) PC IP 변경 불필요 — Wi-Fi만 연결되어 있으면 됨.
 1. Android Studio에서 Run 버튼을 눌러 실기기에 설치합니다.
 
-주의: Android 실기기에서 `localhost`나 `127.0.0.1`은 PC가 아니라 휴대폰 자기 자신을 의미합니다.  
-반드시 Docker/FastAPI 서버가 실행 중인 PC의 내부 IP를 사용해야 합니다.
+**로컬 백엔드로 테스트하고 싶을 때만** `BASE_URL`을 PC 내부 IP로 수정:
+
+```java
+// android/app/src/main/java/com/multicultural/demo/MainActivity.java
+private static final String BASE_URL = "http://192.168.x.x:8000";  // ipconfig로 확인
+```
+
+이 경우 PC와 휴대폰이 같은 Wi-Fi여야 하고, 휴대폰 브라우저에서 `http://PC_IP:8000/docs`가 열리는지 먼저 확인하세요.
+
+주의: Android 실기기에서 `localhost`/`127.0.0.1`은 PC가 아니라 휴대폰 자기 자신을 의미합니다. 로컬 모드에선 반드시 PC의 내부 IP를 사용하세요.
 
 ---
 

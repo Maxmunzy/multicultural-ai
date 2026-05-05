@@ -44,19 +44,19 @@ Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출�
 
 ---
 
-## 현재 구현 상태 (2026-05-03 갱신)
+## 현재 구현 상태 (2026-05-05 갱신)
 
 | 영역 | 상태 | 메모 |
 | --- | --- | --- |
-| Backend | 완료 | FastAPI, Docker, `/notice`, `/tts`, `/user`, `/health` 라우터. X-User-Id 헤더 + 역할 권한 검증. v2 분업 응답 구조(`summary` 8슬롯 + `items`) 적용 완료 |
-| Android | 완료 | Java 단일 Activity. 선생님 화면 PDF/HWP 파일 업로드, 학부모 홈 카메라 OCR(OcrActivity — ML Kit Korean, 4종 전처리, 2-pass 표 재인식), 슬롯 응답 렌더링 |
-| 데이터 | 진행 중 | v3_school_dedup.jsonl 20,843행 확보. 팀장님 Claude Haiku로 is_todo + is_title 이중 라벨링 진행 중 |
-| 파일 입력 | 완료 | `services/parser.py` — HWP/PDF/text → clean_text 통합. LibreOffice + H2Orestart + 한글폰트 Dockerfile 영구 설치. `POST /notice/upload` multipart 엔드포인트 |
+| Backend | 완료 + **HF Spaces 배포** | FastAPI, Docker, `/notice/{send,upload,upload-self,inbox,analyze}`, `/tts`, `/user`, `/health`. X-User-Id 헤더 + 역할 권한. v2 슬롯 응답(`summary` + `items`). **Notice 스키마에 `original_file_url`/`original_filename`/`mime_type` 필드 추가**. 실서버: `https://maxmunzy-schoolbridge.hf.space` (CPU basic, 24/7) |
+| Android | 완료 | Java 단일 Activity. 선생님 화면 PDF/HWP/이미지 업로드, 학부모 홈 카메라 OCR(ML Kit Korean), **알림 카드 클릭 → 원본 PDF/이미지 풀화면(PdfRenderer + ImageView)**, 우상단 ✨ AI → 분석 화면. `BASE_URL`은 HF Spaces 실서버로 통일 |
+| 데이터 | 완료 | `v3_dual_labeled.jsonl` 28,890행 (이중 라벨: is_todo + is_title). 분류 학습용 `notice_sample_v5_clean_full.csv` 4,992행 (수동 142 + Haiku 자동 4,850) |
+| 파일 입력 | 완료 | `services/parser.py` — HWP/PDF/text/이미지 → clean_text. LibreOffice + H2Orestart + 한글폰트 Dockerfile 영구. `POST /notice/upload` multipart. **원본 raw bytes는 `static/notices/{id}{ext}`에 보존되어 학부모가 풀화면으로 조회 가능** |
 | URL/전화 보호 | 완료 | NLLB가 깨먹는 패턴 방어 — 슬롯 단위 ko 그대로 + 본문은 `⟦P0⟧` placeholder 마스킹 |
-| 번역/TTS | 완료 | NLLB 다국어 번역(vi/en/ru/ms/mn/zh/th/ja), 용어사전 검수, Edge-TTS 9개 보이스 매핑, 통화 오번역 후처리 포함 |
+| 번역/TTS | 완료 | NLLB 다국어 번역(vi/en/ru/ms/mn/zh/th/ja), 용어사전 검수, Edge-TTS 9개 보이스 매핑, 통화 오번역 후처리 |
 | 추출 모델 | v2 연결 완료 | 윤정 KoELECTRA binary 추출 (`yunjeong116/koelectra-extractor`). 첫 호출 시 HF Hub 자동 다운로드 |
-| 분류 모델 | v1 연결 완료, v2 학습 중 | 경이 simple TF-IDF (git에 pkl 직접). v2는 비교 실험 진행 중 (TF-IDF baseline + SBERT + KcELECTRA 후보) |
-| 통합 E2E | 완료 | 백엔드 `/notice/upload` → 분석 → 슬롯 응답 → 안드 카드 UI 흐름 코드 검증. 실기기 테스트는 LAN IP 셋업 후 |
+| 분류 모델 | **v3 연결 완료** | 경이 KcELECTRA v3 파인튜닝 (`kysophia/kcelectra-category` subfolder `kcelectra-category-v3`). **Macro F1 0.8545** (Simple 베이스라인 0.8116 대비 +4.29%p, 건강·안전 클래스 0.29 → 0.91 대폭 회복). 첫 호출 시 HF Hub fallback |
+| 통합 E2E | 완료 | 백엔드 `/notice/upload` → 분석 → 슬롯 응답 → 안드 카드 UI + 원본 뷰어 흐름 코드 검증. HF Spaces 배포 후 실기기 테스트는 별도 IP 셋업 불필요 |
 
 ---
 
