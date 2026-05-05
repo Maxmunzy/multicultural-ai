@@ -231,6 +231,9 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
     HWPX(H2Orestart) 중복 방지:
       - 중첩 text:p (outer 컨테이너 + 자식 paragraph 동시 존재) → leaf만 emit
       - 같은 본문이 여러 layout table/frame에 복제 → ≥15자 paragraph dedupe
+      - 한 paragraph 안에 spans로 자체 복제 (HWPX 핵심 아티팩트) → 자체 시그니처
+        재등장 지점에서 truncate
+      - 시그니처(첫 60자) 가 이미 emit된 경우 → redundant로 skip
 
     mark_header=True: 각 표의 첫 번째 행 앞에 "[헤더] " 마킹 + 셀을 " | " 구분.
     기본값 False — 기존 호출부(parse_bytes_to_text, batch_convert.py) 변경 없음.
@@ -285,19 +288,42 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
         if rows:
             table_blocks.append("\n".join(rows))
 
-    # ≥15자 라인 dedupe — HWPX는 같은 본문을 layout table 여러 셀에 복제해
-    # 3배 이상 반복되는 아티팩트를 만든다. 짧은 텍스트(<15c)는 합법적 반복
-    # 가능성 있어 보존(예: "예", "○", "학년 반").
+    # ≥15자 라인 dedupe + HWPX self-repeat 처리
+    # HWPX(H2Orestart)는 한 paragraph 안에 spans로 본문을 2-3회 반복 복제하고,
+    # 동일/유사 paragraph가 여러 layout 컨테이너에 다시 등장한다.
+    # → (1) 자체 시그니처 재등장 시 truncate
+    #   (2) 시그니처가 이미 emit된 경우 skip
+    #   (3) 정확 일치하면 skip
     dedupe_min = 15
+    sig_len = 60  # 시그니처 길이 (정상 문서엔 같은 60자가 다시 안 나타남)
     seen_long: set[str] = set()
+    seen_sigs: list[str] = []  # 누적 본문 (substring 검사용)
+
+    def truncate_self_repeat(text: str) -> str:
+        if len(text) < sig_len * 2:
+            return text
+        sig = text[:sig_len]
+        second = text.find(sig, sig_len)
+        if second > 0:
+            return text[:second].rstrip(" \t-")
+        return text
 
     def dedupe_lines(lines: list[str]) -> list[str]:
         out: list[str] = []
+        accumulated = "\n".join(seen_sigs)
         for line in lines:
+            line = truncate_self_repeat(line)
+            if not line:
+                continue
             if len(line) >= dedupe_min:
                 if line in seen_long:
                     continue
+                # 시그니처가 이미 emit된 큰 본문에 들어있으면 redundant
+                if len(line) >= sig_len and line[:sig_len] in accumulated:
+                    continue
                 seen_long.add(line)
+                seen_sigs.append(line)
+                accumulated = "\n".join(seen_sigs)
             out.append(line)
         return out
 
