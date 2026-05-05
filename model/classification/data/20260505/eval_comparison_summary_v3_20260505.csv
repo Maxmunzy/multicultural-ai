@@ -1,0 +1,2 @@
+﻿model,macro_f1,macro_precision,macro_recall,f1_일정,f1_준비물,f1_제출,f1_비용,f1_건강·안전,f1_기타
+Simple (TF-IDF + LR),0.8116,0.8322,0.7959,0.8837,0.8571,0.8339,0.8136,0.8848,0.5963
