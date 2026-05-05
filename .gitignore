@@ -52,6 +52,7 @@ Thumbs.db
 tts/*.mp3
 tts/*.wav
 backend/static/tts/*.mp3
+backend/static/notices/
 
 #클로드
 .claude
