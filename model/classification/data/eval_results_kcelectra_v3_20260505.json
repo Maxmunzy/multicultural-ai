@@ -1,0 +1,114 @@
+{
+  "model": "kcelectra",
+  "version": "v3",
+  "macro_f1": 0.8545,
+  "macro_precision": 0.8513,
+  "macro_recall": 0.8625,
+  "per_class": {
+    "일정": {
+      "precision": 0.939,
+      "recall": 0.837,
+      "f1": 0.8851,
+      "support": 92.0
+    },
+    "준비물": {
+      "precision": 0.8077,
+      "recall": 0.9545,
+      "f1": 0.875,
+      "support": 22.0
+    },
+    "제출": {
+      "precision": 0.8313,
+      "recall": 0.9048,
+      "f1": 0.8664,
+      "support": 147.0
+    },
+    "비용": {
+      "precision": 0.9091,
+      "recall": 0.9375,
+      "f1": 0.9231,
+      "support": 32.0
+    },
+    "건강·안전": {
+      "precision": 0.9,
+      "recall": 0.9213,
+      "f1": 0.9105,
+      "support": 127.0
+    },
+    "기타": {
+      "precision": 0.7206,
+      "recall": 0.6203,
+      "f1": 0.6667,
+      "support": 79.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      77,
+      0,
+      8,
+      2,
+      0,
+      5
+    ],
+    [
+      0,
+      21,
+      1,
+      0,
+      0,
+      0
+    ],
+    [
+      4,
+      3,
+      133,
+      0,
+      1,
+      6
+    ],
+    [
+      0,
+      0,
+      1,
+      30,
+      0,
+      1
+    ],
+    [
+      0,
+      1,
+      1,
+      1,
+      117,
+      7
+    ],
+    [
+      1,
+      1,
+      16,
+      0,
+      12,
+      49
+    ]
+  ],
+  "labels": [
+    "일정",
+    "준비물",
+    "제출",
+    "비용",
+    "건강·안전",
+    "기타"
+  ],
+  "data_version": "v5_20260505",
+  "train_size": 3993,
+  "test_size": 499,
+  "epochs_trained": 18,
+  "best_val_f1": 0.8688,
+  "lr": 2e-05,
+  "batch_size": 16,
+  "warmup_ratio": 0.1,
+  "weighted_loss": true,
+  "early_stopping": true,
+  "patience": 5
+}

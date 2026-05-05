@@ -5,7 +5,7 @@ split_dataset_v5_20260505.py
 작성일: 2026-05-05
 
 목적:
-    notice_sample_v5_clean_full_20260504.csv (4992행 — 이미 라벨링 완료 데이터)를
+    notice_sample_v5_clean_full_20260504.csv (4992행 - 이미 라벨링 완료 데이터)를
     train/val/test로 고정 분할하여 split_v5_20260505.csv 저장.
 
     v5 데이터는 이미 정답 라벨이 존재하므로 자동 라벨링 없이 바로 사용 가능.
@@ -14,10 +14,10 @@ split_dataset_v5_20260505.py
 
 v5 vs v4 비교:
     v4: 695행 (자동 라벨링, 노이즈 포함 가능성)
-    v5: 4992행 (수동 라벨링 완료, 7배 이상 데이터) — KcELECTRA가 잘 학습될 최소 규모 확보
+    v5: 4992행 (수동 라벨링 완료, 7배 이상 데이터) - KcELECTRA가 잘 학습될 최소 규모 확보
 
 분할 전략:
-    Stratified Split — 카테고리 비율을 유지하며 분할
+    Stratified Split - 카테고리 비율을 유지하며 분할
     Train 80% / Val 10% / Test 10%
     Seed = 42
 
@@ -86,7 +86,7 @@ def main(force: bool = False) -> None:
         return
 
     if not DATA_CSV.exists():
-        print(f"[오류] {DATA_CSV} 없음 — notice_sample_v5_clean_full_20260504.csv를 확인하세요.")
+        print(f"[오류] {DATA_CSV} 없음 - notice_sample_v5_clean_full_20260504.csv를 확인하세요.")
         return
 
     df = pd.read_csv(DATA_CSV, encoding="utf-8-sig")
