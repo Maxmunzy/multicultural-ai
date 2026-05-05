@@ -64,9 +64,11 @@ public class MainActivity extends Activity {
     private static final String PREF_KEY_LANG = "selected_lang";
 
     // SAF 파일 픽커 요청 코드 (legacy startActivityForResult 사용 — minSdk 23 호환).
-    private static final int REQUEST_PICK_FILE = 1001;
+    private static final int REQUEST_PICK_FILE        = 1001;
     // OcrActivity 요청 코드
-    private static final int REQUEST_OCR       = 1002;
+    private static final int REQUEST_OCR              = 1002;
+    // 학부모 PDF 업로드 요청 코드
+    private static final int REQUEST_PICK_FILE_PARENT = 1003;
 
     // ── Daon design tokens ──
     private static final int COLOR_PEACH        = Color.parseColor("#FFD9C2");
@@ -454,20 +456,6 @@ public class MainActivity extends Activity {
         buildScreen("안녕하세요,", currentUserId + "님 ✏️",
                     "통신문 작성", true, 1, false);
 
-        // 빠른 템플릿 chips (시각적 — 첫번째 탭하면 샘플 채우기)
-        content.addView(sectionLabel("템플릿"));
-        HorizontalScrollView chipScroll = new HorizontalScrollView(this);
-        chipScroll.setHorizontalScrollBarEnabled(false);
-        chipScroll.setLayoutParams(spacedParams());
-        LinearLayout chipRow = new LinearLayout(this);
-        chipRow.setOrientation(LinearLayout.HORIZONTAL);
-        chipRow.addView(templateChip("📢 현장학습", true,  v -> fillSampleNotice()));
-        chipRow.addView(templateChip("📅 상담",    false, null));
-        chipRow.addView(templateChip("🍱 급식",    false, null));
-        chipRow.addView(templateChip("📝 평가",    false, null));
-        chipRow.addView(templateChip("+ 직접",     false, null));
-        chipScroll.addView(chipRow);
-        content.addView(chipScroll);
 
         // 받는 학부모
         content.addView(formCard("받는 학부모", () -> {
@@ -508,7 +496,7 @@ public class MainActivity extends Activity {
         content.addView(bigPrimaryButton("📤  통신문 발송", v -> sendNotice()));
         // 파일 업로드 (HWP/PDF/TXT) — 선택 시 SAF 픽커 → 백엔드 /notice/upload
         content.addView(outlineButton("📎  PDF/HWP 파일 업로드", v -> launchFilePicker()));
-        content.addView(outlineButton("← 로그아웃", v -> showLoginScreen()));
+        content.addView(smallTextButton("← 로그아웃", v -> showLoginScreen()));
     }
 
     private LinearLayout templateChip(String label, boolean active, View.OnClickListener listener) {
@@ -625,9 +613,8 @@ public class MainActivity extends Activity {
         inboxListBox.addView(inboxEmptyText);
 
         content.addView(outlineButton("🔄  " + uiText("refresh_inbox"), v -> loadInbox()));
-        // 종이 통신문 사진 → ML Kit Korean OCR → 번역 (백엔드 parent 업로드 허용 후 활성화)
-        content.addView(outlineButton("📷  종이 통신문 사진 번역", v -> launchOcrActivity()));
-        content.addView(outlineButton("← " + uiText("logout"), v -> showLoginScreen()));
+        content.addView(outlineButton("📥  통신문 직접 올리기", v -> showUploadDialog()));
+        content.addView(smallTextButton("← " + uiText("logout"), v -> showLoginScreen()));
 
         loadInbox();
     }
@@ -1579,6 +1566,12 @@ public class MainActivity extends Activity {
             String filename = queryDisplayName(uri);
             long sizeBytes = querySize(uri);
             uploadSelectedFile(uri, filename, sizeBytes);
+        } else if (requestCode == REQUEST_PICK_FILE_PARENT) {
+            if (resultCode != RESULT_OK || data == null || data.getData() == null) return;
+            Uri uri = data.getData();
+            String filename = queryDisplayName(uri);
+            long sizeBytes = querySize(uri);
+            uploadSelfFile(uri, filename, sizeBytes);
         } else if (requestCode == REQUEST_OCR) {
             if (resultCode != RESULT_OK || data == null) return;
             String noticeId  = data.getStringExtra(OcrActivity.RESULT_NOTICE_ID);
@@ -1589,6 +1582,102 @@ public class MainActivity extends Activity {
                             + " · 추출 " + charCount + "자",
                     true);
         }
+    }
+
+    private void showUploadDialog() {
+        new AlertDialog.Builder(this)
+                .setTitle("통신문 올리기")
+                .setItems(new String[]{"📷  사진으로 찍기", "📄  PDF 파일 올리기"}, (dialog, which) -> {
+                    if (which == 0) launchOcrActivity();
+                    else launchFilePickerParent();
+                })
+                .show();
+    }
+
+    private void launchFilePickerParent() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("*/*");
+        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[]{
+                "application/pdf",
+                "text/plain",
+        });
+        try {
+            startActivityForResult(intent, REQUEST_PICK_FILE_PARENT);
+        } catch (Exception e) {
+            Toast.makeText(this, "파일 선택기를 열 수 없습니다: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void uploadSelfFile(Uri uri, String filename, long sizeBytes) {
+        final String parentId = currentUserId.isEmpty() ? DEFAULT_PARENT_ID : currentUserId;
+        String sizeLabel = sizeBytes > 0 ? " (" + (sizeBytes / 1024) + " KB)" : "";
+        Toast.makeText(this, "📤 업로드 중... " + filename + sizeLabel, Toast.LENGTH_SHORT).show();
+
+        executor.execute(() -> {
+            byte[] bytes;
+            try (InputStream is = getContentResolver().openInputStream(uri)) {
+                if (is == null) throw new IOException("InputStream null");
+                bytes = readAllBytes(is);
+            } catch (Exception e) {
+                String msg = e.getMessage() == null ? e.toString() : e.getMessage();
+                runOnUiThread(() -> Toast.makeText(this, "❌ 파일 읽기 실패: " + msg, Toast.LENGTH_LONG).show());
+                return;
+            }
+
+            ApiResult result = postMultipartUploadSelf(parentId, filename, bytes);
+            runOnUiThread(() -> {
+                if (!result.error.isEmpty()) {
+                    Toast.makeText(this, "❌ 업로드 실패: " + result.error, Toast.LENGTH_LONG).show();
+                    return;
+                }
+                try {
+                    JSONObject json = new JSONObject(result.body);
+                    JSONObject d = json.optJSONObject("data");
+                    String noticeId = safeString(d, "notice_id");
+                    int charCount = d == null ? 0 : d.optInt("char_count", 0);
+                    Toast.makeText(this,
+                            "✅ 업로드 완료 · #" + shorten(noticeId, 8) + " · " + charCount + "자",
+                            Toast.LENGTH_LONG).show();
+                    loadInbox();
+                } catch (Exception e) {
+                    Toast.makeText(this, "응답 파싱 실패\n" + result.body, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+    }
+
+    private ApiResult postMultipartUploadSelf(String parentId, String filename, byte[] fileBytes) {
+        ApiResult result = new ApiResult();
+        HttpURLConnection conn = null;
+        String boundary = "----DaonBoundary" + System.currentTimeMillis();
+        try {
+            URL url = new URL(BASE_URL + "/notice/upload-self");
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(180000);
+            conn.setRequestProperty("Accept", "application/json");
+            conn.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+            conn.setRequestProperty("X-User-Id", parentId);
+            conn.setDoOutput(true);
+
+            try (OutputStream os = conn.getOutputStream()) {
+                writeMultipartField(os, boundary, "parent_id", parentId);
+                writeMultipartFile(os, boundary, "file", filename, fileBytes);
+                os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
+            }
+
+            int code = conn.getResponseCode();
+            InputStream stream = code >= 200 && code < 300 ? conn.getInputStream() : conn.getErrorStream();
+            result.body = readStream(stream);
+            if (code < 200 || code >= 300) result.error = "HTTP " + code + "\n" + result.body;
+        } catch (Exception e) {
+            result.error = e.getMessage() == null ? e.toString() : e.getMessage();
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+        return result;
     }
 
     private void launchOcrActivity() {
@@ -2437,6 +2526,24 @@ public class MainActivity extends Activity {
         button.setElevation(dp(3));
         button.setOnClickListener(listener);
         button.setLayoutParams(spacedParams());
+        return button;
+    }
+
+    private Button smallTextButton(String label, View.OnClickListener listener) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setTextSize(12);
+        button.setAllCaps(false);
+        button.setTextColor(COLOR_INK3);
+        button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL);
+        button.setPadding(dp(8), dp(6), dp(8), dp(6));
+        button.setBackground(null);
+        button.setStateListAnimator(null);
+        button.setOnClickListener(listener);
+        LinearLayout.LayoutParams lp = spacedParams();
+        lp.topMargin = dp(4);
+        lp.bottomMargin = dp(8);
+        button.setLayoutParams(lp);
         return button;
     }
 
