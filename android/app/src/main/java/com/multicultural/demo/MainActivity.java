@@ -64,7 +64,7 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     // 각자 PC의 내부 IP로 수정. 자세한 가이드는 android/README.md 참고.
-    private static final String BASE_URL = "https://maxmunzy-schoolbridge.hf.space";
+    private static final String BASE_URL = "http://101.79.17.196:8000";
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
     private static final String PREFS_NAME = "app";
@@ -2971,7 +2971,7 @@ public class MainActivity extends Activity {
                 conn = (HttpURLConnection) url.openConnection();
                 conn.setRequestMethod(method);
                 conn.setConnectTimeout(30000);
-                conn.setReadTimeout(180000);  // analyze 파이프라인 (NLLB+TTS) 최대 3분 허용
+                conn.setReadTimeout(600000);  // analyze — NLLB 첫 다운로드 대비 10분 (이후 캐시되어 빠름)
                 conn.setRequestProperty("Accept", "application/json");
                 if (!currentUserId.isEmpty()) {
                     conn.setRequestProperty("X-User-Id", currentUserId);

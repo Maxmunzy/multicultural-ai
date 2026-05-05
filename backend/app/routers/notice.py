@@ -32,18 +32,45 @@ NOTICES_DIR = Path("/app/static/notices")
 
 def _save_original(notice_id: str, raw_bytes: bytes, filename: str) -> tuple[str, str | None]:
     """업로드된 원본 파일을 static/notices/{notice_id}{ext}로 저장.
-    Returns (url, mime_type). 실패 시 mime_type=None."""
+
+    HWP/HWPX는 안드 표준 viewer 없으므로 LibreOffice로 PDF 변환해서 저장.
+    그 외(PDF/이미지/텍스트)는 원본 그대로 저장.
+
+    Returns (url, mime_type). 실패 시 mime_type=None.
+    """
+    import tempfile
+    from pathlib import Path as _Path
+    from app.services.parser import hwp_to_pdf, ParserError
+
     ext = os.path.splitext(filename or "")[1].lower()
     if not ext:
-        # 시그니처로 추정
         if raw_bytes.startswith(b"%PDF"):
             ext = ".pdf"
         elif raw_bytes[:3] == b"\xff\xd8\xff":
             ext = ".jpg"
         elif raw_bytes.startswith(b"\x89PNG"):
             ext = ".png"
-    safe_name = f"{notice_id}{ext}"
+
     NOTICES_DIR.mkdir(parents=True, exist_ok=True)
+
+    # HWP/HWPX → PDF 변환 (안드 풀화면 표시용)
+    if ext in (".hwp", ".hwpx"):
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                tmp_dir = _Path(tmp)
+                src = tmp_dir / f"input{ext}"
+                src.write_bytes(raw_bytes)
+                pdf_path = hwp_to_pdf(src, tmp_dir)
+                pdf_bytes = pdf_path.read_bytes()
+            safe_name = f"{notice_id}.pdf"
+            (NOTICES_DIR / safe_name).write_bytes(pdf_bytes)
+            return f"/static/notices/{safe_name}", "application/pdf"
+        except (ParserError, Exception) as e:
+            print(f"[upload] HWP→PDF 변환 실패, 원본 HWP 저장: {e}")
+            # fallback: HWP 원본 저장 (안드는 표시 못 하지만 다운로드 링크로 fallback)
+
+    # 일반 경로: 원본 그대로 저장
+    safe_name = f"{notice_id}{ext}"
     (NOTICES_DIR / safe_name).write_bytes(raw_bytes)
     mime_type, _ = mimetypes.guess_type(safe_name)
     return f"/static/notices/{safe_name}", mime_type
@@ -83,10 +110,11 @@ async def extract_text(
     file: UploadFile = File(...),
     user: UserProfile = Depends(require_user),
 ):
-    """파일 → 텍스트 추출만 (Notice 저장·발송 X). 선생님 발송 전 미리보기용.
+    """파일 → 텍스트 추출 + (HWP/PDF/이미지) 미리보기 URL.
 
-    실제 발송은 사용자가 발송 버튼을 누를 때 /notice/upload (파일 동봉) 또는
-    /notice/send (텍스트만)로 호출됨.
+    선생님 발송 전 미리보기용. Notice 저장·발송 X.
+    HWP는 PDF로 변환해서 임시 저장 + URL 응답 → 안드 풀화면 미리보기.
+    실제 발송 시 /notice/upload는 같은 변환 한 번 더 (단순함 우선).
     """
     raw_bytes = await file.read()
     try:
@@ -101,8 +129,23 @@ async def extract_text(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="파일에서 추출된 텍스트가 비어있습니다",
         )
+
+    # 미리보기 파일 저장 (preview-{uuid}.{ext}) → 선생님 안드 풀화면 표시
+    preview_id = f"preview-{uuid.uuid4().hex[:12]}"
+    try:
+        preview_url, preview_mime = _save_original(preview_id, raw_bytes, file.filename or "")
+    except Exception as e:
+        print(f"[extract-text] preview 저장 실패: {e}")
+        preview_url, preview_mime = None, None
+
     return ApiResponse.success(
-        data={"text": text, "char_count": len(text), "filename": file.filename},
+        data={
+            "text": text,
+            "char_count": len(text),
+            "filename": file.filename,
+            "preview_file_url": preview_url,
+            "preview_mime_type": preview_mime,
+        },
         message=f"텍스트 추출 완료 ({file.filename})",
     )
 

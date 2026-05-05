@@ -82,14 +82,14 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | `/health` | GET | — | 서버 상태 확인 |
 
 > Swagger UI:
-> - 배포 (HF Spaces, 24/7): `https://maxmunzy-schoolbridge.hf.space/docs`
+> - 배포 (NCP Seoul, 24/7): `http://101.79.17.196:8000/docs`
 > - 로컬 개발: `http://localhost:8000/docs`
 
 ---
 
 ## 진도 현황
 
-- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **HF Spaces 실서버 배포 (`maxmunzy-schoolbridge.hf.space`)** + **원본 가정통신문 PDF/이미지 표시 기능**
+- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **NCP Seoul VM 실서버 배포 (`101.79.17.196:8000`, 2vCPU 8GB)** + **원본 가정통신문 PDF/이미지 표시 기능 (HWP→PDF 자동 변환 포함)**
 - [x] 윤정: KoELECTRA 하이브리드 추출 모델 구현 + HuggingFace Hub 배포
 - [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 + **KcELECTRA v3 파인튜닝 (Macro F1 0.8545, Simple 베이스라인 0.8116 대비 +4.29%p)** + HF Hub 배포
 - [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전(176개) 검수 루프 + Edge-TTS 음성 출력 + TTS 속도 조절(단어별/천천히/오리지날) + STT 음성 질문(9개 언어×6카테고리) + 카메라 OCR (ML Kit Korean + OpenCV + Quality Gate)
@@ -145,7 +145,7 @@ http://localhost:8000/docs
 
 ### 2. Android 실기기 실행
 
-기본은 **실서버(HF Spaces) 사용** — `MainActivity.java`의 `BASE_URL`이 이미 `https://maxmunzy-schoolbridge.hf.space`로 설정돼 있어 별도 수정 없이 빌드만 하면 됩니다.
+기본은 **실서버(NCP Seoul) 사용** — `MainActivity.java`의 `BASE_URL`이 이미 `http://101.79.17.196:8000`로 설정돼 있어 별도 수정 없이 빌드만 하면 됩니다.
 
 1. Android Studio에서 `android/` 폴더를 엽니다.
 1. Android 실기기의 USB 디버깅을 켭니다.

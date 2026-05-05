@@ -189,6 +189,37 @@ def _hwp_to_odt(hwp_path: Path, out_dir: Path) -> Path:
     return odt_path
 
 
+def hwp_to_pdf(hwp_path: Path, out_dir: Path) -> Path:
+    """HWP/HWPX → PDF (LibreOffice + H2Orestart).
+
+    학부모 안드 화면에 원본 풀화면 표시용. HWP는 안드 표준 viewer 없어
+    PDF로 변환해서 PdfRenderer로 표시.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        result = subprocess.run(
+            [
+                "libreoffice", "--headless",
+                "--convert-to", "pdf",
+                "--outdir", str(out_dir),
+                str(hwp_path),
+            ],
+            capture_output=True, text=True,
+            timeout=LIBREOFFICE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise ParserError(
+            f"HWP→PDF 변환 타임아웃 ({LIBREOFFICE_TIMEOUT_SECONDS}초 초과)"
+        )
+    pdf_path = out_dir / f"{hwp_path.stem}.pdf"
+    if not pdf_path.exists():
+        raise ParserError(
+            f"HWP→PDF 변환 실패 (출력 없음). "
+            f"returncode={result.returncode}, stderr={result.stderr.strip()[:200]}"
+        )
+    return pdf_path
+
+
 def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
     """ODT(zip) content.xml → 본문 + 표 영역 평면 텍스트.
 
