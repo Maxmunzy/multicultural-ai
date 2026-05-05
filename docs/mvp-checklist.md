@@ -29,6 +29,8 @@
 | Android 실기기 데모 | Java 단일 Activity 앱 | 완료 |
 | HWP/PDF/텍스트 파일 업로드 | `POST /notice/upload` — LibreOffice + H2Orestart 변환, `services/parser.py` | 완료 |
 | 카메라 OCR (학부모) | `OcrActivity` — ML Kit Korean 온디바이스, 4종 전처리, 2-pass 표 재인식, `POST /notice/upload-self` | 완료 |
+| **원본 가정통신문 표시 (학부모)** | 백엔드 `static/notices/{id}{ext}` 보존 + Notice 응답에 `original_file_url`/`mime_type`, 안드 카드 클릭 → PDF/이미지 풀화면 | 완료 |
+| **HF Spaces 실서버 배포** | `https://maxmunzy-schoolbridge.hf.space` (Docker SDK, CPU basic, 24/7) | 완료 |
 
 ### 제외
 
@@ -46,7 +48,9 @@
 ### 데이터
 
 - [x] 6개 카테고리 체계 정의: 일정, 준비물, 제출, 비용, 건강/안전, 기타
-- [x] `data/labeled/notice_sample_v3.csv` 200개 샘플 확보
+- [x] `data/labeled/notice_sample_v3.csv` 200개 샘플 확보 (초기)
+- [x] **`v3_dual_labeled.jsonl` 28,890행 확보 (이중 라벨: is_todo + is_title)**
+- [x] **`notice_sample_v5_clean_full_20260504.csv` 4,992행 (분류 모델 학습용 — Claude Haiku 자동 라벨링 + 73건 후처리)**
 - [x] 컬럼 정의: `id`, `source_type`, `original_text`, `category`, `keywords`, `importance`, `action_required`, `easy_korean`, `vietnamese`, `tts_target`
 - [x] 번역/TTS 입력 샘플: `data/translation_tts/easy_ko_text_sample.csv`
 
@@ -59,9 +63,11 @@
 
 ### 모델 B: 분류/중요도
 
-- [x] 6개 카테고리 분류 baseline 구현 (numpy LR / sklearn / SBERT 멀티트랙, accuracy 0.857, macro F1 0.747)
-- [x] 중요도 점수 산출 기준 확정 (룰 기반 시급도 + Ridge 회귀 결합, MAE 0.038)
-- [x] 서버 연결용 `model/classification/src/api.py` 설계 (`POST /classify`, port 8001)
+- [x] 6개 카테고리 분류 baseline 구현 (numpy LR / sklearn / SBERT 멀티트랙)
+- [x] **KcELECTRA v3 파인튜닝 완료 — Macro F1 0.8545 (Simple 베이스라인 0.8116 대비 +4.29%p, 건강·안전 클래스 0.29 → 0.91 회복)**
+- [x] **HF Hub 배포: `kysophia/kcelectra-category` (subfolder: `kcelectra-category-v3`)**
+- [x] 중요도 점수 산출 기준 확정 (룰 기반 시급도 + Ridge 회귀 결합)
+- [x] 서버 연결용 `model/classification/src/classifier_kcelectra.py` (HF Hub fallback 포함)
 - [x] 메인 백엔드(`POST /notice/analyze`)와 실제 연결
 
 ### 모델 C: 번역/TTS
@@ -105,8 +111,9 @@
 - [x] 내장 데모 산출물 fallback (서버 연결 실패 시)
 - [x] 내장 mp3 TTS 재생
 - [x] 학부모 홈 카메라 OCR (OcrActivity — ML Kit Korean, 4종 전처리, 2-pass 표 재인식)
-- [x] 선생님 홈 HWP/PDF 파일 업로드
-- [ ] `BASE_URL` 환경별 설정 방식 개선
+- [x] 선생님 홈 HWP/PDF/이미지 파일 업로드
+- [x] **학부모 알림 카드 클릭 → 원본 PDF/이미지 풀화면 표시 (PdfRenderer + ImageView, 다중 페이지 PDF 네비)**
+- [x] **`BASE_URL`을 HF Spaces 실서버(`https://maxmunzy-schoolbridge.hf.space`)로 통일 — 팀 시연 환경 일관성**
 
 ### 문서
 
@@ -119,7 +126,7 @@
 ## 최소 완료 기준
 
 - [x] Android 실기기에서 앱 실행
-- [x] PC FastAPI 서버의 Swagger UI 접속 확인: `http://localhost:8000/docs`
+- [x] FastAPI 서버 Swagger UI 접속 확인: `https://maxmunzy-schoolbridge.hf.space/docs` (배포) 또는 `http://localhost:8000/docs` (로컬)
 - [x] 선생님 화면에서 발송 성공
 - [x] 학부모 화면에서 수신함 조회 성공
 - [x] 분석 결과 화면 표시 (실제 모델 결과)
@@ -132,7 +139,7 @@
 
 | 리스크 | 영향 | 대응 |
 | --- | --- | --- |
-| NLLB 첫 실행 warmup | 모델 로드에 10~15분 소요 (2.4GB 다운로드) | 시연 30분 전 curl로 warmup 필수 |
-| Android `BASE_URL` 고정 | 네트워크가 바뀌면 앱 수정 후 재빌드 필요 | 시연 전 PC IP 확인 |
+| HF Spaces 콜드스타트 | 분류기/추출기/NLLB 첫 호출 시 HF Hub에서 가중치 다운로드(~1.5GB), 3-5분 소요 | 시연 30분 전 `/notice/analyze` 1회 호출로 warmup 필수 (이후 hf_cache로 빠름) |
+| HF Spaces ephemeral storage | 컨테이너 재시작 시 업로드된 가정통신문 원본·notice 메모리 초기화 | 시연 직전 1회 업로드 권장 (영구 저장 필요한 운영 단계는 별도 storage 도입) |
 | NLLB 출력 품질 변동 | 일부 문장 어색한 번역 가능 | 용어사전 검수와 교차검증 결과로 보완 설명 |
 | 체크리스트 인사말 포함 | "학부모님 안녕하세요" 등 인사말이 TODO로 분류될 수 있음 | 추출 모델 필터 개선 예정 |
