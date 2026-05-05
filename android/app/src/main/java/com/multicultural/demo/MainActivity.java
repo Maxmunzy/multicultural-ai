@@ -604,7 +604,7 @@ public class MainActivity extends Activity {
     // ============================================================
     private void showParentHome() {
         clearScreenRefs();
-        buildScreen("Xin chào,", currentUserId + "님 👋",
+        buildScreen(uiText("greeting"), currentUserId + "님 👋",
                     uiText("received_notices"), true, 0, true);
 
         content.addView(languageSelectCard());
@@ -2990,6 +2990,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "No notices yet.";
                     case "received_notices": return "Received notices";
                     case "new_notice": return "New notices";
+                    case "greeting": return "Hello,";
                 }
                 break;
             case "vi":
@@ -3017,6 +3018,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "Chưa có thông báo.";
                     case "received_notices": return "Thông báo đã nhận";
                     case "new_notice": return "Thông báo mới";
+                    case "greeting": return "Xin chào,";
                 }
                 break;
             case "ja":
@@ -3044,6 +3046,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "お知らせはありません。";
                     case "received_notices": return "受信したお知らせ";
                     case "new_notice": return "新しいお知らせ";
+                    case "greeting": return "こんにちは,";
                 }
                 break;
             case "zh":
@@ -3071,6 +3074,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "暂无通知。";
                     case "received_notices": return "收到的通知";
                     case "new_notice": return "新通知";
+                    case "greeting": return "你好,";
                 }
                 break;
             case "ru":
@@ -3098,6 +3102,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "Уведомлений нет.";
                     case "received_notices": return "Полученные уведомления";
                     case "new_notice": return "Новые уведомления";
+                    case "greeting": return "Привет,";
                 }
                 break;
             case "ms":
@@ -3125,6 +3130,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "Tiada notis.";
                     case "received_notices": return "Notis diterima";
                     case "new_notice": return "Notis baharu";
+                    case "greeting": return "Helo,";
                 }
                 break;
             case "mn":
@@ -3152,6 +3158,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "Мэдэгдэл алга.";
                     case "received_notices": return "Ирсэн мэдэгдэл";
                     case "new_notice": return "Шинэ мэдэгдэл";
+                    case "greeting": return "Сайн уу,";
                 }
                 break;
             case "th":
@@ -3179,6 +3186,7 @@ public class MainActivity extends Activity {
                     case "empty_inbox": return "ยังไม่มีประกาศ";
                     case "received_notices": return "ประกาศที่ได้รับ";
                     case "new_notice": return "ประกาศใหม่";
+                    case "greeting": return "สวัสดี,";
                 }
                 break;
         }
@@ -3206,6 +3214,7 @@ public class MainActivity extends Activity {
             case "empty_inbox": return "받은 가정통신문이 없습니다.";
             case "received_notices": return "받은 가정통신문";
             case "new_notice": return "새 통신문";
+            case "greeting": return "안녕하세요,";
             default: return key;
         }
     }
