@@ -45,6 +45,10 @@ class Notice(BaseModel):
     parent_id: str
     text: str
     todos: list[TodoItem] = []
+    # 원본 파일 (선생님/학부모가 업로드한 PDF/이미지). text 직송이면 None.
+    original_file_url: str | None = None       # 예: "/static/notices/abc123.pdf"
+    original_filename: str | None = None       # 예: "5월 가정통신문.pdf"
+    mime_type: str | None = None               # 예: "application/pdf"
 
 
 class NoticeSendRequest(BaseModel):

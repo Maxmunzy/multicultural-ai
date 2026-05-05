@@ -1,4 +1,8 @@
+import mimetypes
+import os
 import uuid
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
@@ -22,6 +26,27 @@ router = APIRouter()
 
 _notices: dict[str, Notice] = {}
 MAX_CARDS = 8
+
+NOTICES_DIR = Path("/app/static/notices")
+
+
+def _save_original(notice_id: str, raw_bytes: bytes, filename: str) -> tuple[str, str | None]:
+    """업로드된 원본 파일을 static/notices/{notice_id}{ext}로 저장.
+    Returns (url, mime_type). 실패 시 mime_type=None."""
+    ext = os.path.splitext(filename or "")[1].lower()
+    if not ext:
+        # 시그니처로 추정
+        if raw_bytes.startswith(b"%PDF"):
+            ext = ".pdf"
+        elif raw_bytes[:3] == b"\xff\xd8\xff":
+            ext = ".jpg"
+        elif raw_bytes.startswith(b"\x89PNG"):
+            ext = ".png"
+    safe_name = f"{notice_id}{ext}"
+    NOTICES_DIR.mkdir(parents=True, exist_ok=True)
+    (NOTICES_DIR / safe_name).write_bytes(raw_bytes)
+    mime_type, _ = mimetypes.guess_type(safe_name)
+    return f"/static/notices/{safe_name}", mime_type
 
 
 @router.post("/send", response_model=ApiResponse)
@@ -88,12 +113,16 @@ async def upload_notice(
         )
 
     notice_id = str(uuid.uuid4())
+    original_url, mime_type = _save_original(notice_id, raw_bytes, file.filename or "")
     notice = Notice(
         notice_id=notice_id,
         teacher_id=teacher_id,
         parent_id=parent_id,
         text=text,
         todos=[],
+        original_file_url=original_url,
+        original_filename=file.filename,
+        mime_type=mime_type,
     )
     _notices[notice_id] = notice
     return ApiResponse.success(
@@ -134,12 +163,16 @@ async def upload_notice_self(
         )
 
     notice_id = str(uuid.uuid4())
+    original_url, mime_type = _save_original(notice_id, raw_bytes, file.filename or "")
     _notices[notice_id] = Notice(
         notice_id=notice_id,
         teacher_id=parent_id,
         parent_id=parent_id,
         text=text,
         todos=[],
+        original_file_url=original_url,
+        original_filename=file.filename,
+        mime_type=mime_type,
     )
     return ApiResponse.success(
         data={"notice_id": notice_id, "char_count": len(text)},

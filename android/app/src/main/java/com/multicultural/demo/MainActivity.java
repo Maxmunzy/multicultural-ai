@@ -6,12 +6,16 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
+import android.graphics.pdf.PdfRenderer;
 import android.media.MediaPlayer;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.ParcelFileDescriptor;
 import android.provider.OpenableColumns;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -29,6 +33,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -39,6 +44,8 @@ import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -645,10 +652,17 @@ public class MainActivity extends Activity {
                 }
                 for (int i = 0; i < data.length(); i++) {
                     JSONObject item = data.getJSONObject(i);
+                    String origUrl = item.optString("original_file_url", null);
+                    if (origUrl != null && origUrl.isEmpty()) origUrl = null;
+                    String origName = item.optString("original_filename", null);
+                    if (origName != null && origName.isEmpty()) origName = null;
+                    String mime = item.optString("mime_type", null);
+                    if (mime != null && mime.isEmpty()) mime = null;
                     inbox.add(new NoticeItem(
                             safeString(item, "notice_id"),
                             safeString(item, "teacher_id"),
-                            safeString(item, "text")
+                            safeString(item, "text"),
+                            origUrl, origName, mime
                     ));
                 }
                 renderInboxList();
@@ -816,10 +830,14 @@ public class MainActivity extends Activity {
         sender.setPadding(dp(2), 0, 0, dp(14));
         content.addView(sender);
 
-        // 한국어 원문 (paper card)
-        TextView body = text(notice.text, 14, COLOR_INK, false);
-        body.setLineSpacing(0, 1.65f);
-        content.addView(cardWithView("한국어 원문", body, Color.WHITE));
+        // 본문: 원본 파일 있으면 PDF/이미지로 표시, 없으면 텍스트 fallback
+        if (notice.hasOriginalFile()) {
+            content.addView(buildOriginalFileCard(notice));
+        } else {
+            TextView body = text(notice.text, 14, COLOR_INK, false);
+            body.setLineSpacing(0, 1.65f);
+            content.addView(cardWithView("한국어 원문", body, Color.WHITE));
+        }
 
         // AI 안내 카드 (탑재형 모듈 강조)
         LinearLayout aiHint = new LinearLayout(this);
@@ -931,6 +949,194 @@ public class MainActivity extends Activity {
                 0, LinearLayout.LayoutParams.WRAP_CONTENT, weight);
         b.setLayoutParams(p);
         return b;
+    }
+
+    // ============================================================
+    //  ORIGINAL FILE CARD  (PDF / image / fallback)
+    // ============================================================
+    private LinearLayout buildOriginalFileCard(NoticeItem notice) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setLayoutParams(spacedParams());
+        card.setPadding(dp(14), dp(12), dp(14), dp(14));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(1), COLOR_LINE);
+        card.setBackground(bg);
+
+        String headerText = "원본 가정통신문";
+        if (notice.originalFilename != null) headerText += " · " + notice.originalFilename;
+        TextView header = text(headerText, 11, COLOR_INK3, true);
+        header.setAllCaps(true);
+        header.setLetterSpacing(0.06f);
+        header.setPadding(0, 0, 0, dp(10));
+        card.addView(header);
+
+        final ImageView imageView = new ImageView(this);
+        LinearLayout.LayoutParams ivLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        imageView.setLayoutParams(ivLp);
+        imageView.setAdjustViewBounds(true);
+        card.addView(imageView);
+
+        final TextView statusText = text("불러오는 중...", 13, COLOR_INK3, false);
+        statusText.setPadding(0, dp(8), 0, 0);
+        card.addView(statusText);
+
+        final LinearLayout pageNav = new LinearLayout(this);
+        pageNav.setOrientation(LinearLayout.HORIZONTAL);
+        pageNav.setGravity(Gravity.CENTER_VERTICAL);
+        pageNav.setPadding(0, dp(8), 0, 0);
+        pageNav.setVisibility(View.GONE);
+        card.addView(pageNav);
+
+        String absUrl = notice.originalFileUrl.startsWith("http")
+                ? notice.originalFileUrl
+                : BASE_URL + notice.originalFileUrl;
+
+        if (notice.isImage()) {
+            downloadAndRenderImage(absUrl, imageView, statusText);
+        } else if (notice.isPdf()) {
+            downloadAndRenderPdf(notice.noticeId, absUrl, imageView, statusText, pageNav);
+        } else {
+            statusText.setText("지원 안 되는 파일 형식 — 추출 텍스트 표시");
+            TextView body = text(notice.text, 14, COLOR_INK, false);
+            body.setLineSpacing(0, 1.65f);
+            body.setPadding(0, dp(12), 0, 0);
+            card.addView(body);
+        }
+        return card;
+    }
+
+    private void downloadAndRenderImage(String absUrl, ImageView iv, TextView status) {
+        executor.execute(() -> {
+            Bitmap bmp = null;
+            String err = null;
+            HttpURLConnection conn = null;
+            try {
+                URL u = new URL(absUrl);
+                conn = (HttpURLConnection) u.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(15000);
+                try (InputStream is = conn.getInputStream()) {
+                    bmp = BitmapFactory.decodeStream(is);
+                }
+            } catch (Exception e) {
+                err = e.getMessage() == null ? e.toString() : e.getMessage();
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+            final Bitmap fbmp = bmp;
+            final String ferr = err;
+            runOnUiThread(() -> {
+                if (fbmp != null) {
+                    iv.setImageBitmap(fbmp);
+                    status.setVisibility(View.GONE);
+                } else {
+                    status.setText("이미지 불러오기 실패: " + ferr);
+                }
+            });
+        });
+    }
+
+    private void downloadAndRenderPdf(String noticeId, String absUrl, ImageView iv,
+                                       TextView status, LinearLayout pageNav) {
+        executor.execute(() -> {
+            File pdfFile = null;
+            String err = null;
+            HttpURLConnection conn = null;
+            try {
+                URL u = new URL(absUrl);
+                conn = (HttpURLConnection) u.openConnection();
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(30000);
+                pdfFile = new File(getCacheDir(), "notice_" + noticeId + ".pdf");
+                try (InputStream is = conn.getInputStream();
+                     FileOutputStream fos = new FileOutputStream(pdfFile)) {
+                    byte[] buf = new byte[8192];
+                    int n;
+                    while ((n = is.read(buf)) > 0) fos.write(buf, 0, n);
+                }
+            } catch (Exception e) {
+                err = e.getMessage() == null ? e.toString() : e.getMessage();
+                pdfFile = null;
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+            final File fpdf = pdfFile;
+            final String ferr = err;
+            runOnUiThread(() -> {
+                if (fpdf != null && fpdf.exists()) {
+                    renderPdfPage(fpdf, 0, iv, status, pageNav);
+                } else {
+                    status.setText("PDF 불러오기 실패: " + ferr);
+                }
+            });
+        });
+    }
+
+    private void renderPdfPage(File pdfFile, int pageIndex, ImageView iv,
+                                TextView status, LinearLayout pageNav) {
+        PdfRenderer renderer = null;
+        ParcelFileDescriptor pfd = null;
+        PdfRenderer.Page page = null;
+        try {
+            pfd = ParcelFileDescriptor.open(pdfFile, ParcelFileDescriptor.MODE_READ_ONLY);
+            renderer = new PdfRenderer(pfd);
+            int pageCount = renderer.getPageCount();
+            if (pageIndex < 0) pageIndex = 0;
+            if (pageIndex >= pageCount) pageIndex = pageCount - 1;
+            page = renderer.openPage(pageIndex);
+            int screenW = getResources().getDisplayMetrics().widthPixels;
+            int targetW = Math.min(Math.max(screenW - dp(64), 600), 1600);
+            float scale = (float) targetW / page.getWidth();
+            int targetH = Math.round(page.getHeight() * scale);
+            Bitmap bmp = Bitmap.createBitmap(targetW, targetH, Bitmap.Config.ARGB_8888);
+            bmp.eraseColor(Color.WHITE);
+            page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY);
+            iv.setImageBitmap(bmp);
+            status.setVisibility(View.GONE);
+            if (pageCount > 1) {
+                renderPageNav(pdfFile, pageIndex, pageCount, iv, status, pageNav);
+            } else {
+                pageNav.setVisibility(View.GONE);
+            }
+        } catch (Exception e) {
+            status.setVisibility(View.VISIBLE);
+            status.setText("PDF 렌더 실패: " + (e.getMessage() == null ? e.toString() : e.getMessage()));
+        } finally {
+            if (page != null) try { page.close(); } catch (Exception ignored) {}
+            if (renderer != null) try { renderer.close(); } catch (Exception ignored) {}
+            if (pfd != null) try { pfd.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private void renderPageNav(File pdfFile, int currentPage, int pageCount, ImageView iv,
+                                TextView status, LinearLayout pageNav) {
+        pageNav.removeAllViews();
+        pageNav.setVisibility(View.VISIBLE);
+        Button prev = new Button(this);
+        prev.setText("‹ 이전");
+        prev.setAllCaps(false);
+        prev.setEnabled(currentPage > 0);
+        prev.setOnClickListener(v -> renderPdfPage(pdfFile, currentPage - 1, iv, status, pageNav));
+        pageNav.addView(prev);
+
+        TextView label = text((currentPage + 1) + " / " + pageCount, 12, COLOR_INK2, true);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        label.setLayoutParams(lp);
+        label.setGravity(Gravity.CENTER);
+        pageNav.addView(label);
+
+        Button next = new Button(this);
+        next.setText("다음 ›");
+        next.setAllCaps(false);
+        next.setEnabled(currentPage < pageCount - 1);
+        next.setOnClickListener(v -> renderPdfPage(pdfFile, currentPage + 1, iv, status, pageNav));
+        pageNav.addView(next);
     }
 
     // ============================================================
@@ -3085,11 +3291,31 @@ public class MainActivity extends Activity {
         final String noticeId;
         final String teacherId;
         final String text;
+        final String originalFileUrl;   // "/static/notices/{id}.pdf" 또는 null (텍스트 직송)
+        final String originalFilename;  // "5월 가정통신문.pdf" 또는 null
+        final String mimeType;          // "application/pdf" / "image/jpeg" 등 또는 null
 
-        NoticeItem(String noticeId, String teacherId, String text) {
+        NoticeItem(String noticeId, String teacherId, String text,
+                   String originalFileUrl, String originalFilename, String mimeType) {
             this.noticeId = noticeId;
             this.teacherId = teacherId;
             this.text = text;
+            this.originalFileUrl = originalFileUrl;
+            this.originalFilename = originalFilename;
+            this.mimeType = mimeType;
+        }
+
+        boolean hasOriginalFile() {
+            return originalFileUrl != null && !originalFileUrl.isEmpty();
+        }
+
+        boolean isPdf() {
+            return "application/pdf".equalsIgnoreCase(mimeType)
+                    || (originalFileUrl != null && originalFileUrl.toLowerCase().endsWith(".pdf"));
+        }
+
+        boolean isImage() {
+            return mimeType != null && mimeType.toLowerCase().startsWith("image/");
         }
     }
 }
