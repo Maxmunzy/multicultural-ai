@@ -36,7 +36,6 @@
 간식비,tiền ăn nhẹ,Snack fee,点心费,ค่าขนม,duit snek,зуушны мөнгө,оплата за перекус,おやつ代,비용
 돗자리,thảm ngồi,Picnic mat,野餐垫,เสื่อ,tikar,дэвсгер,коврик для пикника,レジャーシート,준비물
 색종이,giấy màu,Colored paper,折纸,กระดาษสี,kertas warna,өнгөт цаас,цветная бумага,折り紙,준비물
-풀,hồ dán,Glue,胶水,กาว,gam,цавуу,клей,のり,준비물
 가위,kéo,Scissors,剪刀,กรรไกร,gunting,хайч,ножницы,はさみ,준비물
 크레파스,bút màu sáp,Crayons,蜡笔,สีเทียน,krayon,тосон харандаа,мелки,クレヨン,준비물
 네임펜,bút dạ viết tên,Permanent marker,姓名笔,ปากกาเขียนชื่อ,pen penanda,нэр бичдэг маркер,перманентный маркер,お名前ペン,준비물
@@ -73,7 +72,6 @@
 종업식,lễ bế giảng năm học,Last day of school,结业典礼,พิธีปิดภาคเรียน,majlis akhir tahun,хичээлийн жилийн хаалтын ёслол,окончание учебного года,修了式,일정
 학급,lớp học,Class,班级,ชั้นเรียน,kelas,анги,класс,クラス,학교 단위
 학년,khối lớp,Grade,年级,ระดับชั้น,tahun,ангийн түвшин,год обучения,学年,학교 단위
-반,lớp,Class,班,ห้อง,kelas,анги,класс,組,학교 단위
 번호,số thứ tự,Student number,学号,เลขที่,nombor,дугаар,номер в списке,出席番号,학교 단위
 급식,bữa ăn ở trường,School lunch,校餐,อาหารกลางวัน,makanan sekolah,сургуулийн хоол,питание в школе,給食,급식
 식단표,thực đơn,Lunch menu,每周菜单,รายการอาหาร,menu makanan,хоолны цэс,меню,献立表,급식
@@ -96,7 +94,6 @@
 응급처치,sơ cứu,First aid,急救措施,การปฐมพยาบาล,pertolongan cemas,анхны тусламж,первая помощь,応急処置,건강/안전
 투약 의뢰서,phiếu yêu cầu cho trẻ uống thuốc,Medication request form,服药委托书,ใบคำขอให้ช่วยป้อนยา,borang permohonan pemberian ubat,эм өгөх хүсэлт,просьба дать лекарство,投薬依頼書,제출 서류
 칫솔,bàn chải đánh răng,Toothbrush,牙刷,แปรงสีฟัน,berus gigi,шүдний сойз,зубная щетка,歯ブラシ,준비물
-컵,cốc nước,Cup,杯子,แก้วน้ำ,cawan,аяга,кружка,コップ,준비물
 수건,khăn mặt,Towel,毛巾,ผ้าเช็ดตัว,tuala,алчуур,полотенце,タオル,준비물
 방과후 신청,đăng ký học sau giờ học,After-school sign-up,课后班申请,การสมัครเรียนเสริมหลังเลิกเรียน,mohon kelas selepas sekolah,дугуйланд бүртгүүлэх,запись на кружки,放課後教室の申し込み,제출
 돌봄 신청,đăng ký lớp chăm sóc trẻ,Care program sign-up,托管申请,การสมัครเข้าห้องดูแลเด็ก,mohon jagaan pelajar,өдөр өнжүүлэхэд бүртгүүлэх,запись в группу продленки,学童の申し込み,제출
@@ -123,7 +120,6 @@ e알리미,e-Alimi(e알리미),e-Alimi(e알리미),e-Alimi(e알리미),e-Alimi(e
 연기,hoãn lại,Postponed,推迟,การเลื่อนกำหนดการ,tangguhkan,хойшлуулах,перенос,延期,일정
 취소,hủy bỏ,Canceled,取消,การยกเลิก,batal,цуцлах,отмена,中止,일정
 변경 사항,nội dung thay đổi,Changes,变更事项,ข้อมูลที่เปลี่ยนแปลง,perubahan,өөрчлөгдсөн зүйлс,изменения,変更事項,기타
-원,won Hàn Quốc,Korean won,韩元,วอนเกาหลี,won Korea,солонгос вон,корейская вона,ウォン,한국 통화 단위 (₩)
 수업비,tiền học,Class fee,学费,ค่าเรียน,yuran kelas,хичээлийн төлбөр,оплата за занятия,授業料,비용
 수업료,học phí,Tuition,学费,ค่าเล่าเรียน,yuran sekolah,сургалтын төлбөр,стоимость обучения,授業料,비용
 방과후 수업,lớp học thêm sau giờ học,After-school class,课后课程,เรียนเสริมหลังเลิกเรียน,kelas selepas sekolah,дугуйлангийн хичээл,занятия после школы,放課後授業,일정

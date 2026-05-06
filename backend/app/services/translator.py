@@ -111,6 +111,70 @@ _CURRENCY_PATTERNS = [
 _THOUSAND_DOT = re.compile(r"(\d{1,3}(?:\.\d{3})+)")
 _KRW_AMOUNT = re.compile(r"\d[\d,]*\s*원")
 
+_STUDENT_CONTEXT_TERMS = (
+    "\ud559\uc0dd", "\ud559\ub144", "\ucd08\ub4f1\ud559\uc0dd",
+    "\uc804\uad50\uc0dd", "\uc544\ub3d9", "\uc790\ub140",
+)
+_HOMEROOM_CONTEXT_TERMS = (
+    "\ub2f4\uc784\uc120\uc0dd\ub2d8", "\ub2f4\uc784 \uc120\uc0dd\ub2d8",
+    "\ub2f4\uc784\uad50\uc0ac", "\ub2f4\uc784",
+)
+_KINDERGARTEN_CONTEXT_TERMS = (
+    "\uc720\uce58\uc6d0\uc0dd", "\uc720\uce58\uc6d0", "\uc6d0\uc0dd", "\uc720\uc544",
+)
+_FIELD_TRIP_CONTEXT_TERMS = (
+    "\ud604\uc7a5\uccb4\ud5d8\ud559\uc2b5", "\uccb4\ud5d8\ud559\uc2b5",
+    "\uc18c\ud48d", "\uc218\ub828\ud68c",
+)
+
+_STUDENT_PATTERNS = (
+    re.compile(r"\bsinh vi(?:\u00ean|en)\b", re.IGNORECASE),
+    re.compile(r"\bh(?:\u1ecdc|o)c vi(?:\u00ean|en)\b", re.IGNORECASE),
+)
+_HOMEROOM_PATTERNS = (
+    re.compile(r"gi(?:\u00e1|a)o vi(?:\u00ean|en) gi(?:\u00e1|a)m (?:\u0111|d)(?:\u1ed1|o)c", re.IGNORECASE),
+    re.compile(r"gi(?:\u00e1|a)o vi(?:\u00ean|en) qu(?:\u1ea3|a)n l(?:\u00fd|y)", re.IGNORECASE),
+    re.compile(r"gi(?:\u00e1|a)o vi(?:\u00ean|en) ph(?:\u1ee5|u) tr(?:\u00e1|a)ch", re.IGNORECASE),
+    re.compile(r"gi(?:\u00e1|a)o s(?:\u01b0|u) gi(?:\u00e1|a)o vi(?:\u00ean|en)", re.IGNORECASE),
+)
+_KINDERGARTEN_PATTERNS = (
+    re.compile(r"H\u1ecdc vi\u1ec7n sinh vi\u00ean m\u1eabu gi\u00e1o", re.IGNORECASE),
+    re.compile(r"Hoc vien sinh vien mau giao", re.IGNORECASE),
+    re.compile(r"H\u1ecdc vi\u1ec7n m\u1eabu gi\u00e1o", re.IGNORECASE),
+    re.compile(r"Hoc vien mau giao", re.IGNORECASE),
+    re.compile(r"sinh vi(?:\u00ean|en) m(?:\u1eabu|au) gi(?:\u00e1|a)o", re.IGNORECASE),
+)
+_FIELD_TRIP_PATTERNS = (
+    re.compile(r"h(?:\u1ecdc|o)c t(?:\u1ead|a)p th(?:\u1ef1|u)c t(?:\u1ead|a)p t(?:\u1ea1|a)i tr(?:\u01b0|u)(?:\u1edd|o)ng", re.IGNORECASE),
+    re.compile(r"h(?:\u1ecdc|o)c t(?:\u1ead|a)p t(?:\u1ea1|a)i tr(?:\u01b0|u)(?:\u1edd|o)ng h(?:\u1ecdc|o)c", re.IGNORECASE),
+)
+
+
+def _has_any(text: str, terms: tuple[str, ...]) -> bool:
+    return any(term in text for term in terms)
+
+
+def _normalize_glossary_key(text: str) -> str:
+    return re.sub(r"\s+", "", text or "")
+
+
+def _find_glossary_hits_safe(text: str, glossary: list, target_lang: str) -> list[dict]:
+    """Find glossary hits with whitespace normalization and 1-char term guard."""
+    preferred_col = f"preferred_{target_lang}"
+    text_norm = _normalize_glossary_key(text)
+    hits: list[dict] = []
+    seen: set[str] = set()
+    for row in glossary:
+        korean = row.get("korean", "").strip()
+        preferred = row.get(preferred_col, "").strip()
+        if not korean or not preferred or len(korean) <= 1:
+            continue
+        key = _normalize_glossary_key(korean)
+        if key and key in text_norm and korean not in seen:
+            hits.append({"korean": korean, "preferred_term": preferred})
+            seen.add(korean)
+    return hits
+
 
 def _normalize_thousand_separator(text: str) -> str:
     def repl(m):
@@ -125,7 +189,19 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
         for pat in _CURRENCY_PATTERNS:
             vi_text = pat.sub("won", vi_text)
         vi_text = _normalize_thousand_separator(vi_text)
-    return vi_text
+    if _has_any(easy_ko, _STUDENT_CONTEXT_TERMS):
+        for pat in _STUDENT_PATTERNS:
+            vi_text = pat.sub("h\u1ecdc sinh", vi_text)
+    if _has_any(easy_ko, _HOMEROOM_CONTEXT_TERMS):
+        for pat in _HOMEROOM_PATTERNS:
+            vi_text = pat.sub("gi\u00e1o vi\u00ean ch\u1ee7 nhi\u1ec7m", vi_text)
+    if _has_any(easy_ko, _KINDERGARTEN_CONTEXT_TERMS):
+        for pat in _KINDERGARTEN_PATTERNS:
+            vi_text = pat.sub("tr\u1ebb m\u1eabu gi\u00e1o", vi_text)
+    if _has_any(easy_ko, _FIELD_TRIP_CONTEXT_TERMS):
+        for pat in _FIELD_TRIP_PATTERNS:
+            vi_text = pat.sub("bu\u1ed5i tr\u1ea3i nghi\u1ec7m th\u1ef1c t\u1ebf", vi_text)
+    return vi_text.strip()
 
 
 # OCR 변환 과정에서 생기는 특수문자 제거. HWP 체크박스/불릿이 □·▣ 등으로 깨지는 패턴.
@@ -216,7 +292,7 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
 
     # 2) glossary injection (긴 용어 먼저 치환해야 부분 치환 충돌 방지)
     glossary = _get_glossary()
-    hits = _sejong.find_glossary_hits(masked, glossary, target_lang) if _sejong else []
+    hits = _find_glossary_hits_safe(masked, glossary, target_lang)
     injected = masked
     for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
         injected = injected.replace(
