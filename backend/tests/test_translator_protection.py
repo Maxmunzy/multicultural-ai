@@ -10,8 +10,10 @@ NLLB 호출 자체는 모킹해서 마스킹 → 번역 → 복원 사이클만 
 import pytest
 
 from app.services.translator import (
+    _find_glossary_hits_safe,
     _is_url_or_phone,
     _mask_protected_entities,
+    _post_process_vi,
     _restore_protected_entities,
     translate_short_sentence,
     translate_term,
@@ -248,3 +250,79 @@ def test_translate_short_sentence_en_date_format(monkeypatch):
     assert "5월 9일(금)" not in captured[0]
     assert "May 9 (Fri)" in out or "May 9" in out
     assert "__SLOT" not in out
+
+
+# ── 1글자 glossary 가드 및 공백 normalize ──────────────────────
+def test_glossary_single_char_guard():
+    """1글자 korean 키는 glossary hit에서 제외된다."""
+    glossary = [
+        {"korean": "원", "preferred_vi": "won"},
+        {"korean": "반", "preferred_vi": "lớp"},
+        {"korean": "학생", "preferred_vi": "học sinh"},
+    ]
+    hits = _find_glossary_hits_safe("반드시 학생이 원문을 제출", glossary, "vi")
+    koreans = [h["korean"] for h in hits]
+    assert "원" not in koreans
+    assert "반" not in koreans
+    assert "학생" in koreans
+
+
+def test_glossary_whitespace_normalize():
+    """'담임 선생님'과 '담임선생님'이 공백 관계없이 같은 키로 매칭된다."""
+    glossary = [
+        {"korean": "담임선생님", "preferred_vi": "giáo viên chủ nhiệm"},
+    ]
+    hits_space = _find_glossary_hits_safe("담임 선생님께 제출해주세요", glossary, "vi")
+    hits_nospace = _find_glossary_hits_safe("담임선생님께 제출해주세요", glossary, "vi")
+    assert len(hits_space) == 1
+    assert len(hits_nospace) == 1
+    assert hits_space[0]["preferred_term"] == "giáo viên chủ nhiệm"
+
+
+# ── 날짜 + 금액 동시 보호 ──────────────────────────────────────
+def test_mask_date_and_amount_together():
+    """날짜와 금액이 함께 있을 때 각각 독립적으로 격리된다."""
+    text = "4월 30일(화)까지 참가비 15,000원을 납부해 주세요"
+    masked, holders = _mask_protected_entities(text, "vi")
+    assert "4월 30일(화)" not in masked
+    assert "15,000원" not in masked
+    assert len(holders) == 2
+    assert any("Ngày" in h for h in holders)
+    assert any("won" in h for h in holders)
+    assert masked.count("__SLOT") == 2
+
+
+# ── 베트남어 후처리 패턴 ──────────────────────────────────────
+def test_post_process_vi_student_correction():
+    """학생 맥락에서 sinh viên → học sinh 교정이 일어난다."""
+    result = _post_process_vi("학생이 제출해야 합니다", "sinh viên phải nộp")
+    assert "học sinh" in result
+    assert "sinh viên" not in result
+
+
+def test_post_process_vi_homeroom_correction():
+    """담임선생님 맥락에서 giáo viên giám đốc → giáo viên chủ nhiệm 교정."""
+    result = _post_process_vi("담임선생님께 제출하세요", "nộp cho giáo viên giám đốc")
+    assert "giáo viên chủ nhiệm" in result
+
+
+# ── 100자 trim 안전성 ──────────────────────────────────────────
+def test_trim_does_not_discard_early_slot(monkeypatch):
+    """100자 이내에 있는 날짜+금액은 trim 후에도 보호되고 복원된다."""
+    captured = []
+
+    def fake_translate(text, target_nllb="vie_Latn", max_length=512):
+        captured.append(text)
+        return text  # identity — __SLOT 토큰이 그대로 통과
+
+    monkeypatch.setattr("app.services.translator._translate", fake_translate)
+    monkeypatch.setattr("app.services.translator._get_glossary", lambda: [])
+
+    out = translate_short_sentence("5월 9일(금)까지 참가비 15,000원 납부", "vi")
+
+    assert captured, "fake_translate가 호출되지 않음"
+    assert "5월 9일(금)" not in captured[0]
+    assert "15,000원" not in captured[0]
+    assert "__SLOT" not in out
+    assert "Ngày" in out
+    assert "won" in out
