@@ -24,12 +24,12 @@ HEADER_KEYWORDS: list[str] = [
     # 접수/제출
     "접수기간", "접수방법", "접수처",
     "제출방법", "제출기한", "제출처",
-    # 일정/장소
-    "일시", "기간", "장소", "위치", "주소",
+    # 일정/장소 — HWP 표 셀에 공백 들어간 변형 ("일 시"/"장 소") 도 정규식에서 \s* 로 커버
+    "일시", "기간", "장소", "위치", "주소", "교통",
     # 대상/자격
     "대상", "자격", "참가대상",
     # 준비물/비용
-    "준비물", "지참물", "준비사항",
+    "준비물", "준비", "지참물", "준비사항",
     "비용", "회비", "참가비", "수강료", "급식비",
     # 안내/유의
     "기타 안내사항", "기타안내사항", "안내사항",
@@ -42,10 +42,14 @@ HEADER_KEYWORDS: list[str] = [
 
 _HEADER_KEYWORDS_SORTED = sorted(HEADER_KEYWORDS, key=len, reverse=True)
 
-# 줄 시작 + 헤더 키워드 + (선택적 `|`/`:`/`：` 구분자) + 값
-# `|`는 윤정님이 정제하기 전엔 살아있을 수 있어 옵셔널 처리.
+# 줄 시작 + 헤더 키워드 + (선택적 `|`/`:`/`：` 구분자) + 값.
+# 키워드 글자 사이 \s* 허용 — HWP 표 셀의 공백 변형 ("일 시", "장 소", "대 상",
+# "준 비", "교 통") 매치. 윤정 split_sentences 결과가 "일 시: ..." 형태로
+# 들어와도 헤더 정상 추출.
 _HEADER_RE = re.compile(
-    r"^\s*(?P<header>" + "|".join(re.escape(k) for k in _HEADER_KEYWORDS_SORTED) + r")"
+    r"^\s*(?P<header>" + "|".join(
+        r"\s*".join(re.escape(c) for c in k) for k in _HEADER_KEYWORDS_SORTED
+    ) + r")"
     r"\s*[|:：]?\s*"
     r"(?P<value>.+)$",
     re.DOTALL,
