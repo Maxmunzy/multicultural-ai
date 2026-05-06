@@ -225,18 +225,19 @@ def _clean_for_translation(text: str) -> str:
     return text.strip()
 
 
-# URL/전화 보호 — NLLB가 깨먹는 패턴 방어. 한국어 입력에 안 등장하는 unicode bracket으로
-# 치환하고 번역 후 복원. ⟦…⟧는 NLLB가 분해하지 않는 안전 토큰.
-_PROTECT_TOKEN = re.compile(r"⟦P(\d+)⟧")
+# URL/전화 보호 — NLLB가 깨먹는 패턴 방어.
+# ⟦…⟧ (U+27E6/27E7) 는 NLLB SentencePiece 어휘에 없어서 tokenize 시 소실됨 → "P0"만 남아 복원 실패.
+# __SLOT0__ 형태(ASCII 대문자 + 언더스코어)는 NLLB가 코드/약어로 인식해 그대로 통과.
+_PROTECT_TOKEN = re.compile(r"__SLOT(\d+)__")
 
 
 def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple[str, list[str]]:
-    """URL/전화/날짜/시간/금액 → ⟦P0⟧ 등 토큰. (masked, restore_values) 반환."""
+    """URL/전화/날짜/시간/금액 → __SLOT0__ 등 토큰. (masked, restore_values) 반환."""
     placeholders: list[str] = []
 
     def stash_value(value: str) -> str:
         placeholders.append(value)
-        return f"⟦P{len(placeholders) - 1}⟧"
+        return f"__SLOT{len(placeholders) - 1}__"
 
     def stash_match(match: re.Match) -> str:
         return stash_value(match.group(0))
