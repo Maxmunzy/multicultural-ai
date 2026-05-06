@@ -480,8 +480,11 @@ async def analyze_notice(
         "notice_id": notice_id,
         "raw_text": notice.text,
         "target_language": target_lang,
+        "page_count": 1,  # TODO(ocr-pivot): 원본 PDF/이미지 page count와 연결
         "title": title_ko,
         "title_translated": title_translated,
+        # TODO(ocr-pivot): OCR/PDF bbox와 모델 결과를 매핑해 채우기
+        "highlights": [],
         "cards": [c.model_dump() for c in cards],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],

@@ -117,13 +117,46 @@ class SlotCard(BaseModel):
     importance: float = 0.5              # 정렬용 (높은 순)
 
 
+class HighlightBBox(BaseModel):
+    x: float
+    y: float
+    width: float
+    height: float
+
+
+class HighlightPageSize(BaseModel):
+    width: float
+    height: float
+
+
+class NoticeHighlight(BaseModel):
+    """원본 문서 overlay 하이라이트 후보.
+
+    bbox/page_size는 같은 좌표계여야 한다. Android는 page_size 기준으로
+    렌더링 크기에 맞춰 bbox를 scale한다.
+    """
+    highlight_id: str = ""
+    page: int = 1
+    source: str = ""                     # mlkit_line | pdfplumber_line | pdfplumber_table
+    bbox: HighlightBBox
+    page_size: HighlightPageSize
+    text: str
+    category: Category | None = None
+    importance: float = 0.5
+    translated: str = ""
+    easy_ko: str = ""
+
+
 class NoticeAnalyzeResponse(BaseModel):
     notice_id: str
     raw_text: str
     target_language: str
+    page_count: int = 1
     # 통신문 제목 (윤정님 PR #90 extract_title heuristic) — 못 찾으면 ""
     title: str = ""
     title_translated: str = ""
+    # 원본 PDF/이미지 위 overlay 하이라이트 후보 (OCR/PDF bbox 피벗 트랙)
+    highlights: list[NoticeHighlight] = []
     # 신규 — 안드 슬롯 카드 UI 대상 (단계적 마이그레이션, 본 필드가 메인)
     cards: list[SlotCard] = []
     # deprecated — 안드 마이그레이션 완료 후 다음 PR에서 폐기 예정

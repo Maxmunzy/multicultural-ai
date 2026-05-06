@@ -90,6 +90,7 @@ public class OcrActivity extends Activity {
     public static final String RESULT_NOTICE_ID   = "notice_id";
     public static final String RESULT_CHAR_COUNT  = "char_count";
     public static final String RESULT_OCR_TEXT    = "ocr_text";
+    public static final String RESULT_OCR_LAYOUT  = "ocr_layout_json";
 
     private static final int REQUEST_CAMERA       = 3001;
     private static final int REQUEST_CAMERA_PERM  = 3002;
@@ -127,6 +128,7 @@ public class OcrActivity extends Activity {
     private Button proceedButton;
 
     private String bestOcrText = "";
+    private String bestOcrLayoutJson = "[]";
     private double bestScore   = 0.0;
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -319,6 +321,7 @@ public class OcrActivity extends Activity {
             // ML Kit는 비동기 API이므로 AtomicInteger로 완료 카운트
             final int[] pending = {variants.size()};
             final String[] texts = new String[variants.size()];
+            final String[] layouts = new String[variants.size()];
             final double[] scores = new double[variants.size()];
 
             for (int i = 0; i < variants.size(); i++) {
@@ -328,29 +331,38 @@ public class OcrActivity extends Activity {
                 task.addOnSuccessListener(result -> {
                     String text = extractTextFromResult(result);
                     texts[idx] = text;
+                    Bitmap variant = variants.get(idx);
+                    layouts[idx] = extractLayoutJsonFromResult(
+                            result,
+                            idx,
+                            variant.getWidth(),
+                            variant.getHeight()
+                    );
                     scores[idx] = calculateTextQualityScore(text);
                     synchronized (pending) {
                         pending[0]--;
-                        if (pending[0] == 0) onAllVariantsDone(texts, scores);
+                        if (pending[0] == 0) onAllVariantsDone(texts, layouts, scores);
                     }
                 }).addOnFailureListener(e -> {
                     texts[idx] = "";
+                    layouts[idx] = "[]";
                     scores[idx] = 0.0;
                     synchronized (pending) {
                         pending[0]--;
-                        if (pending[0] == 0) onAllVariantsDone(texts, scores);
+                        if (pending[0] == 0) onAllVariantsDone(texts, layouts, scores);
                     }
                 });
             }
         });
     }
 
-    private void onAllVariantsDone(String[] texts, double[] scores) {
+    private void onAllVariantsDone(String[] texts, String[] layouts, double[] scores) {
         int bestIdx = 0;
         for (int i = 1; i < scores.length; i++) {
             if (scores[i] > scores[bestIdx]) bestIdx = i;
         }
         bestOcrText = texts[bestIdx] != null ? texts[bestIdx] : "";
+        bestOcrLayoutJson = layouts[bestIdx] != null ? layouts[bestIdx] : "[]";
         bestScore = scores[bestIdx];
 
         executor.execute(() -> {
@@ -604,6 +616,48 @@ public class OcrActivity extends Activity {
         return sb.toString().trim();
     }
 
+    private String extractLayoutJsonFromResult(Text result, int variantIndex,
+                                               int pageWidth, int pageHeight) {
+        org.json.JSONArray lines = new org.json.JSONArray();
+        try {
+            int blockIndex = 0;
+            for (Text.TextBlock block : result.getTextBlocks()) {
+                int lineIndex = 0;
+                for (Text.Line line : block.getLines()) {
+                    Rect box = line.getBoundingBox();
+                    if (box == null) {
+                        lineIndex++;
+                        continue;
+                    }
+                    org.json.JSONObject item = new org.json.JSONObject();
+                    item.put("page", 1);
+                    item.put("source", "mlkit_line");
+                    item.put("variant_index", variantIndex);
+                    item.put("block_index", blockIndex);
+                    item.put("line_index", lineIndex);
+                    item.put("text", line.getText());
+                    org.json.JSONObject bbox = new org.json.JSONObject();
+                    bbox.put("x", box.left);
+                    bbox.put("y", box.top);
+                    bbox.put("width", box.width());
+                    bbox.put("height", box.height());
+                    item.put("bbox", bbox);
+
+                    org.json.JSONObject pageSize = new org.json.JSONObject();
+                    pageSize.put("width", pageWidth);
+                    pageSize.put("height", pageHeight);
+                    item.put("page_size", pageSize);
+                    lines.put(item);
+                    lineIndex++;
+                }
+                blockIndex++;
+            }
+        } catch (Exception e) {
+            return "[]";
+        }
+        return lines.toString();
+    }
+
     // ─────────────────────────────────────────────
     //  Quality Gate (Python ocr_quality_gate.py 포팅)
     // ─────────────────────────────────────────────
@@ -757,6 +811,7 @@ public class OcrActivity extends Activity {
                     result.putExtra(RESULT_NOTICE_ID,  fNoticeId);
                     result.putExtra(RESULT_CHAR_COUNT, fCharCount);
                     result.putExtra(RESULT_OCR_TEXT,   ocrText);
+                    result.putExtra(RESULT_OCR_LAYOUT, bestOcrLayoutJson);
                     setResult(RESULT_OK, result);
                     finish();
                 }
