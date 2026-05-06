@@ -51,7 +51,6 @@ Thumbs.db
 # TTS 출력물
 tts/*.mp3
 tts/*.wav
-
 # 런타임 업로드 (가통문 원본 PDF/이미지) + TTS mp3 — 폴더는 git에 유지
 backend/static/notices/*
 !backend/static/notices/.gitkeep

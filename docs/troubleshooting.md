@@ -176,6 +176,14 @@ curl -s -X POST http://localhost:8000/notice/analyze/<NOTICE_ID> \
   -d '{"target_language":"vi"}' | python -m json.tool
 ```
 
+### HF Spaces 첫 요청 타임아웃 (connectTimeout)
+
+HF Spaces 무료 플랜은 일정 시간 요청이 없으면 슬립 상태에 진입합니다. 슬립 후 첫 요청 시 컨테이너가 깨어나는 데 10~30초가 소요되는데, Android `connectTimeout`이 5초이면 연결 단계에서 끊겨버립니다.
+
+**증상**: 텍스트 발송·파일 업로드·분석 모두 바로 실패 (에러 토스트)
+
+**해결**: `MainActivity.java`의 `connectTimeout`을 30초로 증가, 또는 시연 30분 전 warmup curl로 미리 깨워두기 (위 콜드스타트 섹션 참조).
+
 ---
 
 ## 번역/TTS 문제

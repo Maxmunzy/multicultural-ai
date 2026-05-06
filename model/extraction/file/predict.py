@@ -161,7 +161,7 @@ _LOCAL_CHECKPOINT_DIR = os.path.join(
     os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary"
 )  # file/../checkpoints = extraction/checkpoints (이전: file/checkpoints — 경로 오류 수정)
 # label-1 (할 일) 확률 임계값 — v2 평가(2026-04-30) 최적값 0.65로 업데이트
-BINARY_THRESHOLD = 0.65
+BINARY_THRESHOLD = 0.5
 
 _tokenizer: Optional[AutoTokenizer] = None
 _model: Optional[AutoModelForSequenceClassification] = None
