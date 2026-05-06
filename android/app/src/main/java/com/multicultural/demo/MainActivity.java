@@ -136,6 +136,11 @@ public class MainActivity extends Activity {
     // 선생님이 첨부한 파일 (업로드 미리보기 → 발송 버튼 클릭 시 사용)
     private byte[] pendingFileBytes = null;
     private String pendingFilename = null;
+    private String pendingPreviewUrl = null;     // /static/notices/preview-xxx.pdf 등
+    private String pendingPreviewMime = null;    // application/pdf, image/jpeg 등
+    private LinearLayout teacherPreviewBox = null;  // 선생님 화면 PDF 미리보기 영역
+    private LinearLayout teacherTitleCard = null;   // 파일 업로드 시 숨길 제목 입력 카드
+    private LinearLayout teacherBodyCard = null;    // 파일 업로드 시 숨길 본문 입력 카드
     private String currentTtsUrl = "";
     private String currentEasyKoTtsUrl = "";
     private float ttsSpeed = 1.0f;
@@ -273,6 +278,9 @@ public class MainActivity extends Activity {
         loginIdInput = null;
         titleInput = null;
         bodyInput = null;
+        teacherTitleCard = null;
+        teacherBodyCard = null;
+        teacherPreviewBox = null;
         parentIdInput = null;
         sendResultText = null;
         inboxListBox = null;
@@ -473,27 +481,36 @@ public class MainActivity extends Activity {
             return parentIdInput;
         }));
 
-        // 제목
-        content.addView(formCard("제목", () -> {
+        // 제목 (파일 업로드 시 숨김)
+        teacherTitleCard = formCard("제목", () -> {
             titleInput = input("예: 현장학습 안내", "현장학습 안내");
             titleInput.setBackground(transparentBg());
             titleInput.setPadding(0, dp(2), 0, dp(2));
             titleInput.setTextSize(17);
             titleInput.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
             return titleInput;
-        }));
+        });
+        content.addView(teacherTitleCard);
 
-        // 내용
-        content.addView(formCard("내용 (한국어)", () -> {
+        // 내용 (파일 업로드 시 숨김)
+        teacherBodyCard = formCard("내용 (한국어)", () -> {
             bodyInput = multiInput("가정통신문 본문", sampleNotice());
             bodyInput.setBackground(transparentBg());
             bodyInput.setPadding(0, dp(2), 0, dp(2));
             bodyInput.setTextSize(14);
             return bodyInput;
-        }));
+        });
+        content.addView(teacherBodyCard);
 
         // AI 헬프 카드 (정보용 — 클릭 안 됨)
         content.addView(aiHelperCard());
+
+        // 파일 업로드 시 PDF/이미지 미리보기 카드가 들어가는 영역
+        teacherPreviewBox = new LinearLayout(this);
+        teacherPreviewBox.setOrientation(LinearLayout.VERTICAL);
+        teacherPreviewBox.setLayoutParams(spacedParams());
+        teacherPreviewBox.setVisibility(View.GONE);
+        content.addView(teacherPreviewBox);
 
         // 발송 결과
         sendResultText = text("", 13, COLOR_INK3, false);
@@ -1508,7 +1525,8 @@ public class MainActivity extends Activity {
         // chip prefix는 별도 카드 chip 영역(renderCardChips)에서 표시되므로 본문에 중복 X
         // header가 "기타"면 의미 없는 슬롯 라벨이라 skip — 의미 있는 헤더("일시"/"마감"/"준비물" 등)만 유지
         if (!header.isEmpty() && !"기타".equals(header)) sb.append(header).append(": ");
-        sb.append(value).append('\n');
+        // 카드 사이 빈 줄 — 가독성 개선
+        sb.append(value).append("\n\n");
     }
 
     private void appendItemLine(StringBuilder sb, JSONObject item, boolean korean) {
@@ -1722,9 +1740,20 @@ public class MainActivity extends Activity {
                         String noticeId = safeString(d, "notice_id");
                         setSendResult("✅ 발송 완료 (파일 첨부)\n→ " + parentId
                                 + " · #" + shorten(noticeId, 8), true);
-                        // 발송 후 첨부 클리어 (재발송 방지)
+                        // 발송 후 첨부 + 미리보기 클리어 (재발송 방지) + 텍스트 입력란 복귀
                         pendingFileBytes = null;
                         pendingFilename = null;
+                        pendingPreviewUrl = null;
+                        pendingPreviewMime = null;
+                        if (teacherPreviewBox != null) {
+                            teacherPreviewBox.removeAllViews();
+                            teacherPreviewBox.setVisibility(View.GONE);
+                        }
+                        if (teacherTitleCard != null) teacherTitleCard.setVisibility(View.VISIBLE);
+                        if (teacherBodyCard != null) teacherBodyCard.setVisibility(View.VISIBLE);
+                        // 추출된 텍스트 클리어 — 발송 후 빈 입력란으로 복귀
+                        if (titleInput != null) titleInput.setText("");
+                        if (bodyInput != null) bodyInput.setText("");
                     } catch (Exception error) {
                         setSendResult("응답 파싱 실패\n" + result.body, false);
                     }
@@ -1960,12 +1989,25 @@ public class MainActivity extends Activity {
                     JSONObject d = json.optJSONObject("data");
                     int charCount = d == null ? 0 : d.optInt("char_count", 0);
                     String extractedText = d == null ? "" : d.optString("text", "");
-                    // 디폴트 sample 텍스트 제거하고 추출된 본문으로 채움 (미리보기)
+                    String previewUrl = d == null ? "" : d.optString("preview_file_url", "");
+                    String previewMime = d == null ? "" : d.optString("preview_mime_type", "");
                     if (bodyInput != null) bodyInput.setText(extractedText);
                     if (titleInput != null) titleInput.setText("");
-                    // 발송 시 같은 파일 재전송하기 위해 보관
                     pendingFileBytes = bytes;
                     pendingFilename = filename;
+                    pendingPreviewUrl = previewUrl.isEmpty() ? null : previewUrl;
+                    pendingPreviewMime = previewMime.isEmpty() ? null : previewMime;
+                    // 선생님 화면에 PDF/이미지 미리보기 카드 추가 + 텍스트 입력란 숨기기
+                    if (pendingPreviewUrl != null && teacherPreviewBox != null) {
+                        teacherPreviewBox.removeAllViews();
+                        NoticeItem previewItem = new NoticeItem(
+                                "preview", currentUserId, extractedText,
+                                pendingPreviewUrl, filename, pendingPreviewMime);
+                        teacherPreviewBox.addView(buildOriginalFileCard(previewItem));
+                        teacherPreviewBox.setVisibility(View.VISIBLE);
+                        if (teacherTitleCard != null) teacherTitleCard.setVisibility(View.GONE);
+                        if (teacherBodyCard != null) teacherBodyCard.setVisibility(View.GONE);
+                    }
                     setSendResult(
                             "📄 미리보기 — " + filename + " · " + charCount + "자\n"
                                     + "↓ 발송 버튼을 눌러 학부모에게 보내세요.",
