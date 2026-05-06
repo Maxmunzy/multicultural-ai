@@ -1495,19 +1495,13 @@ public class MainActivity extends Activity {
             }
         }
 
-        // === 쉬운 한국어 ===
+        // === 쉬운 한국어 (UI 숨김) ===
+        // 세종님 제안 (2026-05-06): easy_korean 변환이 한두 단어 바꾸는 정도라 자리만
+        // 차지함. 기능/응답 필드는 그대로 두고 화면 표시만 숨김. TTS 듣기 버튼도 함께
+        // GONE 처리. 향후 easy_korean quality 향상 시 visibility 다시 풀면 됨.
         if (easyKoText != null) {
-            if (!easyKo.isEmpty()) {
-                easyKoText.setText(easyKo);
-                ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
-            } else {
-                String raw = safeString(data, "raw_text");
-                String preview = raw.length() > 300 ? raw.substring(0, 300) + "..." : raw;
-                if (!preview.isEmpty()) {
-                    easyKoText.setText(preview);
-                    ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
-                }
-            }
+            easyKoText.setText(easyKo);
+            ((View) easyKoText.getParent()).setVisibility(View.GONE);
         }
 
         // === summary 슬롯: 카테고리별 칩 (urls/phones 포함) ===
@@ -1522,6 +1516,8 @@ public class MainActivity extends Activity {
             playButton.setVisibility(View.VISIBLE);
         }
         currentEasyKoTtsUrl = optStringDeep(data, "tts_url_easy_ko");
+        // 쉬운 한국어 텍스트 카드는 숨겼지만 듣기 버튼은 살림 — 한국어 발음 학습용
+        // 도구로 의미 있음. 텍스트 안 보여도 음성 재생 OK.
         if (easyKoPlayButton != null && !currentEasyKoTtsUrl.isEmpty()) {
             easyKoPlayButton.setText(easyKoTtsLabel());
             easyKoPlayButton.setVisibility(View.VISIBLE);
@@ -1606,24 +1602,14 @@ public class MainActivity extends Activity {
     }
 
     private boolean renderCardChips(JSONArray cards) {
-        if (cards == null || cards.length() == 0 || glossaryChipsBox == null) return false;
-        glossaryChipsBox.removeAllViews();
-        int added = 0;
-        for (int i = 0; i < cards.length() && added < 8; i++) {
-            JSONObject card = cards.optJSONObject(i);
-            if (card == null) continue;
-            String chip = safeString(card, "chip");
-            String header = safeString(card, "header_ko");
-            String value = safeString(card, "value_ko");
-            if (header.isEmpty() && value.isEmpty()) continue;
-            String label = header.isEmpty() ? value : header + " · " + value;
-            glossaryChipsBox.addView(slotChipRow(chipIcon(chip), label, ""));
-            added++;
-        }
-        if (added > 0) {
-            ((View) glossaryChipsBox.getParent()).setVisibility(View.VISIBLE);
-            ((View) glossaryChipsBox.getParent().getParent()).setVisibility(View.VISIBLE);
-            return true;
+        // 세종님 제안 (2026-05-06): "📖 사용된 학교 용어" 박스가 사실은 카드 chip 을
+        // 재활용해서 표시 중이라 라벨/기능 매핑 어긋남. backend 에 glossary_hits 응답
+        // 추가하기 전엔 숨기는 게 깔끔. 함수는 남겨두고 visibility 만 강제 GONE.
+        if (glossaryChipsBox != null) {
+            View parent = (View) glossaryChipsBox.getParent();
+            if (parent != null) parent.setVisibility(View.GONE);
+            View grandparent = parent != null ? (View) parent.getParent() : null;
+            if (grandparent != null) grandparent.setVisibility(View.GONE);
         }
         return false;
     }
