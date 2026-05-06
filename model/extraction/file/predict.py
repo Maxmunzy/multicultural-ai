@@ -219,14 +219,42 @@ def _join_broken_lines(text: str) -> str:
 # 2-1. 특수기호 정제 (문장 단위)
 # ─────────────────────────────────────────
 # split_sentences()가 ◆●▪○ 등을 분리 기준으로 사용하므로
-# 마커 제거는 split 이후 문장 단위로 수행 — 학습 데이터 clean_text()와 동일 정제
-_SYMBOL_PATTERN = re.compile(r"[▪▫▸▹◆◇●○◎□■★☆※◁▷△▽→←↑↓·•…❏‧∙∘․]+")
-_CIRCLE_NUM_PATTERN = re.compile(r"[①②③④⑤⑥⑦⑧⑨⑩➊➋➌➍➎➏]")
+# 마커 제거는 split 이후 문장 단위로 수행.
+# preprocess_txt_to_jsonl.py 의 clean_sentence()와 동일 로직 — 반드시 동기화 유지.
+
+# 1단계: 특정 기호 → ASCII 대응 문자로 변환
+_NORMALIZE_TABLE = str.maketrans({
+    '‘': "'", '’': "'",  # ' '  →  '
+    '“': '"', '”': '"',  # " "  →  "
+    '「': '"', '」': '"',  # 「」 →  "
+    '『': '"', '』': '"',  # 『』 →  "
+    '【': '(', '】': ')',  # 【】 →  ()
+    '〔': '(', '〕': ')',  # 〔〕 →  ()
+    '｢': '"', '｣': '"',  # ｢｣  →  "
+    '–': '-', '—': '-',  # –—  →  -
+    '～': '~', '∼': '~',  # ～∼ →  ~
+    '，': ',',                 # ，  →  ,
+    '\xd7':   'x',                 # ×   →  x
+    '\xb7':   ' ', '･': ' ',  # ·･  →  공백
+    '・': ' ', '〃': ' ',  # ・〃 →  공백
+    '…': '...',               # …   →  ...
+    '\xad':   '',                  # soft hyphen → 제거
+    '￦': '',                  # ￦  →  제거
+})
+
+# 2단계: whitelist — 한글/영숫자/허용 구두점 외 모든 기호 공백으로 대체
+# 코드포인트 불문하고 제거하므로 PUA·체크박스(□○) 변종까지 처리
+_SYMBOL_REMOVE_RE = re.compile(
+    "[^가-힣"
+    "㄰-㆏"  # 한글 자모
+    "a-zA-Z0-9"
+    " \\t.,!?():/%@~&_\\-'\"]"
+)
 
 
 def _clean_symbols(sentence: str) -> str:
-    sentence = _SYMBOL_PATTERN.sub(" ", sentence)
-    sentence = _CIRCLE_NUM_PATTERN.sub("", sentence)
+    sentence = sentence.translate(_NORMALIZE_TABLE)
+    sentence = _SYMBOL_REMOVE_RE.sub(' ', sentence)
     return re.sub(r"\s+", " ", sentence).strip()
 
 
