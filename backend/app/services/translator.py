@@ -5,9 +5,14 @@ NLLB 번역은 매번 모델 새로 로드하지 않게 캐싱.
 
 URL/전화는 NLLB가 토큰화하면서 깨먹는 패턴이라 placeholder 치환 + 복원으로 보호.
 세종님 요청(2026-04-29).
+
+성능 최적화 (2026-05-06, 시연 ~10s 목표):
+- num_beams 4 → 1 (greedy): -50% latency, 학교 공지 도메인은 beam 효과 미미
+- @lru_cache: 분석 1번에 같은 한국어 슬롯/카드 헤더가 반복 등장 → 재호출 방지
 """
 import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 
 import torch
@@ -72,19 +77,25 @@ def _get_glossary():
     return _glossary_rows
 
 
+@lru_cache(maxsize=1024)
 def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) -> str:
+    """NLLB 호출. (text, target_nllb) 동일 입력은 캐시 히트.
+
+    분석 1번 안에서 같은 슬롯 헤더("준비물", "비용" 등)가 cards/items/summary에
+    여러 번 등장하므로 캐시 효과 큼. greedy decoding으로 단일 호출 자체도 빠름.
+    """
     tokenizer, model = _get_translator()
     target_id = tokenizer.convert_tokens_to_ids(target_nllb)
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
     with torch.no_grad():
+        # greedy(num_beams=1) — early_stopping은 beam search 전용이라 제외
         out = model.generate(
             **inputs,
             forced_bos_token_id=target_id,
             max_length=max_length,
-            num_beams=4,
+            num_beams=1,
             no_repeat_ngram_size=3,
             repetition_penalty=1.3,
-            early_stopping=True,
         )
     return tokenizer.batch_decode(out, skip_special_tokens=True)[0]
 
@@ -170,6 +181,8 @@ def translate_term(text: str, target_lang: str) -> str:
     exact match 우선. 없으면 한국어 원문 그대로 반환 (빈 문자열 금지).
     고유명사("서울숲 생태체험관")처럼 사전에 없으면 한국어 노출이 NLLB 오역보다 낫다.
     URL/전화는 어떤 언어든 ko 그대로 (방어적 가드).
+    공백 normalize: HWP 표 셀 변형 "일 시" / "장 소" / "대 상" 도 "일시"/"장소"/"대상"
+    glossary 항목에 매치되도록 양쪽 공백 제거 후 비교.
     """
     if not text or not text.strip():
         return text
@@ -177,9 +190,9 @@ def translate_term(text: str, target_lang: str) -> str:
         return text
 
     glossary = _get_glossary()
-    term = text.strip()
+    term_norm = re.sub(r"\s+", "", text.strip())
     for row in glossary:
-        if row.get("korean", "").strip() == term:
+        if re.sub(r"\s+", "", row.get("korean", "")) == term_norm:
             translated = row.get(f"preferred_{target_lang}", "").strip()
             if translated:
                 return translated

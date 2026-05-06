@@ -72,6 +72,37 @@ def normalize(text: str) -> str:
     return "\n".join(out_lines).strip()
 
 
+# HWPX(H2Orestart) 추출본은 한 paragraph 안에 여러 문장이 squash 되는 경향.
+# 일반화된 한국어 가통문 줄바꿈 복원 룰 (특정 문서 X, 한국어 보편 패턴):
+#   (1) list enumeration "1. 대 상:...2. 장 소:..." 사이 줄바꿈
+#       - HH:MM + N. → 시간 뒤 enum 보존: "14:404. 교 통" → "14:40\n4. 교 통"
+#       - 비-디지트 + N. + 한글: "시네마3. 일 시" → "시네마\n3. 일 시"
+#   (2) 한국어 문장 종결 어미 다음 줄바꿈
+#       - "[다요까니][.?!](?=\S)" → 어미 + 문장부호 + 즉시 비공백
+#       - "기원합니다.학부모님" → "기원합니다.\n학부모님"
+#       - 이미 공백/줄바꿈 있는 정상 텍스트는 (?=\S) 로 no-op
+#   (3) 원형 숫자(①②③) 앞 줄바꿈
+#       - "유의사항① 참가" → "유의사항\n① 참가"
+_TIME_THEN_ENUM = re.compile(r"(\d{1,2}:\d{2})(\d{1,2})\.\s+(?=[가-힣])")
+_NONDIGIT_THEN_ENUM = re.compile(r"(?<=\S)(?<!\d)(\d{1,2})\.\s+(?=[가-힣])")
+_SENTENCE_END = re.compile(r"([다요까니])([.?!])(?=\S)")
+_CIRCLED_DIGIT = re.compile(r"(?<=\S)([①②③④⑤⑥⑦⑧⑨⑩⑪⑫])")
+
+
+def _split_joined_enumerations(text: str) -> str:
+    """HWPX 추출본의 붙은 list enumeration 사이에 줄바꿈 삽입."""
+    text = _TIME_THEN_ENUM.sub(r"\1\n\2. ", text)
+    text = _NONDIGIT_THEN_ENUM.sub(r"\n\1. ", text)
+    return text
+
+
+def _split_sentences_korean(text: str) -> str:
+    """한국어 문장 종결 어미 + 원형 숫자 마커 앞에 줄바꿈."""
+    text = _SENTENCE_END.sub(r"\1\2\n", text)
+    text = _CIRCLED_DIGIT.sub(r"\n\1", text)
+    return text
+
+
 def _pdf_to_text(pdf_path: Path) -> str:
     """본문 텍스트(표 영역 제외) + 표(행 단위 정리) 분리."""
     if pdfplumber is None:
@@ -189,6 +220,37 @@ def _hwp_to_odt(hwp_path: Path, out_dir: Path) -> Path:
     return odt_path
 
 
+def hwp_to_pdf(hwp_path: Path, out_dir: Path) -> Path:
+    """HWP/HWPX → PDF (LibreOffice + H2Orestart).
+
+    학부모 안드 화면에 원본 풀화면 표시용. HWP는 안드 표준 viewer 없어
+    PDF로 변환해서 PdfRenderer로 표시.
+    """
+    out_dir.mkdir(parents=True, exist_ok=True)
+    try:
+        result = subprocess.run(
+            [
+                "libreoffice", "--headless",
+                "--convert-to", "pdf",
+                "--outdir", str(out_dir),
+                str(hwp_path),
+            ],
+            capture_output=True, text=True,
+            timeout=LIBREOFFICE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        raise ParserError(
+            f"HWP→PDF 변환 타임아웃 ({LIBREOFFICE_TIMEOUT_SECONDS}초 초과)"
+        )
+    pdf_path = out_dir / f"{hwp_path.stem}.pdf"
+    if not pdf_path.exists():
+        raise ParserError(
+            f"HWP→PDF 변환 실패 (출력 없음). "
+            f"returncode={result.returncode}, stderr={result.stderr.strip()[:200]}"
+        )
+    return pdf_path
+
+
 def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
     """ODT(zip) content.xml → 본문 + 표 영역 평면 텍스트.
 
@@ -196,6 +258,13 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
     행 단위 줄바꿈으로 평면화 — `|` 구분자 X, `[표]` 마커 X.
     윤정님 split_sentences가 헤더 키워드 lookahead("운영시간"/"운영방법"/...)로
     행 안에서 의미 단위 자연 분리하므로 셀 구분자 불필요.
+
+    HWPX(H2Orestart) 중복 방지:
+      - 중첩 text:p (outer 컨테이너 + 자식 paragraph 동시 존재) → leaf만 emit
+      - 같은 본문이 여러 layout table/frame에 복제 → ≥15자 paragraph dedupe
+      - 한 paragraph 안에 spans로 자체 복제 (HWPX 핵심 아티팩트) → 자체 시그니처
+        재등장 지점에서 truncate
+      - 시그니처(첫 60자) 가 이미 emit된 경우 → redundant로 skip
 
     mark_header=True: 각 표의 첫 번째 행 앞에 "[헤더] " 마킹 + 셀을 " | " 구분.
     기본값 False — 기존 호출부(parse_bytes_to_text, batch_convert.py) 변경 없음.
@@ -215,15 +284,23 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
         for elem in frame.iter():
             table_inner_ids.add(id(elem))
 
+    para_tags = (_ODT_TEXT_NS + "p", _ODT_TEXT_NS + "h")
+
+    # HWPX는 outer text:p 안에 자식 text:p가 들어간 중첩 구조를 만든다.
+    # tree.iter() + itertext()는 outer를 거대한 한 줄로 emit하면서 leaf도
+    # 따로 emit해 같은 본문이 합쳐진 채 + 분리된 채 둘 다 들어감.
+    # → 자식 paragraph 가진 outer는 건너뛰고 leaf paragraph만 emit.
     body_parts: list[str] = []
     for elem in tree.iter():
-        tag = elem.tag
-        if tag in (_ODT_TEXT_NS + "p", _ODT_TEXT_NS + "h"):
-            if id(elem) in table_inner_ids:
-                continue
-            text = "".join(elem.itertext()).strip()
-            if text:
-                body_parts.append(text)
+        if elem.tag not in para_tags:
+            continue
+        if id(elem) in table_inner_ids:
+            continue
+        if any(d.tag in para_tags for d in elem.iter() if d is not elem):
+            continue
+        text = "".join(elem.itertext()).strip()
+        if text:
+            body_parts.append(text)
 
     table_blocks: list[str] = []
     for table in tree.iter(_ODT_TABLE_NS + "table"):
@@ -241,6 +318,51 @@ def _odt_to_text(odt_path: Path, mark_header: bool = False) -> str:
                     rows.append(" ".join(cells))
         if rows:
             table_blocks.append("\n".join(rows))
+
+    # ≥15자 라인 dedupe + HWPX self-repeat 처리
+    # HWPX(H2Orestart)는 한 paragraph 안에 spans로 본문을 2-3회 반복 복제하고,
+    # 동일/유사 paragraph가 여러 layout 컨테이너에 다시 등장한다.
+    # → (1) 자체 시그니처 재등장 시 truncate
+    #   (2) 시그니처가 이미 emit된 경우 skip
+    #   (3) 정확 일치하면 skip
+    dedupe_min = 15
+    sig_len = 60  # 시그니처 길이 (정상 문서엔 같은 60자가 다시 안 나타남)
+    seen_long: set[str] = set()
+    seen_sigs: list[str] = []  # 누적 본문 (substring 검사용)
+
+    def truncate_self_repeat(text: str) -> str:
+        if len(text) < sig_len * 2:
+            return text
+        sig = text[:sig_len]
+        second = text.find(sig, sig_len)
+        if second > 0:
+            return text[:second].rstrip(" \t-")
+        return text
+
+    def dedupe_lines(lines: list[str]) -> list[str]:
+        out: list[str] = []
+        accumulated = "\n".join(seen_sigs)
+        for line in lines:
+            line = truncate_self_repeat(line)
+            if not line:
+                continue
+            if len(line) >= dedupe_min:
+                if line in seen_long:
+                    continue
+                # 시그니처가 이미 emit된 큰 본문에 들어있으면 redundant
+                if len(line) >= sig_len and line[:sig_len] in accumulated:
+                    continue
+                seen_long.add(line)
+                seen_sigs.append(line)
+                accumulated = "\n".join(seen_sigs)
+            out.append(line)
+        return out
+
+    body_parts = dedupe_lines(body_parts)
+    table_blocks = [
+        "\n".join(dedupe_lines(block.split("\n"))) for block in table_blocks
+    ]
+    table_blocks = [b for b in table_blocks if b.strip()]
 
     parts: list[str] = []
     if body_parts:
@@ -281,6 +403,8 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
         if suffix in HWP_EXTS:
             odt_path = _hwp_to_odt(src_path, tmp_dir)
             raw = _odt_to_text(odt_path)
+            raw = _split_joined_enumerations(raw)
+            raw = _split_sentences_korean(raw)
             return normalize(raw)
 
         if suffix in IMG_EXTS:
