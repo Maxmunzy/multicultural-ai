@@ -40,7 +40,9 @@ _SLOT_HEADERS: dict[str, str] = {
 # HWP 표 셀 헤더는 "일 시", "장 소" 처럼 공백 들어간 변형이 많아 헤더 비교는
 # 공백 제거 후 normalize 해서 매치 — _normalize_header().
 _TODO_HEADER_COVERS: dict[str, set[str]] = {
-    "times": {"운영시간", "신청시간", "시간"},
+    # "일시" 헤더는 dates + times 둘 다 커버 — todo value 에 보통 "5월 6일 8:50 ~ 14:40" 처럼
+    # 날짜+시간 같이 들어가 regex times 카드가 따로 생기면 dup.
+    "times": {"운영시간", "신청시간", "시간", "일시"},
     "dates": {"운영날짜", "일시", "기간", "운영기간"},
     "urls": {"신청 URL", "신청경로", "신청방법"},
     "phones": {"연락처", "문의", "문의처"},
@@ -141,8 +143,19 @@ _FORM_SIGNALS = re.compile(
     r"|성\s*명\s*[:：]"           # "성명 :" 입력란 (공백 변형 허용)
     r"|[○◯][\s,]*[✕✗×]"         # 체크박스 페어 "○,✕" 또는 "○ ✕"
     r"|참가\s*여부\s+불참\s*사유"  # 표 헤더 "참가여부 불참사유"
+    r"|참가\s*여부를?\s*$"        # 동의서 form 끝 "참가 여부를" 잔재
     r"|^[\s,]*[✕✗×]\s*로\s+표시" # 잘린 "✕로 표시하여..."
 )
+
+
+def _is_short_fallback_card(card: SlotCard) -> bool:
+    """헤더 추출 실패(_FALLBACK_HEADER) + 짧은 value = 본문 split 잔재.
+
+    예: "제출 바랍니다." (8자) — 한 sentence 가 윤정 model 안에서 둘로 쪼개져
+    뒷부분만 떨어진 의미 없는 카드. 본문 슬롯이라면 헤더가 잡혔거나 충분한
+    길이의 value 가 있을 것이라는 가정.
+    """
+    return card.header_ko == _FALLBACK_HEADER and len(card.value_ko) < 15
 
 
 def _normalize_for_dedup(text: str) -> str:
@@ -161,29 +174,27 @@ def _is_form_card(card: SlotCard) -> bool:
 
 
 def _dedup_cards(cards: list[SlotCard]) -> list[SlotCard]:
-    """같은 헤더 안에서 substring 카드 제거.
+    """카드 value 가 다른 카드의 substring 이면 짧은 쪽 제거 (cross-header).
 
-    pdfplumber가 본문 + [표] 양쪽에서 같은 정보를 추출해 두 카드로 들어오는 경우
-    (예: 서대구초 운영방법 156자 본문 카드 + 38자 표 영역 카드) 짧은 쪽이 긴
-    쪽 안에 substring으로 들어있으면 짧은 쪽 제거. 정보 손실 0.
+    예시 — 같은 정보가 여러 슬롯에 중복:
+      [일 시] 2026년 5월 6일(목) 8:50 ~ 14:40   (윤정 todo, 길다)
+      [시간] 8:50 ~ 14:40                       (regex, 짧음 — substring → 제거)
+      [유의사항] 참가 동의서는 4월 28일(화) 까지 담임선생님께
+      [마감일] 4월 28일(화)                     (regex, 짧음 — substring → 제거)
 
-    헤더가 다르면 손대지 않음 — 운영방법/일시/시간/URL 등 다른 슬롯은 별개.
+    pdfplumber 본문/표 중복도 같이 처리 (서대구초 운영방법 케이스).
     """
-    by_header: dict[str, list[SlotCard]] = {}
-    for c in cards:
-        by_header.setdefault(c.header_ko, []).append(c)
-
+    sorted_cards = sorted(cards, key=lambda c: -len(c.value_ko))
     keep: list[SlotCard] = []
-    for group in by_header.values():
-        # 긴 value 우선 — 짧은 게 긴 것 substring이면 제거 가능
-        group.sort(key=lambda c: -len(c.value_ko))
-        kept_norms: list[str] = []
-        for card in group:
-            norm = _normalize_for_dedup(card.value_ko)
-            if any(norm in k for k in kept_norms):
-                continue
-            kept_norms.append(norm)
-            keep.append(card)
+    kept_norms: list[str] = []
+    for card in sorted_cards:
+        norm = _normalize_for_dedup(card.value_ko)
+        if not norm:
+            continue
+        if any(norm in k for k in kept_norms):
+            continue
+        kept_norms.append(norm)
+        keep.append(card)
     return keep
 
 
@@ -199,6 +210,7 @@ def build_cards(
     cards.extend(_build_cards_from_regex_slots(regex_slots, target_lang, todo_headers))
 
     cards = [c for c in cards if not _is_form_card(c)]
+    cards = [c for c in cards if not _is_short_fallback_card(c)]
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
     return cards
