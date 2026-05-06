@@ -1,0 +1,47 @@
+﻿korean,preferred_vi,preferred_en,preferred_zh,preferred_th,preferred_ms,preferred_mn,preferred_ru,preferred_ja,note
+관찰평가,Đánh giá quan sát,Observation assessment,观察评估,การประเมินจากการสังเกต,Penilaian pemerhatian,Ажиглалтын үнэлгээ,Наблюдательная оценка,観察評価,검사
+서술평가,Đánh giá tự luận,Descriptive assessment,描述性评估,การประเมินเชิงบรรยาย,Penilaian deskriptif,Тодорхойлох үнэлгээ,Описательная оценка,記述評価,검사
+지필평가,Đánh giá viết,Written test,笔试评估,การประเมินข้อเขียน,Penilaian bertulis,Бичгийн үнэлгээ,Письменная оценка,筆記評価,검사
+실기평가,Đánh giá thực hành,Performance assessment,技能评估,การประเมินภาคปฏิบัติ,Penilaian praktikal,Практик үнэлгээ,Практическая оценка,実技評価,검사
+자기평가,Tự đánh giá,Self-assessment,自我评估,การประเมินตนเอง,Penilaian kendiri,Өөрийн үнэлгээ,Самооценка,自己評価,검사
+선택형,Dạng trắc nghiệm,Multiple choice,选择题,แบบเลือกตอบ,Jenis pilihan,Сонголтын хэлбэр,Тесты с выбором ответа,選択式,검사
+평가방법,Phương pháp đánh giá,Assessment method,评估方法,วิธีการประเมิน,Kaedah penilaian,Үнэлгээний арга,Метод оценки,評価方法,행정
+평가시기,Thời điểm đánh giá,Assessment timing,评估时间,ช่วงเวลาประเมิน,Tempoh penilaian,Үнэлгээний хугацаа,Сроки оценки,評価時期,행정
+평가내용,Nội dung đánh giá,Assessment content,评估内容,เนื้อหาการประเมิน,Kandungan penilaian,Үнэлгээний агуулга,Содержание оценки,評価内容,행정
+재료비,Phí nguyên liệu,Material fee,材料费,ค่าวัสดุ,Yuran bahan,Материалын төлбөр,Стоимость материалов,材料費,비용
+교재비,Phí giáo trình,Textbook fee,教材费,ค่าตำราเรียน,Yuran buku teks,Сурах бичгийн төлбөр,Стоимость учебных материалов,教材費,비용
+교통비,Phí đi lại,Transportation fee,交通费,ค่าเดินทาง,Yuran pengangkutan,Замын зардал,Транспортные расходы,交通費,비용
+체험비,Phí trải nghiệm,Activity fee,体验费,ค่ากิจกรรม,Yuran aktiviti,Туршлагын төлбөр,Плата за опыт,体験費,비용
+수급권자,Người thụ hưởng,Beneficiary,受益人,ผู้มีสิทธิ์รับเงินสงเคราะห์,Penerima bantuan,Тэтгэмж авагч,Получатель пособия,受給権者,비용
+학습특별지원금,Quỹ hỗ trợ học tập đặc biệt,Special learning support fund,特殊学习支援金,เงินสนับสนุนการเรียนรู้พิเศษ,Dana sokongan pembelajaran khas,Сургалтын тусгай дэмжлэгийн сан,Специальный фонд поддержки обучения,学習特別支援金,비용
+미동의,Không đồng ý,Disagree; Non-consent,未同意; 不同意,ไม่ยินยอม,Tidak bersetuju,Зөвшөөрөөгүй,Несогласие,未同意,행정
+증빙서류,Hồ sơ chứng minh,Supporting documents; Proof documents,证明文件,เอกสารประกอบ,Dokumen sokongan,Баримт бичиг,Подтверждающие документы,証明書類,행정
+수집항목,Hạng mục thu thập,Collection items; Data collection items,收集项目,รายการที่รวบรวม,Item yang dikumpul,Цуглуулах зүйлс,Перечень собираемых данных,収集項目,행정
+보유기간,Thời gian lưu giữ,Retention period,保有期限,ระยะเวลาการจัดเก็บ,Tempoh simpanan,Хадгалах хугацаа,Срок хранения,保有期間,행정
+이용기간,Thời gian sử dụng,Usage period,利用期限,ระยะเวลาการใช้งาน,Tempoh penggunaan,Ашиглах хугацаа,Срок использования,利用期間,행정
+개인정보보호법,Luật Bảo vệ thông tin cá nhân,Personal Information Protection Act,个人信息保护法,พระราชบัญญัติคุ้มครองข้อมูลส่วนบุคคล,Akta Perlindungan Maklumat Peribadi,Хувийн мэдээллийн хамгаалах тухай хууль,Закон о защите персональных данных,個人情報保護法,행정
+지원서,Đơn đăng ký,Application form,申请书,ใบสมัคร,Borang permohonan,Өргөдөл,Заявление; Анкета,申請書,행정
+희망자,Người mong muốn,Those who wish; Interested parties,希望者,ผู้ที่ต้องการ,Pihak yang berminat,Хүсэгчид,Желающие,希望者,행정
+지원대상,Đối tượng hỗ trợ,Eligible persons; Target group for support,支持对象,ผู้มีสิทธิ์รับการสนับสนุน,Kumpulan sasaran sokongan,Дэмжлэг авах хүмүүс,"Категория лиц, имеющих право на поддержку",支援対象,행정
+설문조사,Khảo sát,Survey; Questionnaire,问卷调查,การสำรวจ,Tinjauan; Kajian soal selidik,Судалгаа,Опрос,アンケート調査,행정
+운영계획,Kế hoạch vận hành,Operation plan; Management plan,运营计划,แผนการดำเนินงาน,Pelan operasi,Үйл ажиллагааны төлөвлөгөө,План работы,運営計画,행정
+불법찬조금,Tiền tài trợ bất hợp pháp,Illegal donations; Unlawful sponsorship funds,非法赞助费,เงินบริจาคที่ผิดกฎหมาย,Dana tajaan haram,Хууль бус ивээн тэтгэлэг,Незаконные пожертвования,不法賛助金,행정
+등하교,Đi học và về nhà,Commuting to/from school; Arrival and departure from school,上下学,การเดินทางไปกลับโรงเรียน,Perjalanan ke/dari sekolah,"Сургуульд ирэх, буцах",Приход и уход из школы,登下校,일정
+가정학습,Học tại nhà,Home learning; Self-study at home,家庭学习,การเรียนรู้ที่บ้าน,Pembelajaran di rumah,Гэрийн сургалт,Домашнее обучение,家庭学習,일정
+학교급식,Bữa ăn học đường,School lunch; School meal,学校供餐,อาหารกลางวันโรงเรียน,Makanan sekolah,Сургуулийн хоол,Школьное питание,学校給食,행정
+알리미,Hệ thống thông báo,Notifier/Announcement system,通知系统/提醒,ระบบแจ้งเตือน/ผู้แจ้ง,Sistem pemberitahuan/Pengumuman,Мэдэгдлийн систем,Система оповещения/Уведомитель,通知システム/お知らせ,행정
+생활교육,Giáo dục đời sống,Life education/Character education,生活教育/品德教育,การศึกษาชีวิต/การอบรมคุณธรรม,Pendidikan kehidupan/Pendidikan akhlak,Амьдралын боловсрол,Воспитание характера/Жизненное образование,生活指導/道徳教育,행정
+선별진료소,Phòng khám sàng lọc,Screening clinic/center,筛选诊疗所/检查站,คลินิกคัดกรอง,Klinik saringan,Скрининг эмнэлэг,Скрининговый центр/Пункт отбора,選別診療所/スクリーニングセンター,검사
+건강상태,Tình trạng sức khỏe,Health condition/status,健康状况,สภาพสุขภาพ,Keadaan kesihatan,Эрүүл мэндийн байдал,Состояние здоровья,健康状態,건강
+과의존,Phụ thuộc quá mức,Over-reliance/Dependency,过度依赖,การพึ่งพาเกินควร,Keterlaluan bergantung,Хэт хамаарал,Чрезмерная зависимость,過度な依存,건강
+단말기,Thiết bị đầu cuối,Terminal/Device,终端设备,อุปกรณ์ปลายทาง,Peranti,Төхөөрөмж/Терминал,Терминал/Устройство,端末/デバイス,준비물
+태블릿,Máy tính bảng,Tablet,平板电脑,แท็บเล็ต,Tablet,Таблет,Планшет,タブレット,준비물
+휴대전화,Điện thoại di động,Mobile phone/Cell phone,手机,โทรศัพท์มือถือ,Telefon bimbit,Гар утас,Мобильный телефон,携帯電話,행정
+카카오톡,KakaoTalk,KakaoTalk,KakaoTalk,KakaoTalk,KakaoTalk,KakaoTalk,KakaoTalk,カカオトーク,행정
+디지털,Kỹ thuật số,Digital,数字,ดิจิทัล,Digital,Дижитал,Цифровой,デジタル,행정
+특별교육,Giáo dục đặc biệt,Special education/Special training,特别教育/特殊教育,การศึกษาพิเศษ/การอบรมพิเศษ,Pendidikan khas/Latihan khas,Тусгай боловсрол,Специальное образование/Особое обучение,特別教育/特殊教育,행정
+영재교육대상자,Đối tượng giáo dục năng khiếu,Gifted education recipient/Talented student,英才教育对象/资优生,ผู้มีสิทธิ์ได้รับการศึกษาสำหรับผู้มีความสามารถพิเศษ,Calon pendidikan berbakat,Авьяаслаг боловсролын хамрагдагч,Участник программы обучения одаренных детей,英才教育対象者/ギフテッド教育対象者,행정
+맞춤형,Cá nhân hóa/Tùy chỉnh,Customized/Personalized,定制化/个性化,เฉพาะบุคคล/ปรับแต่ง,Tersuai/Peribadi,Тохируулсан/Хувийн,Индивидуальный/Персонализированный,カスタマイズされた/個別対応,행정
+청소년,Thanh thiếu niên,Youth/Adolescent,青少年,เยาวชน,Remaja,Өсвөр насны хүүхэд,Молодежь/Подросток,青少年,행정
+자원봉사센터,Trung tâm tình nguyện,Volunteer center,志愿者中心,ศูนย์อาสาสมัคร,Pusat sukarelawan,Сайн дурын төв,Центр волонтерства,ボランティアセンター,행정
+체크리스트,danh sách kiểm tra,checklist,清单,รายการตรวจสอบ,senarai semak,шалгах хуудас,контрольный список,チェックリスト,행정
