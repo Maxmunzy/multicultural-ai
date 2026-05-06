@@ -260,7 +260,9 @@ def build_cards(
     cards.extend(_build_cards_from_regex_slots(regex_slots, target_lang, todo_headers))
 
     cards = [c for c in cards if not _is_form_card(c)]
-    cards = _merge_orphan_fragments(cards)
+    # orphan merge 는 cards 가 본문 순서일 때만 안전한데, 윤정 todos 가 confidence
+    # 순으로 들어와 직전 카드 = 본문 직전 카드 보장 X. 잘못 붙는 사고 방지를
+    # 위해 merge 대신 단순 필터로 통일 (정보 일부 손실 감수).
     cards = [c for c in cards if not _is_short_fallback_card(c)]
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
