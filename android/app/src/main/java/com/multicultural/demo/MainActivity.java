@@ -1516,10 +1516,11 @@ public class MainActivity extends Activity {
             playButton.setVisibility(View.VISIBLE);
         }
         currentEasyKoTtsUrl = optStringDeep(data, "tts_url_easy_ko");
-        // 쉬운 한국어 UI 숨김에 맞춰 듣기 버튼도 GONE — easyKoTtsUrl 은 보관해 두고
-        // 추후 easy_korean quality 좋아지면 VISIBLE 로 다시 풀기.
-        if (easyKoPlayButton != null) {
-            easyKoPlayButton.setVisibility(View.GONE);
+        // 쉬운 한국어 텍스트 카드는 숨겼지만 듣기 버튼은 살림 — 한국어 발음 학습용
+        // 도구로 의미 있음. 텍스트 안 보여도 음성 재생 OK.
+        if (easyKoPlayButton != null && !currentEasyKoTtsUrl.isEmpty()) {
+            easyKoPlayButton.setText(easyKoTtsLabel());
+            easyKoPlayButton.setVisibility(View.VISIBLE);
         }
         boolean hasTts = (playButton != null && playButton.getVisibility() == View.VISIBLE)
                 || (easyKoPlayButton != null && easyKoPlayButton.getVisibility() == View.VISIBLE);
