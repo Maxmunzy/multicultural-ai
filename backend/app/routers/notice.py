@@ -20,6 +20,7 @@ from app.services.slot_extractor import (
     split_supply_tokens, strip_markers,
 )
 from app.services.card_builder import build_cards
+from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.mock import MOCK_TODOS
 
 router = APIRouter()
@@ -323,6 +324,27 @@ def _amount_to_ko(amount: int | None) -> str | None:
     return f"{amount:,}원"
 
 
+def _page_count_from_layout(layout_json) -> int:
+    """layout_json에서 페이지 수 추출. 없거나 형식 다르면 1."""
+    if not layout_json:
+        return 1
+    payload = layout_json
+    if isinstance(payload, str):
+        import json as _json
+        try:
+            payload = _json.loads(payload)
+        except Exception:
+            return 1
+    if isinstance(payload, dict):
+        pages = payload.get("pages")
+        if isinstance(pages, list) and pages:
+            return len(pages)
+    if isinstance(payload, list):
+        seen = {item.get("page", 1) for item in payload if isinstance(item, dict)}
+        return max(len(seen), 1)
+    return 1
+
+
 def _build_item(todo: YunjeongTodo, target_lang: str) -> AnalyzeItem:
     """YunjeongTodo + 경이님 카테고리 → AnalyzeItem.
 
@@ -462,6 +484,15 @@ async def analyze_notice(
     top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
     cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
 
+    # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.
+    # layout_json은 안드 ML Kit OCR JSON 또는 backend pdfplumber probe JSON.
+    try:
+        highlights = build_highlights_from_cards(cards, req.layout_json)
+    except Exception as error:
+        print(f"[analyze] highlight mapping failed: {error}")
+        highlights = []
+    page_count = _page_count_from_layout(req.layout_json)
+
     # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
     tts_text_translated = _build_tts_text_from_cards(cards, "translated")
     tts_text_easy_ko = _build_tts_text_from_cards(cards, "easy_ko")
@@ -480,11 +511,10 @@ async def analyze_notice(
         "notice_id": notice_id,
         "raw_text": notice.text,
         "target_language": target_lang,
-        "page_count": 1,  # TODO(ocr-pivot): 원본 PDF/이미지 page count와 연결
+        "page_count": page_count,
         "title": title_ko,
         "title_translated": title_translated,
-        # TODO(ocr-pivot): OCR/PDF bbox와 모델 결과를 매핑해 채우기
-        "highlights": [],
+        "highlights": highlights,
         "cards": [c.model_dump() for c in cards],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],

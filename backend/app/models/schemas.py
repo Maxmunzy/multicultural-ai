@@ -59,6 +59,10 @@ class NoticeSendRequest(BaseModel):
 
 class NoticeAnalyzeRequest(BaseModel):
     target_language: str   # vi/en/ru/ms/mn/zh/th/ja/ko_easy — 필수, default 없음
+    # OCR/PDF layout — Android ML Kit OCR JSON 또는 backend pdfplumber probe JSON.
+    # 있으면 highlight_mapper가 카드 ↔ bbox 매칭해 highlights[]를 채운다.
+    # 없으면 highlights는 빈 리스트로 남고 안드는 텍스트 카드만 표시.
+    layout_json: Any | None = None
 
 
 # ── 슬롯 기반 응답 (강사 처방 1·3 대응) ──────────────────────────
