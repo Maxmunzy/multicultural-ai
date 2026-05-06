@@ -17,7 +17,22 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     seed_demo_users()
+    _warmup_nllb()
     yield
+
+
+def _warmup_nllb() -> None:
+    """NLLB 모델을 startup 시 로드 + dummy 번역 1회로 그래프 워밍.
+
+    첫 /notice/analyze 호출이 5~10초 cold start 페널티를 안 먹게 하기 위함.
+    실패해도 서버 부팅은 막지 않음 — 분석 호출 시 lazy load fallback.
+    """
+    try:
+        from app.services.translator import _translate
+        _translate("안녕하세요", "vie_Latn", max_length=32)
+        print("[startup] NLLB warmup 완료")
+    except Exception as error:
+        print(f"[startup] NLLB warmup 실패 (lazy load fallback): {error}")
 
 
 app = FastAPI(

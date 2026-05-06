@@ -26,6 +26,19 @@ except ImportError as error:
     _yunjeong = None
 
 _AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\s*원")
+# 제목 fallback — 윤정 heuristic이 reject한 케이스(연도 시작 + 공백 dash)도 잡기.
+# 가통문 표준 제목 키워드 확장 — "디지털성범죄 예방 안내", "교육비 지원" 등
+# "안내" 부족 케이스도 커버.
+_TITLE_KEYWORDS = re.compile(
+    r"(안내|공지|알림|통보|조사|신청|수납|모집"
+    r"|예방|교육|행사|프로그램|캠페인|지원|보호"
+    r"|연수|상담|평가|점검|운영)"
+)
+
+
+# 윤정 결과가 명백히 제목 아닌 패턴 (※ 표 주석, 괄호 시작, 콜론으로 시작 등)
+# 이면 reject 후 fallback 사용. 가통문 제목은 보통 한글로 시작.
+_INVALID_TITLE_PREFIX = re.compile(r"^[※◎●▶▷◆◇*\-•(\[「『:：]")
 
 
 def extract_title(notice_text: str) -> str | None:
@@ -34,16 +47,31 @@ def extract_title(notice_text: str) -> str | None:
     윤정님 PR #90 (predict.py:extract_title) — split_sentences()의
     _HEADER_ONLY 필터가 제목을 차단하기 전에 원문 줄을 직접 스캔.
     predict()와 별도 호출.
+
+    Fallback 사용 조건:
+      - 윤정 결과 None
+      - 또는 명백히 무효 (※ / 괄호 / 마커로 시작 — 표 주석/안내 fragment)
     """
     if not notice_text or not notice_text.strip():
         return None
-    if _yunjeong is None or not hasattr(_yunjeong, "extract_title"):
-        return None
-    try:
-        return _yunjeong.extract_title(notice_text)
-    except Exception as error:
-        print(f"[extractor] extract_title failed: {error}")
-        return None
+    title: str | None = None
+    if _yunjeong is not None and hasattr(_yunjeong, "extract_title"):
+        try:
+            title = _yunjeong.extract_title(notice_text)
+        except Exception as error:
+            print(f"[extractor] extract_title failed: {error}")
+    if title and not _INVALID_TITLE_PREFIX.match(title.strip()):
+        return title
+
+    # Fallback: 본문 상단 10줄에서 제목 키워드 포함 + 길이 8~80자 + 무효 prefix X
+    # 줄 수 5 → 10 확장 (디지털성범죄/말라리아 같이 첫 5줄에 도장/머릿글 들어가는 케이스)
+    for line in notice_text.splitlines()[:10]:
+        line = line.strip()
+        if (8 <= len(line) <= 80
+                and _TITLE_KEYWORDS.search(line)
+                and not _INVALID_TITLE_PREFIX.match(line)):
+            return line
+    return None
 
 
 def extract_todos(notice_text: str, source: str | None = None) -> list[YunjeongTodo]:

@@ -11,12 +11,23 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    buildFeatures {
+        // BuildConfig.BASE_URL 주입용 — 서버 IP 를 코드/repo 에 박지 않음
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId 'com.multicultural.demo'
         minSdk 23
         targetSdk 36
         versionCode 1
         versionName '0.1.0'
+
+        // 서버 BASE_URL — gradle.properties 또는 -P 옵션으로 주입.
+        // 기본값 emulator localhost (10.0.2.2). 시연/배포 시:
+        //   ./gradlew assembleDebug -Pschoolbridge.baseUrl=http://YOUR_SERVER:8000
+        def baseUrl = project.findProperty('schoolbridge.baseUrl') ?: 'http://10.0.2.2:8000'
+        buildConfigField "String", "BASE_URL", "\"${baseUrl}\""
     }
 }
 
