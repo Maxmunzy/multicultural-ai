@@ -152,10 +152,49 @@ def _is_short_fallback_card(card: SlotCard) -> bool:
     """헤더 추출 실패(_FALLBACK_HEADER) + 짧은 value = 본문 split 잔재.
 
     예: "제출 바랍니다." (8자) — 한 sentence 가 윤정 model 안에서 둘로 쪼개져
-    뒷부분만 떨어진 의미 없는 카드. 본문 슬롯이라면 헤더가 잡혔거나 충분한
-    길이의 value 가 있을 것이라는 가정.
+    뒷부분만 떨어진 의미 없는 카드.
     """
     return card.header_ko == _FALLBACK_HEADER and len(card.value_ko) < 15
+
+
+# 종결 어미로 끝나는 짧은 단편 — 윤정 split 의 잔재로 직전 카드에 흡수 대상
+_ORPHAN_TAIL = re.compile(r"(바랍니다|드립니다|주세요|입니다|있습니다)\.?\s*$")
+
+
+def _merge_orphan_fragments(cards: list[SlotCard]) -> list[SlotCard]:
+    """짧은 fallback-header 단편 카드를 직전 본문 카드 value 끝에 합쳐 흡수.
+
+    윤정 split_sentences 가 한 문장을 둘로 쪼개 "[기타] 제출 바랍니다." 같은
+    단편이 생김. 단순 필터하면 정보 손실 → 직전 본문 카드(정상 헤더)의
+    value 끝에 이어 붙여 한 문장 복원.
+
+    조건 (모두 만족):
+      - header == _FALLBACK_HEADER (split 실패)
+      - value < 20자
+      - 종결 어미로 끝남 (바랍니다/드립니다/주세요/입니다/있습니다)
+      - 직전 카드가 본문 카드 (정상 헤더)
+    """
+    merged: list[SlotCard] = []
+    for card in cards:
+        is_orphan = (
+            card.header_ko == _FALLBACK_HEADER
+            and len(card.value_ko) < 20
+            and _ORPHAN_TAIL.search(card.value_ko)
+            and merged
+            and merged[-1].header_ko != _FALLBACK_HEADER
+        )
+        if is_orphan:
+            prev = merged[-1]
+            sep = " " if not prev.value_ko.endswith((" ", "\n")) else ""
+            prev_strip = prev.value_ko.rstrip(" ,.;")
+            merged[-1] = prev.model_copy(update={
+                "value_ko": prev_strip + sep + card.value_ko,
+                "value_easy_ko": (prev.value_easy_ko or "").rstrip(" ,.;") + sep + (card.value_easy_ko or ""),
+                "value_translated": (prev.value_translated or "").rstrip(" ,.;") + sep + (card.value_translated or ""),
+            })
+        else:
+            merged.append(card)
+    return merged
 
 
 def _normalize_for_dedup(text: str) -> str:
@@ -210,6 +249,7 @@ def build_cards(
     cards.extend(_build_cards_from_regex_slots(regex_slots, target_lang, todo_headers))
 
     cards = [c for c in cards if not _is_form_card(c)]
+    cards = _merge_orphan_fragments(cards)
     cards = [c for c in cards if not _is_short_fallback_card(c)]
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
