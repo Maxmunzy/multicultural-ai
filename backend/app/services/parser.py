@@ -81,11 +81,25 @@ def normalize(text: str) -> str:
 _TIME_THEN_ENUM = re.compile(r"(\d{1,2}:\d{2})(\d{1,2})\.\s+(?=[가-힣])")
 _NONDIGIT_THEN_ENUM = re.compile(r"(?<=\S)(?<!\d)(\d{1,2})\.\s+(?=[가-힣])")
 
+# 가통문은 보통 [본문 + 가로줄 + 동의서 form] 구조. form 영역("참가여부 ○/✕",
+# "학부모 성명", "(인)" 등)은 학부모가 작성할 칸이지 분석 대상이 아님.
+# 윤정 모델이 form 텍스트를 todo로 잡으면 슬롯 카드가 지저분해짐.
+# 가로줄(- 5개 이상 연속)을 form 시작 지점으로 보고 그 뒤 잘라냄.
+_FORM_DIVIDER = re.compile(r"-{5,}")
+
 
 def _split_joined_enumerations(text: str) -> str:
     """HWPX 추출본의 붙은 list enumeration 사이에 줄바꿈 삽입."""
     text = _TIME_THEN_ENUM.sub(r"\1\n\2. ", text)
     text = _NONDIGIT_THEN_ENUM.sub(r"\n\1. ", text)
+    return text
+
+
+def _strip_form_section(text: str) -> str:
+    """가로줄(-----) 이후 동의서 form 영역 잘라냄. 본문만 남김."""
+    m = _FORM_DIVIDER.search(text)
+    if m:
+        return text[:m.start()].rstrip()
     return text
 
 
@@ -390,6 +404,7 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
             odt_path = _hwp_to_odt(src_path, tmp_dir)
             raw = _odt_to_text(odt_path)
             raw = _split_joined_enumerations(raw)
+            raw = _strip_form_section(raw)
             return normalize(raw)
 
         if suffix in IMG_EXTS:
