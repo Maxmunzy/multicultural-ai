@@ -290,6 +290,25 @@ def format_amount(a: dict, target_lang: str) -> str:
     return f"{formatted}{suffix}"
 
 
+_SUPPLIES_RE = re.compile(
+    r"(?:^|\n)\s*\d{0,2}\.?\s*(?:준\s*비물?|지\s*참\s*물?|준비\s*사항)\s*[:：]\s*([^\n]+)",
+    re.MULTILINE,
+)
+
+
+def extract_supplies(text: str) -> list[str]:
+    """본문에서 "준비물:", "준 비:", "지참물:" 헤더 다음 한 줄 추출.
+
+    윤정 모델이 todo 로 못 잡은 case 보강 (가통문 보편 슬롯).
+    """
+    out: list[str] = []
+    for m in _SUPPLIES_RE.finditer(text):
+        v = m.group(1).strip()
+        if v and v not in out:
+            out.append(v)
+    return out
+
+
 # ── 통합 진입점 ──────────────────────────────────────────────────
 def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[dict]]:
     """summary 슬롯 중 정규식으로 채울 수 있는 항목들을 SlotEntry-ready dict로.
@@ -298,7 +317,7 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
     """
     out: dict[str, list[dict]] = {
         "dates": [], "times": [], "amounts": [], "urls": [], "phones": [],
-        "deadlines": [],
+        "deadlines": [], "supplies": [],
     }
     for d in extract_dates(text):
         # 날짜 뒤 30자 안에 "까지" / "마감" 있으면 마감일 슬롯으로 분리.
@@ -331,6 +350,9 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
         out["urls"].append({"ko": url, "translated": url, "source": "regex"})
     for phone in extract_phones(text):
         out["phones"].append({"ko": phone, "translated": phone, "source": "regex"})
+    for s in extract_supplies(text):
+        # 번역은 _build_cards_from_regex_slots 에서 한 번에 처리되도록 placeholder
+        out["supplies"].append({"ko": s, "translated": "", "source": "regex"})
     return out
 
 

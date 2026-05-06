@@ -33,6 +33,7 @@ _SLOT_HEADERS: dict[str, str] = {
     "urls": "신청 URL",
     "phones": "연락처",
     "amounts": "비용",
+    "supplies": "준비물",
 }
 
 # regex 슬롯이 todo로 이미 흡수됐는지 판단할 헤더 매핑.
@@ -47,6 +48,7 @@ _TODO_HEADER_COVERS: dict[str, set[str]] = {
     "urls": {"신청 URL", "신청경로", "신청방법"},
     "phones": {"연락처", "문의", "문의처"},
     "amounts": {"비용", "회비", "참가비", "수강료", "급식비"},
+    "supplies": {"준비물", "준비", "지참물", "준비사항"},
 }
 
 
@@ -108,7 +110,16 @@ def _build_cards_from_regex_slots(
 
         # 슬롯당 한 카드 — 여러 값 결합
         values_ko = [_slot_entry_ko(e) for e in entries if _slot_entry_ko(e)]
-        values_translated = [_slot_entry_translated(e) for e in entries if _slot_entry_ko(e)]
+        values_translated = []
+        for e in entries:
+            ko = _slot_entry_ko(e)
+            if not ko:
+                continue
+            tr = _slot_entry_translated(e)
+            # translated가 ko와 같거나 비면 (placeholder), NLLB 번역 호출
+            if not tr or tr == ko:
+                tr = translate_short_sentence(ko, target_lang) or ko
+            values_translated.append(tr)
         # times: 2개면 시작-끝으로 보고 ~ 로 연결 (가독성). 그 외는 콤마.
         if slot_name == "times" and len(values_ko) == 2:
             value_ko = " ~ ".join(values_ko)
