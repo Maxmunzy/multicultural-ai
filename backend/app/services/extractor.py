@@ -63,10 +63,13 @@ def extract_title(notice_text: str) -> str | None:
     if title and not _INVALID_TITLE_PREFIX.match(title.strip()):
         return title
 
-    # Fallback: 본문 상단 5줄에서 제목 키워드 포함 + 길이 8~80자
-    for line in notice_text.splitlines()[:5]:
+    # Fallback: 본문 상단 10줄에서 제목 키워드 포함 + 길이 8~80자 + 무효 prefix X
+    # 줄 수 5 → 10 확장 (디지털성범죄/말라리아 같이 첫 5줄에 도장/머릿글 들어가는 케이스)
+    for line in notice_text.splitlines()[:10]:
         line = line.strip()
-        if 8 <= len(line) <= 80 and _TITLE_KEYWORDS.search(line):
+        if (8 <= len(line) <= 80
+                and _TITLE_KEYWORDS.search(line)
+                and not _INVALID_TITLE_PREFIX.match(line)):
             return line
     return None
 
