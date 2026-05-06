@@ -116,6 +116,11 @@ def _build_cards_from_regex_slots(
             if not ko:
                 continue
             tr = _slot_entry_translated(e)
+            # URL/Phone 은 어떤 언어든 ko 그대로 — NLLB 거치면 placeholder
+            # 잔재로 "Không, không" 같이 깨짐. 학부모도 전화번호/URL 은 원본 필요.
+            if slot_name in ("urls", "phones"):
+                values_translated.append(tr or ko)
+                continue
             # translated가 ko와 같거나 비면 (placeholder), NLLB 번역 호출
             if not tr or tr == ko:
                 tr = translate_short_sentence(ko, target_lang) or ko
