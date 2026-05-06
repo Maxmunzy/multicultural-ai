@@ -6,6 +6,102 @@
 
 ---
 
+## 2026-05-06
+
+### 작업 요약
+
+| 분류 | 내용 | 파일 |
+| --- | --- | --- |
+| fix | `BINARY_THRESHOLD` 0.65 → 0.50 (준비물·유의사항 recall 개선) | `predict.py` |
+| eval | Base / v3 / v3.1 성능 비교 — v3 val split 기준 문서화 | `docs/eval-model-comparison-2026-05-06.md` |
+| data | v3.1 증강 데이터 생성 — 7패턴 448개 True 샘플 | `data/train/v3.1_augmented.jsonl` |
+| data | v3.1 병합 학습 데이터 생성 (27,799 + 448 = 28,247개) | `data/train/v3.1_dual_labeled.jsonl` |
+| model | v3.1 재학습 완료 | `checkpoints/koelectra-binary-v3.1/` |
+| eval | v3 vs v3.1 양방향 비교 평가 (val split + unseen galsan) | `docs/eval-v3-vs-v3.1-2026-05-06.md` |
+| docs | README 전면 최신화 — 파일구조·성능지표·파이프라인 반영 | `README.md` |
+
+---
+
+### 1. 준비물 recall 문제 분석 및 BINARY_THRESHOLD 조정
+
+**원인**: `"5. 준비: 간편한 복장..."` 등 번호 붙은 준비물 항목이 threshold 0.65에서 전량 reject.  
+학습 데이터에서 해당 패턴 True 샘플이 0~1개에 불과한 데이터 공백이 주원인.  
+mislabeling 전수 조사(v3_dual_labeled_clean 기준) 결과, False 라벨 대부분 정확 — 라벨 오류 아닌 패턴 부재.
+
+`BINARY_THRESHOLD`: 0.65 → **0.50** (즉시 recall 개선 효과, FP 소폭 증가 감수)
+
+---
+
+### 2. v3.1 증강 데이터 생성
+
+`file/generate_v3_1.py` 신규 작성 → 7개 패턴 총 **448개** True 샘플 생성.
+
+| 패턴 | 샘플 수 | 기존 True 수 |
+| --- | --- | --- |
+| 번호+준비물 (`N. 준비:`) | 100개 | **0개** |
+| 간편한/편안한 복장 | 80개 | **1개** |
+| 부정형 준비물 (없음/불필요) | 68개 | 6개 (False 12개 역전 상태) |
+| 유의사항 실행형 | 60개 | 12개 |
+| 지참물 목록형 | 60개 | 34개 |
+| 학부모 동반 요청 | 40개 | — |
+| 당일 건강·안전 주의사항 | 40개 | — |
+
+기존 학습 데이터 중복: **0개** (완전 신규 샘플).
+
+---
+
+### 3. v3.1 재학습 결과
+
+학습 데이터: `v3.1_dual_labeled.jsonl` (28,247개, True 29.1%)  
+학습 파라미터: v3와 동일 (epochs 10, lr 2e-5, cosine, WeightedCrossEntropy)
+
+| 지표 | v3 | v3.1 | 변화 |
+| --- | --- | --- | --- |
+| 할 일 Recall | 0.8127 | **0.8431** | **+0.030 ✅** |
+| 할 일 Precision | 0.8029 | 0.8025 | ±0.000 |
+| 할 일 F1 | 0.8078 | **0.8223** | +0.015 ✅ |
+| Accuracy | 0.8919 | **0.8940** | +0.002 ✅ |
+| Macro F1 | 0.8663 | **0.8734** | +0.007 ✅ |
+
+평가 기준: v3.1 val split 5,650개 (학습 gradient 미포함 20% split)
+
+---
+
+### 4. v3 vs v3.1 비교 평가
+
+두 테스트셋 병행 평가.
+
+**테스트셋 A — v3.1 val split** (v3.1에 공정, v3엔 학습 데이터 98.6% 포함)
+
+| 모델 | Accuracy | F1 (할 일) | Recall |
+| --- | --- | --- | --- |
+| v3 | 89.58% | 0.8225 | 0.8303 |
+| v3.1 | 89.40% | 0.8223 | **0.8431** |
+
+**테스트셋 B — unseen galsan** (두 모델 모두 완전 unseen ← 진짜 비교 기준)
+
+| 모델 | Accuracy | F1 (할 일) | Recall |
+| --- | --- | --- | --- |
+| v3 | 70.69% | **0.4184** | 0.7978 |
+| v3.1 | 68.73% | 0.4168 | **0.8455** |
+
+F1은 두 테스트셋 모두 거의 동일(±0.002). v3.1이 두 테스트셋에서 일관되게 **Recall +1.3~4.8%p** 향상, Precision 소폭 하락(-0.7~1.2%p).
+
+> 갈산초 데이터는 두 모델 모두 distribution shift로 낮은 절대 성능. 갈산초 True 샘플 혼합 재학습 시 개선 예상.
+
+---
+
+### 다음 작업
+
+- [ ] BINARY_THRESHOLD 0.5 기준 최적값 재탐색 (`evaluate_hf_model.ipynb`)
+- [ ] 갈산초 True 샘플 730개 + v3.1 데이터 혼합 후 v4 재학습
+- [ ] v4 학습 후 unseen_test_galsan 기준 재평가
+- [ ] `predict.py` 내 `V3_MODEL_PATH` 기본값 `koelectra-binary` → `koelectra-binary-v3.1` 수정
+- [ ] HF Hub 업로드 (v3.1 체크포인트)
+
+---
+---
+
 ## 2026-04-30
 
 ### 작업 요약

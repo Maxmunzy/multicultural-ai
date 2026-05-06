@@ -1,24 +1,25 @@
 """
 evaluate_model.py
 =================
-Base 모델 vs v2 Fine-tuned vs v3 Fine-tuned 성능 비교
+Base 모델 vs v2 Fine-tuned vs v3.1 Fine-tuned 성능 비교
 
-[실행 전 준비]
-  1. test_data.jsonl 준비
-       python scripts/export_predict_output.py  # 자동 생성
-  2. 체크포인트 배치
-       checkpoints/koelectra-binary/       ← 현재(v3) 모델
-       checkpoints/koelectra-binary-v2/    ← 이전(v2) 모델 (선택)
+[체크포인트]
+  checkpoints/koelectra-binary-v3.1/   ← 현재(v3.1) 모델
+  checkpoints/koelectra-binary-v3/     ← 이전(v3) 모델
+  checkpoints/koelectra-binary-v2/     ← v2 모델 (갈산초 특화)
 
 [사용법]
-  # Base vs v3
+  # Base vs v3.1
   python file/evaluate_model.py
 
-  # Base vs v2 vs v3
-  python file/evaluate_model.py --v2_model ../checkpoints/koelectra-binary-v2
+  # v3 vs v3.1
+  python file/evaluate_model.py \
+      --v2_model checkpoints/koelectra-binary-v3 \
+      --v3_model checkpoints/koelectra-binary-v3.1 \
+      --test_data data/draft/v3.1_val_split.jsonl
 
   # 테스트 데이터 직접 지정
-  python file/evaluate_model.py --test_data ../data/train/test_data.jsonl
+  python file/evaluate_model.py --test_data data/train/test_data.jsonl
 """
 
 import argparse
@@ -36,7 +37,7 @@ _ROOT = _HERE.parent
 
 DEFAULT_TEST_DATA    = _ROOT / "data" / "train" / "test_data.jsonl"
 BASE_MODEL_ID        = "monologg/koelectra-small-v3-discriminator"
-V3_MODEL_PATH        = str(_ROOT / "checkpoints" / "koelectra-binary")
+V3_MODEL_PATH        = str(_ROOT / "checkpoints" / "koelectra-binary-v3.1")
 V2_MODEL_PATH        = str(_ROOT / "checkpoints" / "koelectra-binary-v2")
 
 _LABEL_MAP = {

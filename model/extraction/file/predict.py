@@ -158,9 +158,9 @@ _BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub 파인튜닝 모�
 # HF Hub repo 내 모델 파일이 koelectra-extractor/ 서브폴더에 위치
 _HF_SUBFOLDER = "koelectra-extractor"
 _LOCAL_CHECKPOINT_DIR = os.path.join(
-    os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary"
-)  # file/../checkpoints = extraction/checkpoints (이전: file/checkpoints — 경로 오류 수정)
-# label-1 (할 일) 확률 임계값 — v2 평가(2026-04-30) 최적값 0.65로 업데이트
+    os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary-v3.1"
+)  # v3.1 재학습 체크포인트 (2026-05-06). HF Hub: yunjeong116/koelectra-extractor (subfolder=koelectra-extractor)
+# label-1 (할 일) 확률 임계값 — v3.1 학습 후 0.65 → 0.50 조정 (준비물·유의사항 recall 개선)
 BINARY_THRESHOLD = 0.5
 
 _tokenizer: Optional[AutoTokenizer] = None
@@ -173,28 +173,29 @@ def _load_model() -> None:
     if _model is not None:
         return
 
-    # 로컬 파인튜닝 체크포인트 우선, 없으면 HF Hub 모델
-    # weights + config 둘 다 있어야 로컬 사용 (config 없으면 로드 실패)
-    _local_ready = (
-        any(
-            os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, fname))
-            for fname in ("pytorch_model.bin", "model.safetensors")
-        )
-        and os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, "config.json"))
-    )
-
-    if _local_ready:
-        _tokenizer = AutoTokenizer.from_pretrained(_LOCAL_CHECKPOINT_DIR)
-        _model = AutoModelForSequenceClassification.from_pretrained(
-            _LOCAL_CHECKPOINT_DIR, num_labels=2
-        )
-    else:
-        # HF Hub: 파일이 koelectra-extractor/ 서브폴더에 위치
+    # HF Hub 우선 로드 — 누구나 동일한 모델을 받도록 canonical 소스로 고정
+    # 오프라인 환경에서만 로컬 체크포인트로 fallback
+    try:
         _tokenizer = AutoTokenizer.from_pretrained(
             _BASE_MODEL_ID, subfolder=_HF_SUBFOLDER
         )
         _model = AutoModelForSequenceClassification.from_pretrained(
             _BASE_MODEL_ID, num_labels=2, subfolder=_HF_SUBFOLDER
+        )
+    except Exception:
+        # 오프라인 fallback: checkpoints/koelectra-binary-v3.1/
+        _local_ready = (
+            any(
+                os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, fname))
+                for fname in ("pytorch_model.bin", "model.safetensors")
+            )
+            and os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, "config.json"))
+        )
+        if not _local_ready:
+            raise
+        _tokenizer = AutoTokenizer.from_pretrained(_LOCAL_CHECKPOINT_DIR)
+        _model = AutoModelForSequenceClassification.from_pretrained(
+            _LOCAL_CHECKPOINT_DIR, num_labels=2
         )
     _model.to(_device)
     _model.eval()
