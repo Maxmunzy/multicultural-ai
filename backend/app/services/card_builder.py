@@ -177,18 +177,19 @@ _FIRST_GENERIC_SENTENCE = re.compile(r"^(.{30,}?[.!?])(?:\s|$)")
 def _smart_trim(text: str, max_len: int = 100) -> str:
     """긴 텍스트 → 첫 sentence 우선, 없으면 max_len 에서 hard cut + ...
 
-    표 셀이나 명사 나열 카드는 종결 어미 없어 _FIRST_KO_SENTENCE 매치 실패 →
-    의미 단위로 끊는 대신 hard cut 으로라도 noise 줄임.
+    1. 첫 한국어 sentence (다요까니 + .!?) — 전체보다 짧을 때만
+    2. 첫 generic sentence (.!?) — 전체보다 짧을 때만
+    3. 전체가 한 sentence 거나 매치 X → hard cut + 어절 경계 + "..."
     """
     if len(text) <= max_len:
         return text
     m = _FIRST_KO_SENTENCE.match(text)
-    if m:
+    if m and len(m.group(1)) < len(text):
         return m.group(1)
     m = _FIRST_GENERIC_SENTENCE.match(text)
-    if m:
+    if m and len(m.group(1)) < len(text):
         return m.group(1)
-    # hard cut: 어절(공백) 경계 찾아 자연스럽게
+    # 전체가 한 sentence 거나 매치 X → hard cut
     cut = text[:max_len]
     last_space = cut.rfind(" ")
     if last_space > max_len * 0.7:
