@@ -287,6 +287,30 @@ async def clear_inbox(
     )
 
 
+@router.delete("/{notice_id}", response_model=ApiResponse)
+async def delete_notice(
+    notice_id: str,
+    user: UserProfile = Depends(require_user),
+):
+    """개별 가정통신문 삭제 — 학부모 본인 수신함의 카드만 삭제 가능."""
+    notice = _notices.get(notice_id)
+    if notice is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="가정통신문을 찾을 수 없습니다",
+        )
+    if user.role != "parent" or user.user_id != notice.parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 수신함의 가정통신문만 삭제할 수 있습니다",
+        )
+    del _notices[notice_id]
+    return ApiResponse.success(
+        data={"notice_id": notice_id},
+        message="가정통신문 삭제 완료",
+    )
+
+
 # ── 슬롯 기반 응답 빌더 ───────────────────────────────────────────
 # 강사 처방(2026-04-28):
 #   1. 템플릿 슬롯 출력 (summary)

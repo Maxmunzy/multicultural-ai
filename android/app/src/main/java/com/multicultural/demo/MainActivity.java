@@ -728,6 +728,11 @@ public class MainActivity extends Activity {
         box.setClickable(true);
         box.setFocusable(true);
         box.setOnClickListener(v -> showNoticeDetail(n));
+        // 길게 누르기 → 삭제 확인 다이얼로그
+        box.setOnLongClickListener(v -> {
+            confirmAndDeleteNotice(n);
+            return true;
+        });
 
         // avatar
         TextView avatar = new TextView(this);
@@ -768,6 +773,60 @@ public class MainActivity extends Activity {
         dot.setLayoutParams(dp_);
         box.addView(dot);
         return box;
+    }
+
+    // 카드 길게 누르기 → 삭제 확인 → DELETE /notice/{notice_id} → 수신함 새로고침
+    private void confirmAndDeleteNotice(NoticeItem n) {
+        String[] lines = n.text.split("\\r?\\n");
+        String preview = shorten(lines.length > 0 ? lines[0] : n.text, 30);
+        new AlertDialog.Builder(this)
+                .setTitle("가정통신문 삭제")
+                .setMessage("\"" + preview + "\"\n\n이 가정통신문을 삭제할까요?")
+                .setPositiveButton("삭제", (d, w) -> deleteNoticeAndRefresh(n.noticeId))
+                .setNegativeButton("취소", null)
+                .show();
+    }
+
+    private void deleteNoticeAndRefresh(String noticeId) {
+        executor.execute(() -> {
+            ApiResult result = httpDelete("/notice/" + noticeId);
+            runOnUiThread(() -> {
+                if (!result.error.isEmpty()) {
+                    Toast.makeText(this, "삭제 실패: " + result.error, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                Toast.makeText(this, "삭제 완료", Toast.LENGTH_SHORT).show();
+                loadInbox();  // 수신함 새로고침
+            });
+        });
+    }
+
+    private ApiResult httpDelete(String path) {
+        ApiResult result = new ApiResult();
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(BASE_URL + path);
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("DELETE");
+            conn.setConnectTimeout(30000);
+            conn.setReadTimeout(30000);
+            conn.setRequestProperty("Accept", "application/json");
+            if (!currentUserId.isEmpty()) {
+                conn.setRequestProperty("X-User-Id", currentUserId);
+            }
+            int code = conn.getResponseCode();
+            InputStream stream = code >= 200 && code < 300
+                    ? conn.getInputStream() : conn.getErrorStream();
+            result.body = readStream(stream);
+            if (code < 200 || code >= 300) {
+                result.error = "HTTP " + code + "\n" + result.body;
+            }
+        } catch (Exception error) {
+            result.error = error.getMessage() == null ? error.toString() : error.getMessage();
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+        return result;
     }
 
     // ============================================================
