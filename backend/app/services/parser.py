@@ -72,20 +72,21 @@ def normalize(text: str) -> str:
     return "\n".join(out_lines).strip()
 
 
-# HWPX 추출본은 "1. 대 상:...2. 장 소:...3. 일 시:..." 식으로 list enumeration
-# 사이 공백/줄바꿈 없이 붙어 있어 윤정 모델/slot extractor 가 다음 항목 번호를
-# 현재 슬롯 값에 포함시키는 boundary leak 발생 (예: "시네마3", "전교생2").
-# 두 패턴을 분리:
-#   (a) HH:MM + N. → 시간 뒤 enum: "14:404. 교 통" → "14:40\n4. 교 통"
-#   (b) 비-디지트 + N. + 한글: "시네마3. 일 시" → "시네마\n3. 일 시"
+# HWPX(H2Orestart) 추출본은 한 paragraph 안에 여러 문장이 squash 되는 경향.
+# 일반화된 한국어 가통문 줄바꿈 복원 룰 (특정 문서 X, 한국어 보편 패턴):
+#   (1) list enumeration "1. 대 상:...2. 장 소:..." 사이 줄바꿈
+#       - HH:MM + N. → 시간 뒤 enum 보존: "14:404. 교 통" → "14:40\n4. 교 통"
+#       - 비-디지트 + N. + 한글: "시네마3. 일 시" → "시네마\n3. 일 시"
+#   (2) 한국어 문장 종결 어미 다음 줄바꿈
+#       - "[다요까니][.?!](?=\S)" → 어미 + 문장부호 + 즉시 비공백
+#       - "기원합니다.학부모님" → "기원합니다.\n학부모님"
+#       - 이미 공백/줄바꿈 있는 정상 텍스트는 (?=\S) 로 no-op
+#   (3) 원형 숫자(①②③) 앞 줄바꿈
+#       - "유의사항① 참가" → "유의사항\n① 참가"
 _TIME_THEN_ENUM = re.compile(r"(\d{1,2}:\d{2})(\d{1,2})\.\s+(?=[가-힣])")
 _NONDIGIT_THEN_ENUM = re.compile(r"(?<=\S)(?<!\d)(\d{1,2})\.\s+(?=[가-힣])")
-
-# 가통문은 보통 [본문 + 가로줄 + 동의서 form] 구조. form 영역("참가여부 ○/✕",
-# "학부모 성명", "(인)" 등)은 학부모가 작성할 칸이지 분석 대상이 아님.
-# 윤정 모델이 form 텍스트를 todo로 잡으면 슬롯 카드가 지저분해짐.
-# 가로줄(- 5개 이상 연속)을 form 시작 지점으로 보고 그 뒤 잘라냄.
-_FORM_DIVIDER = re.compile(r"-{5,}")
+_SENTENCE_END = re.compile(r"([다요까니])([.?!])(?=\S)")
+_CIRCLED_DIGIT = re.compile(r"(?<=\S)([①②③④⑤⑥⑦⑧⑨⑩⑪⑫])")
 
 
 def _split_joined_enumerations(text: str) -> str:
@@ -95,11 +96,10 @@ def _split_joined_enumerations(text: str) -> str:
     return text
 
 
-def _strip_form_section(text: str) -> str:
-    """가로줄(-----) 이후 동의서 form 영역 잘라냄. 본문만 남김."""
-    m = _FORM_DIVIDER.search(text)
-    if m:
-        return text[:m.start()].rstrip()
+def _split_sentences_korean(text: str) -> str:
+    """한국어 문장 종결 어미 + 원형 숫자 마커 앞에 줄바꿈."""
+    text = _SENTENCE_END.sub(r"\1\2\n", text)
+    text = _CIRCLED_DIGIT.sub(r"\n\1", text)
     return text
 
 
@@ -404,7 +404,7 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
             odt_path = _hwp_to_odt(src_path, tmp_dir)
             raw = _odt_to_text(odt_path)
             raw = _split_joined_enumerations(raw)
-            raw = _strip_form_section(raw)
+            raw = _split_sentences_korean(raw)
             return normalize(raw)
 
         if suffix in IMG_EXTS:
