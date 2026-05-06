@@ -26,9 +26,14 @@ except ImportError as error:
     _yunjeong = None
 
 _AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\s*원")
-# 제목 fallback — 윤정 heuristic이 reject한 케이스(연도 시작 + 공백 dash)도 잡기
-# 예: "2026. 해조류박람회 체험학습 안내 제 2026 - 47호"
-_TITLE_KEYWORDS = re.compile(r"(안내|공지|알림|통보|조사|신청|수납|모집)")
+# 제목 fallback — 윤정 heuristic이 reject한 케이스(연도 시작 + 공백 dash)도 잡기.
+# 가통문 표준 제목 키워드 확장 — "디지털성범죄 예방 안내", "교육비 지원" 등
+# "안내" 부족 케이스도 커버.
+_TITLE_KEYWORDS = re.compile(
+    r"(안내|공지|알림|통보|조사|신청|수납|모집"
+    r"|예방|교육|행사|프로그램|캠페인|지원|보호"
+    r"|연수|상담|평가|점검|운영)"
+)
 
 
 def extract_title(notice_text: str) -> str | None:

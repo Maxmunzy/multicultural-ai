@@ -168,6 +168,42 @@ def _is_short_fallback_card(card: SlotCard) -> bool:
     return card.header_ko == _FALLBACK_HEADER and len(card.value_ko) < 15
 
 
+# 첫 문장 추출 — 한국어 종결 어미 + 문장부호. 최소 20자 이상부터 매칭해
+# 너무 짧은 끊어짐 방지. "다.", "요.", "까.", "?", "!" 까지.
+_FIRST_KO_SENTENCE = re.compile(r"^(.{20,}?[다요까니][.!?])(?:\s|$)")
+_FIRST_GENERIC_SENTENCE = re.compile(r"^(.{30,}?[.!?])(?:\s|$)")
+
+
+def _trim_long_fallback_card(card: SlotCard) -> SlotCard:
+    """[기타] 헤더 + 매우 긴 value → 첫 sentence 까지만 keep.
+
+    윤정 모델이 안내문 paragraph 통째로 todo로 분류 + split_header_value 가
+    헤더 못 찾아 fallback "기타" 가 된 카드는 길고 noisy.
+    의미 있는 헤더 가진 카드는 절대 자르지 않음.
+    """
+    if card.header_ko != _FALLBACK_HEADER or len(card.value_ko) <= 100:
+        return card
+    m = _FIRST_KO_SENTENCE.match(card.value_ko)
+    if not m:
+        return card
+    new_ko = m.group(1)
+    new_easy = card.value_easy_ko
+    if card.value_easy_ko and len(card.value_easy_ko) > 100:
+        m2 = _FIRST_KO_SENTENCE.match(card.value_easy_ko)
+        if m2:
+            new_easy = m2.group(1)
+    new_tr = card.value_translated
+    if card.value_translated and len(card.value_translated) > 150:
+        m3 = _FIRST_GENERIC_SENTENCE.match(card.value_translated)
+        if m3:
+            new_tr = m3.group(1)
+    return card.model_copy(update={
+        "value_ko": new_ko,
+        "value_easy_ko": new_easy,
+        "value_translated": new_tr,
+    })
+
+
 # 종결 어미로 끝나는 짧은 단편 — 윤정 split 의 잔재로 직전 카드에 흡수 대상
 _ORPHAN_TAIL = re.compile(r"(바랍니다|드립니다|주세요|입니다|있습니다)\.?\s*$")
 
@@ -264,6 +300,7 @@ def build_cards(
     # 순으로 들어와 직전 카드 = 본문 직전 카드 보장 X. 잘못 붙는 사고 방지를
     # 위해 merge 대신 단순 필터로 통일 (정보 일부 손실 감수).
     cards = [c for c in cards if not _is_short_fallback_card(c)]
+    cards = [_trim_long_fallback_card(c) for c in cards]
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
     return cards
