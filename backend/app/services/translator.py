@@ -18,7 +18,16 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
-from app.services.slot_extractor import _PHONE, _URL
+from app.services.slot_extractor import (
+    _PHONE,
+    _URL,
+    extract_amounts,
+    extract_dates,
+    extract_times,
+    format_amount,
+    format_date,
+    format_time,
+)
 
 _TRANSLATION_DIR = Path("/app/external_model/translation_tts")
 if str(_TRANSLATION_DIR) not in sys.path:
@@ -221,16 +230,29 @@ def _clean_for_translation(text: str) -> str:
 _PROTECT_TOKEN = re.compile(r"⟦P(\d+)⟧")
 
 
-def _mask_protected_entities(text: str) -> tuple[str, list[str]]:
-    """URL/전화 → ⟦P0⟧ 등 토큰. (masked, originals) 반환."""
+def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple[str, list[str]]:
+    """URL/전화/날짜/시간/금액 → ⟦P0⟧ 등 토큰. (masked, restore_values) 반환."""
     placeholders: list[str] = []
 
-    def stash(match: re.Match) -> str:
-        placeholders.append(match.group(0))
+    def stash_value(value: str) -> str:
+        placeholders.append(value)
         return f"⟦P{len(placeholders) - 1}⟧"
 
-    masked = _URL.sub(stash, text)
-    masked = _PHONE.sub(stash, masked)
+    def stash_match(match: re.Match) -> str:
+        return stash_value(match.group(0))
+
+    masked = _URL.sub(stash_match, text)
+    masked = _PHONE.sub(stash_match, masked)
+
+    if target_lang and target_lang != "ko_easy":
+        slot_values: list[tuple[str, str]] = []
+        slot_values.extend((d["ko"], format_date(d, target_lang)) for d in extract_dates(masked))
+        slot_values.extend((t["ko"], format_time(t, target_lang)) for t in extract_times(masked))
+        slot_values.extend((a["ko"], format_amount(a, target_lang)) for a in extract_amounts(masked))
+
+        for source, translated in sorted(slot_values, key=lambda item: len(item[0]), reverse=True):
+            if source and source in masked:
+                masked = masked.replace(source, stash_value(translated or source))
     return masked, placeholders
 
 
@@ -287,8 +309,8 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return text
     text = _clean_for_translation(text)[:MAX_TRANSLATE_CHARS]
 
-    # 1) URL/전화 placeholder 치환 — NLLB가 깨먹지 못하게 격리
-    masked, placeholders = _mask_protected_entities(text)
+    # 1) URL/전화/날짜/시간/금액 placeholder 치환 — NLLB가 깨먹지 못하게 격리
+    masked, placeholders = _mask_protected_entities(text, target_lang)
 
     # 2) glossary injection (긴 용어 먼저 치환해야 부분 치환 충돌 방지)
     glossary = _get_glossary()

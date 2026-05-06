@@ -98,10 +98,6 @@ def test_translate_short_sentence_protects_url_through_nllb(monkeypatch):
 
     monkeypatch.setattr("app.services.translator._translate", fake_translate)
     monkeypatch.setattr("app.services.translator._get_glossary", lambda: [])
-    monkeypatch.setattr(
-        "app.services.translator._sejong.find_glossary_hits",
-        lambda text, glossary, lang: [],
-    )
 
     out = translate_short_sentence(
         "신청은 https://apply.kr 에서, 문의 02-2649-7232",
@@ -116,4 +112,140 @@ def test_translate_short_sentence_protects_url_through_nllb(monkeypatch):
     # 2) 최종 출력엔 URL/전화가 원래 문자열로 복원됨
     assert "https://apply.kr" in out
     assert "02-2649-7232" in out
+    assert "⟦P" not in out
+
+
+# ── 날짜/시간/금액 슬롯 마스킹 단위 ──────────────────────────────
+def test_mask_date_protected_with_target_lang():
+    """날짜가 vi 포맷으로 치환되고 NLLB 입력에서 격리된다."""
+    masked, holders = _mask_protected_entities("5월 9일(금)까지 제출해 주세요", "vi")
+    assert "5월 9일(금)" not in masked
+    assert "⟦P0⟧" in masked
+    assert holders[0] == "Ngày 9/5 (Thứ Sáu)"
+
+
+def test_mask_time_protected_with_target_lang():
+    """시간 표현이 vi 포맷으로 치환된다."""
+    masked, holders = _mask_protected_entities("오전 9시부터 시작합니다", "vi")
+    assert "오전 9시" not in masked
+    assert "⟦P0⟧" in masked
+    assert holders[0] == "9 giờ sáng"
+
+
+def test_mask_amount_protected_with_target_lang():
+    """금액 표현이 vi 포맷으로 치환된다."""
+    masked, holders = _mask_protected_entities("참가비 15,000원을 납부해 주세요", "vi")
+    assert "15,000원" not in masked
+    assert "⟦P0⟧" in masked
+    assert holders[0] == "15,000 won"
+
+
+def test_mask_no_slot_protection_without_target_lang():
+    """target_lang 없이 호출하면 날짜/시간/금액은 보호하지 않는다 (URL/전화만)."""
+    masked, holders = _mask_protected_entities("5월 9일(금)까지 제출해 주세요")
+    assert "5월 9일(금)" in masked
+    assert holders == []
+
+
+def test_mask_date_time_no_overlap():
+    """날짜+시간이 같이 있을 때 중복 없이 각각 격리된다."""
+    text = "2026년 5월 6일(목) 8:50 ~ 14:40"
+    masked, holders = _mask_protected_entities(text, "vi")
+    assert "2026년 5월 6일(목)" not in masked
+    assert "8:50" not in masked
+    assert "14:40" not in masked
+    # 날짜 1개 + 시간 2개 = 3개 이상의 placeholder
+    assert len(holders) >= 2
+    assert any("Ngày" in h for h in holders)
+
+
+def test_mask_already_placeholder_not_re_extracted():
+    """먼저 마스킹된 URL placeholder를 날짜/시간/금액 추출이 오탐하지 않는다."""
+    text = "https://apply.kr 에서 5월 9일(금)까지 신청"
+    masked, holders = _mask_protected_entities(text, "vi")
+    # URL + 날짜 둘 다 보호
+    assert "https://apply.kr" not in masked
+    assert "5월 9일(금)" not in masked
+    # placeholder 토큰 자체가 다시 추출되면 안 됨
+    assert masked.count("⟦P") == masked.count("⟧")
+    assert len(holders) == 2
+
+
+# ── translate_short_sentence NLLB 입력/출력 보호 검증 ─────────────
+def test_translate_short_sentence_protects_date(monkeypatch):
+    """날짜가 NLLB 입력에 안 들어가고 최종 출력엔 vi 포맷으로 복원된다."""
+    captured = []
+
+    def fake_translate(text, target_nllb="vie_Latn", max_length=512):
+        captured.append(text)
+        return text  # identity — ⟦P0⟧ 토큰이 그대로 통과
+
+    monkeypatch.setattr("app.services.translator._translate", fake_translate)
+    monkeypatch.setattr("app.services.translator._get_glossary", lambda: [])
+
+    out = translate_short_sentence("5월 9일(금)까지 제출해 주세요", "vi")
+
+    assert captured, "fake_translate가 호출되지 않음"
+    assert "5월 9일(금)" not in captured[0]
+    assert "⟦P0⟧" in captured[0]
+    assert "Ngày 9/5 (Thứ Sáu)" in out
+    assert "⟦P" not in out
+
+
+def test_translate_short_sentence_protects_time(monkeypatch):
+    """시간이 NLLB 입력에 안 들어가고 최종 출력엔 vi 포맷으로 복원된다."""
+    captured = []
+
+    def fake_translate(text, target_nllb="vie_Latn", max_length=512):
+        captured.append(text)
+        return text
+
+    monkeypatch.setattr("app.services.translator._translate", fake_translate)
+    monkeypatch.setattr("app.services.translator._get_glossary", lambda: [])
+
+    out = translate_short_sentence("오전 9시부터 시작합니다", "vi")
+
+    assert captured
+    assert "오전 9시" not in captured[0]
+    assert "⟦P0⟧" in captured[0]
+    assert "9 giờ sáng" in out
+    assert "⟦P" not in out
+
+
+def test_translate_short_sentence_protects_amount(monkeypatch):
+    """금액이 NLLB 입력에 안 들어가고 최종 출력엔 vi 포맷으로 복원된다."""
+    captured = []
+
+    def fake_translate(text, target_nllb="vie_Latn", max_length=512):
+        captured.append(text)
+        return text
+
+    monkeypatch.setattr("app.services.translator._translate", fake_translate)
+    monkeypatch.setattr("app.services.translator._get_glossary", lambda: [])
+
+    out = translate_short_sentence("참가비 15,000원을 납부해 주세요", "vi")
+
+    assert captured
+    assert "15,000원" not in captured[0]
+    assert "⟦P0⟧" in captured[0]
+    assert "15,000 won" in out
+    assert "⟦P" not in out
+
+
+def test_translate_short_sentence_en_date_format(monkeypatch):
+    """en 타깃에서는 날짜가 영어 포맷으로 복원된다."""
+    captured = []
+
+    def fake_translate(text, target_nllb="eng_Latn", max_length=512):
+        captured.append(text)
+        return text
+
+    monkeypatch.setattr("app.services.translator._translate", fake_translate)
+    monkeypatch.setattr("app.services.translator._get_glossary", lambda: [])
+
+    out = translate_short_sentence("5월 9일(금)까지 제출해 주세요", "en")
+
+    assert captured
+    assert "5월 9일(금)" not in captured[0]
+    assert "May 9 (Fri)" in out or "May 9" in out
     assert "⟦P" not in out
