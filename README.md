@@ -121,7 +121,7 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose, REST API, X-User-Id 헤더 인증 |
 | 윤정 | KoELECTRA-base-v3, HuggingFace Hub, PyTorch, Regex, Transformers |
 | 경이 | numpy TF-IDF, scikit-learn LR, SBERT + LightGBM, Ridge 회귀, FastAPI |
-| 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, ML Kit Korean OCR, OpenCV 4.9, Tesseract-OCR, Android SpeechRecognizer, Android TextToSpeech |
+| 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, ML Kit Korean OCR, OpenCV 4.9, Android SpeechRecognizer, Android TextToSpeech |
 | 찬영 | 발표자료 |
 
 ---
