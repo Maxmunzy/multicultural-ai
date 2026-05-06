@@ -88,6 +88,7 @@ def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) 
     target_id = tokenizer.convert_tokens_to_ids(target_nllb)
     inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=max_length)
     with torch.no_grad():
+        # greedy(num_beams=1) — early_stopping은 beam search 전용이라 제외
         out = model.generate(
             **inputs,
             forced_bos_token_id=target_id,
@@ -95,7 +96,6 @@ def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) 
             num_beams=1,
             no_repeat_ngram_size=3,
             repetition_penalty=1.3,
-            early_stopping=True,
         )
     return tokenizer.batch_decode(out, skip_special_tokens=True)[0]
 

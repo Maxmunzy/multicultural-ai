@@ -26,6 +26,9 @@ except ImportError as error:
     _yunjeong = None
 
 _AMOUNT_RE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d+)\s*원")
+# 제목 fallback — 윤정 heuristic이 reject한 케이스(연도 시작 + 공백 dash)도 잡기
+# 예: "2026. 해조류박람회 체험학습 안내 제 2026 - 47호"
+_TITLE_KEYWORDS = re.compile(r"(안내|공지|알림|통보|조사|신청|수납|모집)")
 
 
 def extract_title(notice_text: str) -> str | None:
@@ -34,16 +37,27 @@ def extract_title(notice_text: str) -> str | None:
     윤정님 PR #90 (predict.py:extract_title) — split_sentences()의
     _HEADER_ONLY 필터가 제목을 차단하기 전에 원문 줄을 직접 스캔.
     predict()와 별도 호출.
+
+    Fallback: 윤정 heuristic이 None 반환 시 (예: 연도-호수 표기 "2026.…제 2026 - 47호"
+    가 sent-end/section 룰에 걸리는 경우) 본문 상단 줄 중 제목 키워드를 가진 줄 채택.
     """
     if not notice_text or not notice_text.strip():
         return None
-    if _yunjeong is None or not hasattr(_yunjeong, "extract_title"):
-        return None
-    try:
-        return _yunjeong.extract_title(notice_text)
-    except Exception as error:
-        print(f"[extractor] extract_title failed: {error}")
-        return None
+    title: str | None = None
+    if _yunjeong is not None and hasattr(_yunjeong, "extract_title"):
+        try:
+            title = _yunjeong.extract_title(notice_text)
+        except Exception as error:
+            print(f"[extractor] extract_title failed: {error}")
+    if title:
+        return title
+
+    # Fallback: 본문 상단 5줄에서 제목 키워드 포함 + 길이 8~80자
+    for line in notice_text.splitlines()[:5]:
+        line = line.strip()
+        if 8 <= len(line) <= 80 and _TITLE_KEYWORDS.search(line):
+            return line
+    return None
 
 
 def extract_todos(notice_text: str, source: str | None = None) -> list[YunjeongTodo]:
