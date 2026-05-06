@@ -181,6 +181,8 @@ def translate_term(text: str, target_lang: str) -> str:
     exact match 우선. 없으면 한국어 원문 그대로 반환 (빈 문자열 금지).
     고유명사("서울숲 생태체험관")처럼 사전에 없으면 한국어 노출이 NLLB 오역보다 낫다.
     URL/전화는 어떤 언어든 ko 그대로 (방어적 가드).
+    공백 normalize: HWP 표 셀 변형 "일 시" / "장 소" / "대 상" 도 "일시"/"장소"/"대상"
+    glossary 항목에 매치되도록 양쪽 공백 제거 후 비교.
     """
     if not text or not text.strip():
         return text
@@ -188,9 +190,9 @@ def translate_term(text: str, target_lang: str) -> str:
         return text
 
     glossary = _get_glossary()
-    term = text.strip()
+    term_norm = re.sub(r"\s+", "", text.strip())
     for row in glossary:
-        if row.get("korean", "").strip() == term:
+        if re.sub(r"\s+", "", row.get("korean", "")) == term_norm:
             translated = row.get(f"preferred_{target_lang}", "").strip()
             if translated:
                 return translated
