@@ -26,7 +26,9 @@ android {
         // 서버 BASE_URL — gradle.properties 또는 -P 옵션으로 주입.
         // 기본값 emulator localhost (10.0.2.2). 시연/배포 시:
         //   ./gradlew assembleDebug -Pschoolbridge.baseUrl=http://YOUR_SERVER:8000
-        def baseUrl = project.findProperty('schoolbridge.baseUrl') ?: 'http://10.0.2.2:8000'
+        // trailing slash 자동 제거 — 안드 코드가 BASE_URL + "/path" 로 concat 하므로
+        // 입력값에 끝 / 있으면 더블 슬래시로 404 발생 방지.
+        def baseUrl = (project.findProperty('schoolbridge.baseUrl') ?: 'http://10.0.2.2:8000').replaceAll('/+$', '')
         buildConfigField "String", "BASE_URL", "\"${baseUrl}\""
     }
 }
