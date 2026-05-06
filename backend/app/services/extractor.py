@@ -36,6 +36,11 @@ _TITLE_KEYWORDS = re.compile(
 )
 
 
+# 윤정 결과가 명백히 제목 아닌 패턴 (※ 표 주석, 괄호 시작, 콜론으로 시작 등)
+# 이면 reject 후 fallback 사용. 가통문 제목은 보통 한글로 시작.
+_INVALID_TITLE_PREFIX = re.compile(r"^[※◎●▶▷◆◇*\-•(\[「『:：]")
+
+
 def extract_title(notice_text: str) -> str | None:
     """가정통신문 원문 → 제목 한 줄. 못 찾으면 None.
 
@@ -43,8 +48,9 @@ def extract_title(notice_text: str) -> str | None:
     _HEADER_ONLY 필터가 제목을 차단하기 전에 원문 줄을 직접 스캔.
     predict()와 별도 호출.
 
-    Fallback: 윤정 heuristic이 None 반환 시 (예: 연도-호수 표기 "2026.…제 2026 - 47호"
-    가 sent-end/section 룰에 걸리는 경우) 본문 상단 줄 중 제목 키워드를 가진 줄 채택.
+    Fallback 사용 조건:
+      - 윤정 결과 None
+      - 또는 명백히 무효 (※ / 괄호 / 마커로 시작 — 표 주석/안내 fragment)
     """
     if not notice_text or not notice_text.strip():
         return None
@@ -54,7 +60,7 @@ def extract_title(notice_text: str) -> str | None:
             title = _yunjeong.extract_title(notice_text)
         except Exception as error:
             print(f"[extractor] extract_title failed: {error}")
-    if title:
+    if title and not _INVALID_TITLE_PREFIX.match(title.strip()):
         return title
 
     # Fallback: 본문 상단 5줄에서 제목 키워드 포함 + 길이 8~80자

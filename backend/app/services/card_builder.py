@@ -174,29 +174,46 @@ _FIRST_KO_SENTENCE = re.compile(r"^(.{20,}?[다요까니][.!?])(?:\s|$)")
 _FIRST_GENERIC_SENTENCE = re.compile(r"^(.{30,}?[.!?])(?:\s|$)")
 
 
+def _smart_trim(text: str, max_len: int = 100) -> str:
+    """긴 텍스트 → 첫 sentence 우선, 없으면 max_len 에서 hard cut + ...
+
+    표 셀이나 명사 나열 카드는 종결 어미 없어 _FIRST_KO_SENTENCE 매치 실패 →
+    의미 단위로 끊는 대신 hard cut 으로라도 noise 줄임.
+    """
+    if len(text) <= max_len:
+        return text
+    m = _FIRST_KO_SENTENCE.match(text)
+    if m:
+        return m.group(1)
+    m = _FIRST_GENERIC_SENTENCE.match(text)
+    if m:
+        return m.group(1)
+    # hard cut: 어절(공백) 경계 찾아 자연스럽게
+    cut = text[:max_len]
+    last_space = cut.rfind(" ")
+    if last_space > max_len * 0.7:
+        cut = cut[:last_space]
+    return cut.rstrip(" ,.;") + "..."
+
+
 def _trim_long_fallback_card(card: SlotCard) -> SlotCard:
-    """[기타] 헤더 + 매우 긴 value → 첫 sentence 까지만 keep.
+    """[기타] 헤더 + 매우 긴 value → 첫 sentence 또는 hard cut.
 
     윤정 모델이 안내문 paragraph 통째로 todo로 분류 + split_header_value 가
     헤더 못 찾아 fallback "기타" 가 된 카드는 길고 noisy.
     의미 있는 헤더 가진 카드는 절대 자르지 않음.
     """
-    if card.header_ko != _FALLBACK_HEADER or len(card.value_ko) <= 100:
+    if card.header_ko != _FALLBACK_HEADER:
         return card
-    m = _FIRST_KO_SENTENCE.match(card.value_ko)
-    if not m:
+    if len(card.value_ko) <= 100:
         return card
-    new_ko = m.group(1)
+    new_ko = _smart_trim(card.value_ko, max_len=100)
     new_easy = card.value_easy_ko
     if card.value_easy_ko and len(card.value_easy_ko) > 100:
-        m2 = _FIRST_KO_SENTENCE.match(card.value_easy_ko)
-        if m2:
-            new_easy = m2.group(1)
+        new_easy = _smart_trim(card.value_easy_ko, max_len=100)
     new_tr = card.value_translated
     if card.value_translated and len(card.value_translated) > 150:
-        m3 = _FIRST_GENERIC_SENTENCE.match(card.value_translated)
-        if m3:
-            new_tr = m3.group(1)
+        new_tr = _smart_trim(card.value_translated, max_len=150)
     return card.model_copy(update={
         "value_ko": new_ko,
         "value_easy_ko": new_easy,
