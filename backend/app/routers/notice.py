@@ -304,7 +304,8 @@ async def delete_notice(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="본인 수신함의 가정통신문만 삭제할 수 있습니다",
         )
-    del _notices[notice_id]
+    # pop with default — 동시 요청으로 이미 삭제됐어도 KeyError(500) 방지
+    _notices.pop(notice_id, None)
     return ApiResponse.success(
         data={"notice_id": notice_id},
         message="가정통신문 삭제 완료",
