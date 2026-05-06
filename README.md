@@ -82,14 +82,14 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 | `/health` | GET | — | 서버 상태 확인 |
 
 > Swagger UI:
-> - 배포 (NCP Seoul, 24/7): `http://101.79.17.196:8000/docs`
+> - 배포 (NCP Seoul, 24/7): `http://YOUR_NCP_VM_IP:8000/docs` (실 IP는 팀 디스코 공유)
 > - 로컬 개발: `http://localhost:8000/docs`
 
 ---
 
 ## 진도 현황
 
-- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **NCP Seoul VM 실서버 배포 (`101.79.17.196:8000`, 2vCPU 8GB)** + **원본 가정통신문 PDF/이미지 표시 기능 (HWP→PDF 자동 변환 포함)**
+- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **NCP Seoul VM 실서버 배포 (2vCPU 8GB, 실 IP는 팀 디스코)** + **원본 가정통신문 PDF/이미지 표시 기능 (HWP→PDF 자동 변환 포함)**
 - [x] 윤정: KoELECTRA 하이브리드 추출 모델 구현 + HuggingFace Hub 배포
 - [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 + **KcELECTRA v3 파인튜닝 (Macro F1 0.8545, Simple 베이스라인 0.8116 대비 +4.29%p)** + HF Hub 배포
 - [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전(176개) 검수 루프 + Edge-TTS 음성 출력 + TTS 속도 조절(단어별/천천히/오리지날) + STT 음성 질문(9개 언어×6카테고리) + 카메라 OCR (ML Kit Korean + OpenCV + Quality Gate)
@@ -145,21 +145,27 @@ http://localhost:8000/docs
 
 ### 2. Android 실기기 실행
 
-기본은 **실서버(NCP Seoul) 사용** — `MainActivity.java`의 `BASE_URL`이 이미 `http://101.79.17.196:8000`로 설정돼 있어 별도 수정 없이 빌드만 하면 됩니다.
+서버 BASE_URL 은 빌드 시점에 gradle 옵션으로 주입 (`BuildConfig.BASE_URL`).
 
-1. Android Studio에서 `android/` 폴더를 엽니다.
-1. Android 실기기의 USB 디버깅을 켭니다.
-1. (실서버 사용 시) PC IP 변경 불필요 — Wi-Fi만 연결되어 있으면 됨.
-1. Android Studio에서 Run 버튼을 눌러 실기기에 설치합니다.
+```powershell
+# 실서버 (NCP Seoul) — 실 IP는 팀 디스코 공유
+./gradlew assembleDebug -Pschoolbridge.baseUrl=http://YOUR_NCP_VM_IP:8000
 
-**로컬 백엔드로 테스트하고 싶을 때만** `BASE_URL`을 PC 내부 IP로 수정:
+# 로컬 백엔드 — PC 내부 IP (ipconfig 로 확인)
+./gradlew assembleDebug -Pschoolbridge.baseUrl=http://YOUR_PC_IP:8000
 
-```java
-// android/app/src/main/java/com/multicultural/demo/MainActivity.java
-private static final String BASE_URL = "http://192.168.x.x:8000";  // ipconfig로 확인
+# 옵션 안 주면 emulator localhost (10.0.2.2:8000) 기본값
 ```
 
-이 경우 PC와 휴대폰이 같은 Wi-Fi여야 하고, 휴대폰 브라우저에서 `http://PC_IP:8000/docs`가 열리는지 먼저 확인하세요.
+또는 `~/.gradle/gradle.properties` (사용자별, repo 외부) 에 `schoolbridge.baseUrl=http://...` 한 번 설정해 두면 매번 -P 안 줘도 됨.
+
+설치:
+
+1. Android 실기기의 USB 디버깅을 켭니다.
+2. `adb install -r app/build/outputs/apk/debug/app-debug.apk`
+3. 또는 Android Studio Run 버튼 (Studio 가 gradle.properties 의 값 사용)
+
+로컬 백엔드 사용 시: PC와 휴대폰이 같은 Wi-Fi여야 하고, 휴대폰 브라우저에서 `http://PC_IP:8000/docs`가 열리는지 먼저 확인하세요.
 
 주의: Android 실기기에서 `localhost`/`127.0.0.1`은 PC가 아니라 휴대폰 자기 자신을 의미합니다. 로컬 모드에선 반드시 PC의 내부 IP를 사용하세요.
 

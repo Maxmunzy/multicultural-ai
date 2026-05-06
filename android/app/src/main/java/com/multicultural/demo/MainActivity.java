@@ -63,8 +63,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
-    // 각자 PC의 내부 IP로 수정. 자세한 가이드는 android/README.md 참고.
-    private static final String BASE_URL = "http://101.79.17.196:8000";
+    // BuildConfig.BASE_URL 로 분리 — 서버 IP 는 빌드 시점에 주입.
+    // 빌드: ./gradlew assembleDebug -Pschoolbridge.baseUrl=http://YOUR_SERVER:8000
+    // 자세한 가이드는 android/README.md 참고.
+    private static final String BASE_URL = BuildConfig.BASE_URL;
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
     private static final String PREFS_NAME = "app";
