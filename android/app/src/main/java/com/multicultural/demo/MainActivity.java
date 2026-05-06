@@ -1894,11 +1894,23 @@ public class MainActivity extends Activity {
             if (resultCode != RESULT_OK || data == null) return;
             String noticeId  = data.getStringExtra(OcrActivity.RESULT_NOTICE_ID);
             int    charCount = data.getIntExtra(OcrActivity.RESULT_CHAR_COUNT, 0);
+            String layoutJson = data.getStringExtra(OcrActivity.RESULT_OCR_LAYOUT);
+            int bboxLineCount = countOcrLayoutLines(layoutJson);
             setSendResult(
                     "✅ OCR 업로드 완료\n→ " + DEFAULT_PARENT_ID
                             + " · #" + shorten(noticeId != null ? noticeId : "", 8)
-                            + " · 추출 " + charCount + "자",
+                            + " · 추출 " + charCount + "자"
+                            + "\n→ bbox line " + bboxLineCount + "개",
                     true);
+        }
+    }
+
+    private int countOcrLayoutLines(String layoutJson) {
+        if (layoutJson == null || layoutJson.trim().isEmpty()) return 0;
+        try {
+            return new JSONArray(layoutJson).length();
+        } catch (Exception ignored) {
+            return 0;
         }
     }
 

@@ -91,6 +91,8 @@ def test_analyze_returns_slot_shape(client, parent_headers, monkeypatch):
 
     assert data["notice_id"] == notice_id
     assert data["target_language"] == "vi"
+    assert data["page_count"] == 1
+    assert data["highlights"] == []
 
     # summary 8슬롯 모두 존재 (urls/phones는 NLLB 보호용)
     summary = data["summary"]
