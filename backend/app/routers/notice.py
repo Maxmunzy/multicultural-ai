@@ -1,3 +1,5 @@
+import json
+import logging
 import mimetypes
 import os
 import uuid
@@ -22,6 +24,8 @@ from app.services.slot_extractor import (
 from app.services.card_builder import build_cards
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.mock import MOCK_TODOS
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -67,7 +71,7 @@ def _save_original(notice_id: str, raw_bytes: bytes, filename: str) -> tuple[str
             (NOTICES_DIR / safe_name).write_bytes(pdf_bytes)
             return f"/static/notices/{safe_name}", "application/pdf"
         except (ParserError, Exception) as e:
-            print(f"[upload] HWP→PDF 변환 실패, 원본 HWP 저장: {e}")
+            logger.warning("[upload] HWP→PDF 변환 실패, 원본 HWP 저장: %s", e)
             # fallback: HWP 원본 저장 (안드는 표시 못 하지만 다운로드 링크로 fallback)
 
     # 일반 경로: 원본 그대로 저장
@@ -136,7 +140,7 @@ async def extract_text(
     try:
         preview_url, preview_mime = _save_original(preview_id, raw_bytes, file.filename or "")
     except Exception as e:
-        print(f"[extract-text] preview 저장 실패: {e}")
+        logger.warning("[extract-text] preview 저장 실패: %s", e)
         preview_url, preview_mime = None, None
 
     return ApiResponse.success(
@@ -330,10 +334,9 @@ def _page_count_from_layout(layout_json) -> int:
         return 1
     payload = layout_json
     if isinstance(payload, str):
-        import json as _json
         try:
-            payload = _json.loads(payload)
-        except Exception:
+            payload = json.loads(payload)
+        except json.JSONDecodeError:
             return 1
     if isinstance(payload, dict):
         pages = payload.get("pages")
@@ -462,7 +465,7 @@ async def analyze_notice(
         if not todos:
             todos = MOCK_TODOS
     except Exception as error:
-        print(f"[analyze] extractor failed: {error}")
+        logger.warning("[analyze] extractor failed: %s", error)
         todos = MOCK_TODOS
 
     # [3'] 제목 추출 (윤정님 PR #90 heuristic) — split_sentences 이전, 원문 직접 스캔
@@ -489,7 +492,7 @@ async def analyze_notice(
     try:
         highlights = build_highlights_from_cards(cards, req.layout_json)
     except Exception as error:
-        print(f"[analyze] highlight mapping failed: {error}")
+        logger.warning("[analyze] highlight mapping failed: %s", error)
         highlights = []
     page_count = _page_count_from_layout(req.layout_json)
 
@@ -499,12 +502,12 @@ async def analyze_notice(
     try:
         tts_url = await generate_tts_file(tts_text_translated, target_lang=target_lang) if tts_text_translated else ""
     except Exception as error:
-        print(f"[analyze] TTS (translated) failed: {error}")
+        logger.warning("[analyze] TTS (translated) failed: %s", error)
         tts_url = ""
     try:
         tts_url_easy_ko = await generate_tts_file(tts_text_easy_ko, target_lang="ko_easy") if tts_text_easy_ko else ""
     except Exception as error:
-        print(f"[analyze] TTS (easy_ko) failed: {error}")
+        logger.warning("[analyze] TTS (easy_ko) failed: %s", error)
         tts_url_easy_ko = ""
 
     response = {
