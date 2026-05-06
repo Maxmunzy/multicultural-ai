@@ -1495,19 +1495,13 @@ public class MainActivity extends Activity {
             }
         }
 
-        // === 쉬운 한국어 ===
+        // === 쉬운 한국어 (UI 숨김) ===
+        // 세종님 제안 (2026-05-06): easy_korean 변환이 한두 단어 바꾸는 정도라 자리만
+        // 차지함. 기능/응답 필드는 그대로 두고 화면 표시만 숨김. TTS 듣기 버튼도 함께
+        // GONE 처리. 향후 easy_korean quality 향상 시 visibility 다시 풀면 됨.
         if (easyKoText != null) {
-            if (!easyKo.isEmpty()) {
-                easyKoText.setText(easyKo);
-                ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
-            } else {
-                String raw = safeString(data, "raw_text");
-                String preview = raw.length() > 300 ? raw.substring(0, 300) + "..." : raw;
-                if (!preview.isEmpty()) {
-                    easyKoText.setText(preview);
-                    ((View) easyKoText.getParent()).setVisibility(View.VISIBLE);
-                }
-            }
+            easyKoText.setText(easyKo);
+            ((View) easyKoText.getParent()).setVisibility(View.GONE);
         }
 
         // === summary 슬롯: 카테고리별 칩 (urls/phones 포함) ===
@@ -1522,9 +1516,10 @@ public class MainActivity extends Activity {
             playButton.setVisibility(View.VISIBLE);
         }
         currentEasyKoTtsUrl = optStringDeep(data, "tts_url_easy_ko");
-        if (easyKoPlayButton != null && !currentEasyKoTtsUrl.isEmpty()) {
-            easyKoPlayButton.setText(easyKoTtsLabel());
-            easyKoPlayButton.setVisibility(View.VISIBLE);
+        // 쉬운 한국어 UI 숨김에 맞춰 듣기 버튼도 GONE — easyKoTtsUrl 은 보관해 두고
+        // 추후 easy_korean quality 좋아지면 VISIBLE 로 다시 풀기.
+        if (easyKoPlayButton != null) {
+            easyKoPlayButton.setVisibility(View.GONE);
         }
         boolean hasTts = (playButton != null && playButton.getVisibility() == View.VISIBLE)
                 || (easyKoPlayButton != null && easyKoPlayButton.getVisibility() == View.VISIBLE);
