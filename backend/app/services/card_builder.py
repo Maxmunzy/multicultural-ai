@@ -117,10 +117,31 @@ def _build_cards_from_regex_slots(
 # dedup 비교용 — 표 구분자/콜론/연속 공백 정규화 (`|`/`:`/`：` 등 차이로 substring 놓치는 것 방지)
 _DEDUP_NORMALIZE = re.compile(r"[\s|｜:：]+")
 
+# form 시그널 — 학부모가 작성할 빈 칸 패턴. 본문이 아닌 동의서 form 영역의
+# 텍스트가 todo로 들어왔을 때 슬롯 카드에서 제거하기 위한 필터.
+# 보편 패턴 위주 — 특정 가통문 specific X.
+_FORM_SIGNALS = re.compile(
+    r"\(인\)"                    # 도장 칸
+    r"|성\s*명\s*[:：]"           # "성명 :" 입력란 (공백 변형 허용)
+    r"|[○◯][\s,]*[✕✗×]"         # 체크박스 페어 "○,✕" 또는 "○ ✕"
+    r"|참가\s*여부\s+불참\s*사유"  # 표 헤더 "참가여부 불참사유"
+    r"|^[\s,]*[✕✗×]\s*로\s+표시" # 잘린 "✕로 표시하여..."
+)
+
 
 def _normalize_for_dedup(text: str) -> str:
     """value 비교용 정규화 — 공백/구분자 차이 무시."""
     return _DEDUP_NORMALIZE.sub(" ", text).strip()
+
+
+def _is_form_card(card: SlotCard) -> bool:
+    """학부모가 작성할 동의서 form 영역 카드인지 검사.
+
+    가통문은 보통 [본문 + 동의서 form] 구조. form 영역 ("학부모 성명",
+    "(인)", "참가여부 불참사유" 등)은 학부모가 작성할 칸이지 분석 대상이
+    아님. 윤정 모델이 form 텍스트를 todo로 잡으면 슬롯 카드가 지저분해짐.
+    """
+    return bool(_FORM_SIGNALS.search(card.value_ko))
 
 
 def _dedup_cards(cards: list[SlotCard]) -> list[SlotCard]:
@@ -161,6 +182,7 @@ def build_cards(
     todo_headers = {c.header_ko for c in cards}
     cards.extend(_build_cards_from_regex_slots(regex_slots, target_lang, todo_headers))
 
+    cards = [c for c in cards if not _is_form_card(c)]
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
     return cards
