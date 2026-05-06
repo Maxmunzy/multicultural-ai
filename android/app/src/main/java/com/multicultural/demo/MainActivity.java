@@ -1601,24 +1601,14 @@ public class MainActivity extends Activity {
     }
 
     private boolean renderCardChips(JSONArray cards) {
-        if (cards == null || cards.length() == 0 || glossaryChipsBox == null) return false;
-        glossaryChipsBox.removeAllViews();
-        int added = 0;
-        for (int i = 0; i < cards.length() && added < 8; i++) {
-            JSONObject card = cards.optJSONObject(i);
-            if (card == null) continue;
-            String chip = safeString(card, "chip");
-            String header = safeString(card, "header_ko");
-            String value = safeString(card, "value_ko");
-            if (header.isEmpty() && value.isEmpty()) continue;
-            String label = header.isEmpty() ? value : header + " · " + value;
-            glossaryChipsBox.addView(slotChipRow(chipIcon(chip), label, ""));
-            added++;
-        }
-        if (added > 0) {
-            ((View) glossaryChipsBox.getParent()).setVisibility(View.VISIBLE);
-            ((View) glossaryChipsBox.getParent().getParent()).setVisibility(View.VISIBLE);
-            return true;
+        // 세종님 제안 (2026-05-06): "📖 사용된 학교 용어" 박스가 사실은 카드 chip 을
+        // 재활용해서 표시 중이라 라벨/기능 매핑 어긋남. backend 에 glossary_hits 응답
+        // 추가하기 전엔 숨기는 게 깔끔. 함수는 남겨두고 visibility 만 강제 GONE.
+        if (glossaryChipsBox != null) {
+            View parent = (View) glossaryChipsBox.getParent();
+            if (parent != null) parent.setVisibility(View.GONE);
+            View grandparent = parent != null ? (View) parent.getParent() : null;
+            if (grandparent != null) grandparent.setVisibility(View.GONE);
         }
         return false;
     }
