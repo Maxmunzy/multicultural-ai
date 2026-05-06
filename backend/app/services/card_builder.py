@@ -28,6 +28,7 @@ _FALLBACK_HEADER = "기타"
 # todo로 헤더가 추정된 경우엔 이 카드를 만들지 않음 (중복 방지).
 _SLOT_HEADERS: dict[str, str] = {
     "dates": "일시",
+    "deadlines": "마감일",
     "times": "시간",
     "urls": "신청 URL",
     "phones": "연락처",
@@ -36,6 +37,8 @@ _SLOT_HEADERS: dict[str, str] = {
 
 # regex 슬롯이 todo로 이미 흡수됐는지 판단할 헤더 매핑.
 # 예: todo가 "운영시간" 헤더로 이미 추출됐으면 regex times 카드는 만들지 않음.
+# HWP 표 셀 헤더는 "일 시", "장 소" 처럼 공백 들어간 변형이 많아 헤더 비교는
+# 공백 제거 후 normalize 해서 매치 — _normalize_header().
 _TODO_HEADER_COVERS: dict[str, set[str]] = {
     "times": {"운영시간", "신청시간", "시간"},
     "dates": {"운영날짜", "일시", "기간", "운영기간"},
@@ -43,6 +46,11 @@ _TODO_HEADER_COVERS: dict[str, set[str]] = {
     "phones": {"연락처", "문의", "문의처"},
     "amounts": {"비용", "회비", "참가비", "수강료", "급식비"},
 }
+
+
+def _normalize_header(h: str) -> str:
+    """헤더 비교용 공백 제거 — HWP "일 시" / "장 소" / "대 상" 변형 매치."""
+    return re.sub(r"\s+", "", h or "")
 
 
 def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
@@ -85,19 +93,27 @@ def _build_cards_from_regex_slots(
     """regex 슬롯 → 보강 SlotCard. todo 헤더가 이미 커버한 슬롯은 스킵."""
     cards: list[SlotCard] = []
 
+    todo_headers_norm = {_normalize_header(h) for h in todo_headers}
+
     for slot_name, default_header in _SLOT_HEADERS.items():
         entries = regex_slots.get(slot_name, [])
         if not entries:
             continue
-        # todo가 이미 이 슬롯을 커버하면 스킵 (중복 카드 방지)
-        if todo_headers & _TODO_HEADER_COVERS.get(slot_name, set()):
+        # todo가 이미 이 슬롯을 커버하면 스킵 (중복 카드 방지) — 공백 normalize 후 비교
+        covers_norm = {_normalize_header(h) for h in _TODO_HEADER_COVERS.get(slot_name, set())}
+        if todo_headers_norm & covers_norm:
             continue
 
-        # 슬롯당 한 카드 — 여러 값은 콤마 구분
-        values_ko = [_slot_entry_ko(e) for e in entries]
-        values_translated = [_slot_entry_translated(e) for e in entries]
-        value_ko = ", ".join(v for v in values_ko if v)
-        value_translated = ", ".join(v for v in values_translated if v)
+        # 슬롯당 한 카드 — 여러 값 결합
+        values_ko = [_slot_entry_ko(e) for e in entries if _slot_entry_ko(e)]
+        values_translated = [_slot_entry_translated(e) for e in entries if _slot_entry_ko(e)]
+        # times: 2개면 시작-끝으로 보고 ~ 로 연결 (가독성). 그 외는 콤마.
+        if slot_name == "times" and len(values_ko) == 2:
+            value_ko = " ~ ".join(values_ko)
+            value_translated = " ~ ".join(v or k for v, k in zip(values_translated, values_ko))
+        else:
+            value_ko = ", ".join(values_ko)
+            value_translated = ", ".join(v or k for v, k in zip(values_translated, values_ko))
         if not value_ko:
             continue
 

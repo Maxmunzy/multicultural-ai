@@ -298,9 +298,19 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
     """
     out: dict[str, list[dict]] = {
         "dates": [], "times": [], "amounts": [], "urls": [], "phones": [],
+        "deadlines": [],
     }
     for d in extract_dates(text):
-        out["dates"].append({
+        # 날짜 뒤 30자 안에 "까지" / "마감" 있으면 마감일 슬롯으로 분리.
+        # 가통문 보편 패턴: "4월 28일(화) 까지 ... 제출 바랍니다"
+        idx = text.find(d["ko"])
+        is_deadline = False
+        if idx >= 0:
+            after = text[idx + len(d["ko"]) : idx + len(d["ko"]) + 30]
+            if "까지" in after or "마감" in after:
+                is_deadline = True
+        target_key = "deadlines" if is_deadline else "dates"
+        out[target_key].append({
             "ko": d["ko"],
             "translated": format_date(d, target_lang),
             "source": "regex",
