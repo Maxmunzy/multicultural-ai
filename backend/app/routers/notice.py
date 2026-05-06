@@ -1,3 +1,5 @@
+import json
+import logging
 import mimetypes
 import os
 import uuid
@@ -20,7 +22,10 @@ from app.services.slot_extractor import (
     split_supply_tokens, strip_markers,
 )
 from app.services.card_builder import build_cards
+from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.mock import MOCK_TODOS
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -66,7 +71,7 @@ def _save_original(notice_id: str, raw_bytes: bytes, filename: str) -> tuple[str
             (NOTICES_DIR / safe_name).write_bytes(pdf_bytes)
             return f"/static/notices/{safe_name}", "application/pdf"
         except (ParserError, Exception) as e:
-            print(f"[upload] HWP→PDF 변환 실패, 원본 HWP 저장: {e}")
+            logger.warning("[upload] HWP→PDF 변환 실패, 원본 HWP 저장: %s", e)
             # fallback: HWP 원본 저장 (안드는 표시 못 하지만 다운로드 링크로 fallback)
 
     # 일반 경로: 원본 그대로 저장
@@ -135,7 +140,7 @@ async def extract_text(
     try:
         preview_url, preview_mime = _save_original(preview_id, raw_bytes, file.filename or "")
     except Exception as e:
-        print(f"[extract-text] preview 저장 실패: {e}")
+        logger.warning("[extract-text] preview 저장 실패: %s", e)
         preview_url, preview_mime = None, None
 
     return ApiResponse.success(
@@ -323,6 +328,26 @@ def _amount_to_ko(amount: int | None) -> str | None:
     return f"{amount:,}원"
 
 
+def _page_count_from_layout(layout_json) -> int:
+    """layout_json에서 페이지 수 추출. 없거나 형식 다르면 1."""
+    if not layout_json:
+        return 1
+    payload = layout_json
+    if isinstance(payload, str):
+        try:
+            payload = json.loads(payload)
+        except json.JSONDecodeError:
+            return 1
+    if isinstance(payload, dict):
+        pages = payload.get("pages")
+        if isinstance(pages, list) and pages:
+            return len(pages)
+    if isinstance(payload, list):
+        seen = {item.get("page", 1) for item in payload if isinstance(item, dict)}
+        return max(len(seen), 1)
+    return 1
+
+
 def _build_item(todo: YunjeongTodo, target_lang: str) -> AnalyzeItem:
     """YunjeongTodo + 경이님 카테고리 → AnalyzeItem.
 
@@ -440,7 +465,7 @@ async def analyze_notice(
         if not todos:
             todos = MOCK_TODOS
     except Exception as error:
-        print(f"[analyze] extractor failed: {error}")
+        logger.warning("[analyze] extractor failed: %s", error)
         todos = MOCK_TODOS
 
     # [3'] 제목 추출 (윤정님 PR #90 heuristic) — split_sentences 이전, 원문 직접 스캔
@@ -462,29 +487,37 @@ async def analyze_notice(
     top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
     cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
 
+    # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.
+    # layout_json은 안드 ML Kit OCR JSON 또는 backend pdfplumber probe JSON.
+    try:
+        highlights = build_highlights_from_cards(cards, req.layout_json)
+    except Exception as error:
+        logger.warning("[analyze] highlight mapping failed: %s", error)
+        highlights = []
+    page_count = _page_count_from_layout(req.layout_json)
+
     # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
     tts_text_translated = _build_tts_text_from_cards(cards, "translated")
     tts_text_easy_ko = _build_tts_text_from_cards(cards, "easy_ko")
     try:
         tts_url = await generate_tts_file(tts_text_translated, target_lang=target_lang) if tts_text_translated else ""
     except Exception as error:
-        print(f"[analyze] TTS (translated) failed: {error}")
+        logger.warning("[analyze] TTS (translated) failed: %s", error)
         tts_url = ""
     try:
         tts_url_easy_ko = await generate_tts_file(tts_text_easy_ko, target_lang="ko_easy") if tts_text_easy_ko else ""
     except Exception as error:
-        print(f"[analyze] TTS (easy_ko) failed: {error}")
+        logger.warning("[analyze] TTS (easy_ko) failed: %s", error)
         tts_url_easy_ko = ""
 
     response = {
         "notice_id": notice_id,
         "raw_text": notice.text,
         "target_language": target_lang,
-        "page_count": 1,  # TODO(ocr-pivot): 원본 PDF/이미지 page count와 연결
+        "page_count": page_count,
         "title": title_ko,
         "title_translated": title_translated,
-        # TODO(ocr-pivot): OCR/PDF bbox와 모델 결과를 매핑해 채우기
-        "highlights": [],
+        "highlights": highlights,
         "cards": [c.model_dump() for c in cards],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
