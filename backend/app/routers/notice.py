@@ -604,29 +604,16 @@ async def analyze_notice(
                     )
                     structured = None
 
-        # Vision 성공 → 윤정 input 만들 때 sentence_list를 단순 \n join 하지 말고
-        # **section별 paragraph 재조합** — paragraph 흐름 보존이 핵심. 단순 \n join은
-        # paragraph context 신호가 사라져 윤정 KoELECTRA가 todo 인식률 급락
-        # (Gemini 3 Flash Preview 측정에서 cards 15→3 회귀로 확인).
-        # 같은 section sentence들을 한 paragraph로 묶고, paragraph 사이는 \n\n.
+        # Vision 성공 → cleaned_text(paragraph) 그대로 윤정 input.
+        # 2026-05-07: sentence_list 분해 → cleaned_text 전환. 윤정 KoELECTRA가
+        # paragraph 흐름에 학습됐기에 자체 휴리스틱 시점 형태와 동등한 paragraph
+        # 그대로 입력하는 것이 친화적. sentence_list 분해 + 재조합 형태에선 윤정
+        # split 휴리스틱이 잔재 (잘린 카드, 헤더 잃음) 발생.
         if structured is not None and llm_status == "ok":
             gemini_title_override = (structured.get("document_title") or "").strip()
-            sentences = structured.get("sentence_list", [])
-            paragraphs: dict[str, list[str]] = {}
-            order: list[str] = []
-            for s in sentences:
-                text = (s.get("text") or "").strip()
-                if not text:
-                    continue
-                section = (s.get("section") or "").strip() or "_default"
-                if section not in paragraphs:
-                    paragraphs[section] = []
-                    order.append(section)
-                paragraphs[section].append(text)
-            # 같은 section 내 sentence는 \n (학년별 행 시각적 구분), section 사이는 \n\n.
-            joined = "\n\n".join("\n".join(paragraphs[sec]) for sec in order)
-            if joined:
-                analysis_text = joined
+            cleaned_text = (structured.get("cleaned_text") or "").strip()
+            if cleaned_text:
+                analysis_text = cleaned_text
 
         # Vision 미시도/실패 → text 기반 extract_sentences로 fallback
         if structured is None or llm_status != "ok":

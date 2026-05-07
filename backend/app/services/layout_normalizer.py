@@ -1,32 +1,20 @@
-"""LLM(Gemini) 기반 통신문 sentence 추출기.
+"""LLM(Gemini) 기반 통신문 본문 정제기.
 
-Google Gemini (gemini-2.5-flash 기본)에 통신문 텍스트를 보내 후속 모델(윤정/경이/
-세종 슬롯) 입력용 **구조화된 sentence list**를 추출.
+Google Gemini (gemini-2.5-flash 기본)에 통신문 텍스트/PDF/이미지를 보내 후속
+자체 모델(윤정 KoELECTRA)이 받을 **정제된 paragraph 본문**을 추출.
 
-세종님 정의 contract (2026-05-07):
-    {
-      "document_title": "...",
-      "sentence_list": [
-        {
-          "sentence_id": "s001",
-          "text": "...",                      # 원문 기반, 요약/의역 금지
-          "section": "...",                    # 프로그램명/섹션명
-          "section_type": "program | application_info | contact | notice | footer | unknown",
-          "role_hint": "target | content | application_period | event_datetime |
-                        application_url | contact | result_announcement |
-                        location | fee | supplies | submit | etc",
-          "is_action_candidate": false,        # 모델 A todo 후보 여부
-          "contains_slots": [],                # date/time/url/phone/amount/target/location
-          "source_order": 1
-        },
-        ...
-      ]
-    }
+2026-05-07 변경: sentence_list 분해 → cleaned_text(paragraph) 전환.
+- 이유: 윤정 KoELECTRA는 paragraph 흐름에 학습됨. sentence별 분해 후 \n join은
+  학습 데이터에 없는 형태라 윤정의 sentence boundary 인식이 헷갈림 (잘림 발생).
+- 자체 휴리스틱(text fallback) 시점은 원본 paragraph 그대로 윤정에 입력 →
+  잘림 없이 cards 정상 추출.
+- Gemini Vision의 정제 효과(자간 제거, 표 풀어쓰기, 노이즈 제거)는 살리되
+  paragraph 흐름은 그대로 유지.
 
 목적:
 - Gemini가 "최종 답변" 만들지 않음 (요약·번역 X)
-- 후속 자체 모델(윤정 KoELECTRA / 경이 KcELECTRA / NLLB+vi 템플릿) 입력 정제만
-- 신청기간 ↔ 운영일시 혼합, "대 상" 자간 오역, 날짜 fragment 번역 오류 차단
+- 후속 윤정 모델이 받을 paragraph 본문만 정제
+- 신청기간 ↔ 운영일시 혼합, "대 상" 자간 오역, 표 행 미분리 차단
 
 기본값 활성 (use_llm_normalizer=True). 실패/타임아웃/JSON 파싱 실패는
 원본 텍스트로 fallback해 회귀 방지.
@@ -49,103 +37,67 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_TIMEOUT_SECONDS = float(os.environ.get("GEMINI_TIMEOUT_SECONDS", "60"))
 
 
-# 세종님 contract 기반 프롬프트 — 후속 모델 입력용 sentence list 생성.
-# Gemini는 정답을 만들지 않음 — 우리 파이프라인이 사용할 뼈대만.
-_EXTRACT_PROMPT = """당신은 한국 학교 가정통신문에서 후속 자체 모델이 사용할 sentence list를 추출하는 도우미입니다.
+# Text 모드 프롬프트 — 원본 텍스트가 input. paragraph 흐름 유지하며 정제만.
+_EXTRACT_PROMPT = """다음 한국 학교 가정통신문 텍스트를 후속 자체 모델(윤정 KoELECTRA) 입력용으로 정제합니다.
 
-목적: 최종 답변/요약/번역이 아니라, 후속 모델(추출/분류/번역) 입력용 구조화된 sentence list 생성
+**목적**: 원본 통신문의 paragraph 흐름과 문장 구조를 그대로 유지한 채 정제. 후속 모델이 자연스러운 paragraph 안에서 todo 추출.
 
-규칙 (반드시 지킬 것):
-- **요약하지 말 것** — 원문 표현 가능한 그대로 유지
-- **번역하지 말 것** — 한국어 그대로
-- **날짜, 시간, 금액, URL, 전화번호는 원문 그대로 보존** — 형식 변환 금지
-- **신청기간과 운영일시는 반드시 구분** — 같은 sentence에 섞지 말 것
-- **프로그램이 여러 개면 section으로 분리** — 각 sentence의 section/section_type 명시
-- **대상/내용/운영일시/신청기간/문의/URL/장소/비용/준비물/제출** 같은 의미는 role_hint로 태깅
-- **원문에 없는 정보는 추측 금지**
-- **고유명사 원문 그대로** — 학교명/지명/사람 이름/시설명/행사명 임의 변환 금지
-- 자간 공백 정상화는 공백 제거만 ("학 년 도" → "학년도"), 글자 변경 X
-- 의미 없는 단독 기호 줄(■, □, ※, 가로줄)만 제거
+**규칙** (절대 어기지 말 것):
+- **paragraph 흐름 유지** — 원문의 자연스러운 줄과 단락 구조 그대로. sentence별 분해 X
+- **자간 공백만 정상화** ("학 년 도" → "학년도", "의 정 부 시" → "의정부시"), 글자 변경 X
+- **표 행은 한 줄에 자연 sentence로** 풀어쓰기 ("1학년 공용 준비물: 알림장, 클리어 화일, ...")
+- **종결어미는 원문 흐름 그대로** ("입니다"/"바랍니다"/"주세요" 자연 사용)
+- **의미 없는 단독 기호 줄(■, □, ※, 가로줄)만 제거**
+- **요약·번역·축약 금지** — 원문 표현 그대로
+- **날짜·시간·금액·URL·전화번호 원문 그대로 보존**
+- **고유명사·학교명·지명 그대로**
+- **원문에 없는 정보 추측·추가 금지**
 
-각 sentence 필드:
-- sentence_id: "s001", "s002" 형식 순차 ID
-- text: 원문 sentence
-- section: 프로그램명/섹션명 (예: "토요영어체험교실", "신청 및 운영안내", "문의")
-- section_type: program | application_info | contact | notice | footer | unknown
-- role_hint: target | content | application_period | event_datetime | application_url | contact | result_announcement | location | fee | supplies | submit | etc
-- is_action_candidate: 학부모 행동 필요 여부 (제출/신청/준비/납부 등) → true/false
-- contains_slots: ["date", "time", "url", "phone", "amount", "target", "location"] 중 해당
-- source_order: 원문 순서 (1부터)
-
-document_title: 통신문 제목 (없으면 "")
-
-출력은 다음 schema의 JSON만:
-{{
-  "document_title": "...",
-  "sentence_list": [{{...}}, {{...}}, ...]
-}}
+출력 형식 — JSON 두 필드:
+- document_title: 통신문 제목 (없으면 빈 문자열)
+- cleaned_text: 정제된 통신문 본문 한 덩어리 (paragraph 사이 \\n\\n, 같은 paragraph 내부는 \\n)
 
 [입력]
 {text}
 """
 
 
-# Vision 모드(inlineData로 PDF/이미지를 직접 전달)용 프롬프트.
-# 텍스트 본문은 첨부 파일에 있으므로 [입력]/{text} placeholder 없음.
-#
-# **중요** — 이 프롬프트는 후속 자체 모델 (윤정 KoELECTRA / 경이 KcELECTRA / NLLB +
-# card_builder) 입력 형식을 강제한다. 자체 모델이 sentence boundary를 종결어미로
-# 인식하므로 Vision이 종결어미 없이 raw 추출하면 후속 흐름이 깨진다.
-_EXTRACT_PROMPT_VISION = """한국 학교 가정통신문에서 후속 KoELECTRA 모델 입력용 sentence_list를 추출합니다.
-원문에 없는 정보 추가·요약·번역 금지. 후속 모델이 잘 인식하도록 다음 형식만 사용.
+# Vision 모드 프롬프트 — PDF/이미지가 첨부 input. 같은 정제 규칙.
+_EXTRACT_PROMPT_VISION = """첨부된 한국 학교 가정통신문(PDF/이미지)을 후속 자체 모델(윤정 KoELECTRA) 입력용으로 정제합니다.
 
-**sentence 형식 — 두 패턴**:
+**목적**: 원본 통신문의 paragraph 흐름과 문장 구조를 그대로 유지한 채 정제. 후속 모델이 자연스러운 paragraph 안에서 todo 추출.
 
-[A] 정보 sentence — "{표준 헤더}: {값}입니다."
-    표준 헤더 (이 키워드들로만 시작 — 변형 금지):
-      일시 · 기간 · 장소 · 위치 · 주소 · 교통
-      대상 · 자격 · 참가대상
-      준비물 · 준비 · 지참물 · 준비사항
-      비용 · 회비 · 참가비 · 수강료 · 급식비
-      운영시간 · 운영방법 · 운영기간 · 신청방법 · 신청기간
-      접수기간 · 접수방법 · 제출방법 · 제출기한 · 제출처
-      안내사항 · 유의사항 · 참고사항 · 문의 · 연락처
-    학년·공용·개인·구분은 **값**에 포함 (헤더 X)
+**규칙** (절대 어기지 말 것):
+- **paragraph 흐름 유지** — 원문의 자연스러운 줄과 단락 구조 그대로. sentence별 분해 X
+- **자간 공백만 정상화** ("학 년 도" → "학년도", "의 정 부 시" → "의정부시"), 글자 변경 X
+- **표 행은 한 줄에 자연 sentence로** 풀어쓰기:
+    "1학년 공용 준비물: 알림장, 클리어 화일, 유성매직, ..."
+    "1학년 가정 준비물: 줄 없는 종합장 1권, 천으로 된 필통, ..."
+    학년별 공용/개인 두 줄로 분리 (한 줄에 합치지 말 것)
+- **종결어미는 원문 흐름 그대로** ("입니다"/"바랍니다"/"주세요" 자연 사용)
+- **의미 없는 단독 기호 줄(■, □, ※, 가로줄)만 제거**
+- **요약·번역·축약 금지** — 원문 표현 그대로
+- **날짜·시간·금액·URL·전화번호 원문 그대로 보존**
+- **고유명사·학교명·지명 그대로**
+- **원문에 없는 정보 추측·추가 금지**
 
-[B] 액션 sentence — "주세요" / "바랍니다" / "드립니다" 종결
-    학부모 행동 요구 (제출·신청·준비·납부·참가)
+출력 형식 — JSON 두 필드:
+- document_title: 통신문 제목 (없으면 빈 문자열)
+- cleaned_text: 정제된 통신문 본문 한 덩어리 (paragraph 사이 \\n\\n, 같은 paragraph 내부는 \\n)
 
-**Few-shot 예시**
-
-▶ 학년별 학습준비물 통신문 (공용/개인 분리)
+**예시 1 — 학년별 학습준비물 통신문**
 {
   "document_title": "2026학년도 1분기 학습준비물 안내",
-  "sentence_list": [
-    {"sentence_id":"s001","text":"준비물: 1학년 공용 - 알림장, 클리어 화일, 유성매직, 받아쓰기 공책, 색종이, 천사점토, 풍선입니다.","section":"학교 지원 공용","section_type":"notice","role_hint":"supplies","is_action_candidate":false,"contains_slots":["target"],"source_order":1},
-    {"sentence_id":"s002","text":"준비물: 1학년 가정 - 줄 없는 종합장 1권, 천으로 된 필통, 샤프식 색연필 12색입니다.","section":"가정 구매 개인","section_type":"notice","role_hint":"supplies","is_action_candidate":true,"contains_slots":["target"],"source_order":2},
-    {"sentence_id":"s003","text":"준비물: 2학년 공용 - 흰도화지, 색종이, 받아쓰기 공책, 아이클레이, 포스트잇입니다.","section":"학교 지원 공용","section_type":"notice","role_hint":"supplies","is_action_candidate":false,"contains_slots":["target"],"source_order":3},
-    {"sentence_id":"s004","text":"문의: 031-877-0292입니다.","section":"공통","section_type":"contact","role_hint":"contact","is_action_candidate":false,"contains_slots":["phone"],"source_order":4}
-  ]
+  "cleaned_text": "학부모님, 안녕하십니까?\\n본교에서는 학생들이 다양한 학습활동에 집중하며, 학부모님의 부담을 경감하고자 학생들에게 학습준비물을 지원하고 있습니다. 학습준비물 지원은 연간 총 2분기로 지원되며 이번 1분기에 지원되는 학습준비물은 아래와 같습니다.\\n\\n1분기 운영 시기: 3월\\n2분기 운영 시기: 9월\\n\\n학교에서 지원되는 공용 학습준비물\\n1학년 공용 준비물: 알림장, 클리어 화일, 유성매직, 받아쓰기 공책, 색종이, 천사점토, 풍선\\n2학년 공용 준비물: 흰도화지, 색종이, 받아쓰기 공책, 아이클레이, 포스트잇\\n3학년 공용 준비물: 마커, 유성 매직, 수채화 물감, 붓, 물통, 먹, A4 용지, 도화지\\n\\n가정에서 구매가 필요한 개인 학습준비물\\n1학년 가정 준비물: 줄 없는 종합장 1권, 천으로 된 필통, 샤프식 색연필 12색\\n2학년 가정 준비물: 알림장 1권, 줄공책 1권, 종합장 1권, 필통, 연필, 15cm 자\\n\\n학급 안내에 따라 개인학습준비물은 달라질 수 있습니다.\\n\\n문의: 031-877-0292\\n2026. 3. 10. 의정부서초등학교장"
 }
 
-▶ 현장체험학습 통신문
+**예시 2 — 현장체험학습 통신문**
 {
   "document_title": "2026 해조류박람회 체험학습 안내",
-  "sentence_list": [
-    {"sentence_id":"s001","text":"일시: 2026년 5월 6일(목) 8:50~14:40입니다.","section":"운영 안내","section_type":"notice","role_hint":"event_datetime","is_action_candidate":false,"contains_slots":["date","time"],"source_order":1},
-    {"sentence_id":"s002","text":"장소: 완도 해양수산과학관입니다.","section":"운영 안내","section_type":"notice","role_hint":"location","is_action_candidate":false,"contains_slots":["location"],"source_order":2},
-    {"sentence_id":"s003","text":"대상: 초등학생 4학년 8명입니다.","section":"운영 안내","section_type":"notice","role_hint":"target","is_action_candidate":false,"contains_slots":["target"],"source_order":3},
-    {"sentence_id":"s004","text":"참가 동의서를 4월 28일(화)까지 담임선생님께 제출해 주시기 바랍니다.","section":"신청 안내","section_type":"application_info","role_hint":"submit","is_action_candidate":true,"contains_slots":["date"],"source_order":4}
-  ]
+  "cleaned_text": "학부모님, 안녕하십니까?\\n늘 건강하시고 웃음꽃이 피어나는 행복한 가정의 달 5월 맞이하시기를 기원합니다.\\n\\n일시: 2026년 5월 6일(목) 8:50~14:40\\n장소: 해조류박람회 및 빙그레 시네마\\n대상: 유치원생, 1-6학년 전교생\\n교통: 통학버스 2대\\n준비물: 간편한 복장, 물, 기타 개인 준비물\\n\\n참가 동의서는 4월 28일(화)까지 담임선생님께 제출 바랍니다. 당일 점심은 학교에서 제공되니 별도 도시락은 필요 없습니다.\\n\\n문의: 신지초등학교 강동재 교사"
 }
 
-**기타 규칙**:
-- 자간 공백만 제거 ("학 년 도" → "학년도"), 글자 변경 금지
-- 날짜·시간·금액·URL·전화번호 원문 그대로 보존
-- 의미 없는 기호줄(■, □, ※)만 제거
-- 고유명사·학교명·지명 그대로
-
-첨부된 PDF/이미지를 위 형식으로 분석해서 JSON 출력.
+첨부된 PDF/이미지 분석해서 위 두 필드 JSON으로만 출력.
 """
 
 
@@ -162,58 +114,46 @@ VISION_SUPPORTED_MIMES = frozenset({
 })
 
 
-# Gemini가 JSON 강제 출력하도록 schema 정의 (responseSchema)
+# Gemini가 JSON 강제 출력하도록 schema 정의 (responseSchema).
+# 2026-05-07 변경: sentence_list → cleaned_text. 윤정 모델이 paragraph 흐름에
+# 학습됐기에 sentence_list 분해보다 paragraph 정제가 친화적 (자체 휴리스틱
+# 시점 형태와 동등). sentence_list metadata는 사용처 없어 제거.
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "document_title": {"type": "string"},
-        "sentence_list": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "sentence_id": {"type": "string"},
-                    "text": {"type": "string"},
-                    "section": {"type": "string"},
-                    "section_type": {"type": "string"},
-                    "role_hint": {"type": "string"},
-                    "is_action_candidate": {"type": "boolean"},
-                    "contains_slots": {
-                        "type": "array",
-                        "items": {"type": "string"},
-                    },
-                    "source_order": {"type": "integer"},
-                },
-                "required": ["sentence_id", "text", "source_order"],
-            },
-        },
+        "cleaned_text": {"type": "string"},
     },
-    "required": ["document_title", "sentence_list"],
+    "required": ["document_title", "cleaned_text"],
 }
 
 
 def _empty_structured() -> dict:
-    return {"document_title": "", "sentence_list": []}
+    return {"document_title": "", "cleaned_text": ""}
 
 
 def extract_sentences(
     text: str = "",
     inline_data: tuple[bytes, str] | None = None,
 ) -> tuple[dict, str, float]:
-    """세종님 contract: {document_title, sentence_list[...]} 구조화 출력.
+    """Gemini로 통신문 본문 정제 → {document_title, cleaned_text} 반환.
+
+    함수 이름은 호환성 위해 그대로 유지. 내부적으론 sentence_list 분해 안 함.
+    윤정 KoELECTRA가 paragraph 흐름에 학습됐기에 paragraph 그대로 입력하는 것이
+    sentence별 분해 후 \\n join보다 친화적 (자체 휴리스틱 시점 형태와 동등).
 
     두 가지 모드:
     - **text 모드** (기본): text 인자 사용, inline_data=None. 프롬프트에 본문 포함.
     - **Vision 모드**: inline_data=(raw_bytes, mime_type) 전달. PDF/이미지가
       Gemini Vision에 직접 전송. text 인자는 무시. 표/자간 등 구조 자연 처리.
 
-    실패 시 빈 contract({"document_title":"", "sentence_list":[]}) + status 반환.
+    실패 시 빈 dict({"document_title":"", "cleaned_text":""}) + status 반환.
 
     Returns:
         (structured, status, elapsed_seconds)
-        - structured: dict (document_title + sentence_list)
+        - structured: dict (document_title + cleaned_text)
         - status: "ok" | "skip:empty" | "skip:no_key" | "skip:unsupported_mime:..." |
-                  "skip:invalid_format" | "skip:empty_sentences" | "skip:error:..."
+                  "skip:invalid_format" | "skip:empty_text" | "skip:error:..."
         - elapsed_seconds: API 호출 시간 (실패 시 -1)
     """
     if not GEMINI_API_KEY:
@@ -239,8 +179,8 @@ def extract_sentences(
         if not text or not text.strip():
             return _empty_structured(), "skip:empty", 0.0
         prompt = _EXTRACT_PROMPT.format(text=text)
-        # 출력은 입력의 2~3배까지 늘어남. cap 32768로 절단 방지.
-        max_output_tokens = min(32768, max(2048, int(len(text) * 3.0)))
+        # 출력은 입력의 1.5~2배 정도 (paragraph 정제). cap 32768로 절단 방지.
+        max_output_tokens = min(32768, max(2048, int(len(text) * 2.0)))
         parts = [{"text": prompt}]
 
     payload = json.dumps({
@@ -366,63 +306,40 @@ def extract_sentences(
     if not isinstance(parsed, dict):
         return _empty_structured(), "skip:invalid_format", elapsed
 
-    sentence_list = parsed.get("sentence_list")
-    if not isinstance(sentence_list, list):
+    cleaned_text = parsed.get("cleaned_text", "")
+    if not isinstance(cleaned_text, str) or not cleaned_text.strip():
         logger.warning(
-            "extract_sentences 'sentence_list' not a list (took %.2fs, type=%s)",
-            elapsed, type(sentence_list).__name__,
+            "extract_sentences 'cleaned_text' empty/invalid (took %.2fs, type=%s)",
+            elapsed, type(cleaned_text).__name__,
         )
-        return _empty_structured(), "skip:invalid_format", elapsed
+        return _empty_structured(), "skip:empty_text", elapsed
 
-    if not sentence_list:
-        logger.warning("extract_sentences empty sentence_list (took %.2fs)", elapsed)
-        return _empty_structured(), "skip:empty_sentences", elapsed
+    document_title = parsed.get("document_title", "") or ""
 
-    # text 비어있는 항목은 제외 (정제). 다른 필드 누락은 그대로 통과(세종 adapter가 내성 처리).
-    cleaned_list = [
-        s for s in sentence_list
-        if isinstance(s, dict) and isinstance(s.get("text"), str) and s["text"].strip()
-    ]
-    if not cleaned_list:
-        return _empty_structured(), "skip:empty_sentences", elapsed
-
-    # DEBUG (임시): Gemini가 추출한 sentence list 내용 docker logs에 dump.
-    # 후속 모델(윤정 todo / card_builder)이 sentence boundary 따라가는지 진단용.
-    # 프롬프트 튜닝 끝나면 제거.
-    sample = [
-        {
-            "id": s.get("sentence_id", ""),
-            "section": s.get("section", ""),
-            "role": s.get("role_hint", ""),
-            "act": s.get("is_action_candidate", False),
-            "text": (s.get("text") or "")[:120],
-        }
-        for s in cleaned_list[:30]
-    ]
+    # DEBUG (임시): Gemini가 만든 cleaned_text head/tail docker logs에 dump.
+    # paragraph 정제 결과 확인용. 튜닝 끝나면 제거.
+    head = cleaned_text[:300].replace("\n", " / ")
+    tail = cleaned_text[-200:].replace("\n", " / ") if len(cleaned_text) > 300 else ""
     logger.warning(
-        "extract_sentences DEBUG dump (first %d/%d):\n%s",
-        len(sample), len(cleaned_list),
-        json.dumps(sample, ensure_ascii=False, indent=2),
+        "extract_sentences DEBUG cleaned_text len=%d title=%r head=%r tail=%r",
+        len(cleaned_text), document_title[:60], head, tail,
     )
 
     return (
-        {
-            "document_title": parsed.get("document_title", "") or "",
-            "sentence_list": cleaned_list,
-        },
+        {"document_title": document_title, "cleaned_text": cleaned_text},
         "ok",
         elapsed,
     )
 
 
 def normalize_text(text: str) -> tuple[str, str, float]:
-    """기존 호환 — extract_sentences 결과를 \\n joined string으로 변환.
+    """기존 호환 — extract_sentences로 정제된 cleaned_text 반환.
 
-    윤정 모델 입력으로 그대로 들어가는 흐름. 세종님 adapter는 extract_sentences 직접 사용.
+    윤정 모델 입력으로 그대로 들어가는 흐름.
 
     Returns:
         (cleaned_text, status, elapsed_seconds)
-        - cleaned_text: sentence list의 text를 \\n으로 join. 실패 시 원본 텍스트.
+        - cleaned_text: Gemini가 정제한 paragraph. 실패 시 원본 텍스트.
         - status: extract_sentences와 동일
         - elapsed_seconds: extract_sentences와 동일
     """
@@ -430,7 +347,7 @@ def normalize_text(text: str) -> tuple[str, str, float]:
     if status != "ok":
         # 회귀 방지 — 실패 시 원본 텍스트 반환
         return text, status, elapsed
-    cleaned = "\n".join(s["text"].strip() for s in structured["sentence_list"])
+    cleaned = structured.get("cleaned_text", "")
     if not cleaned:
-        return text, "skip:empty_sentences", elapsed
+        return text, "skip:empty_text", elapsed
     return cleaned, "ok", elapsed
