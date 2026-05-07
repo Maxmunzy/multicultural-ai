@@ -463,11 +463,17 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
     # 3) NLLB fallback — info 유형, 비vi 언어, glossary 항목 미감지
     glossary = _get_glossary()
     hits = _find_glossary_hits_safe(masked, glossary, target_lang)
+    # glossary 용어를 __SLOT__으로 보호: "스쿨뱅킹(School Banking)" 주입 방식은
+    # NLLB가 한국어 음역 + 괄호 힌트를 둘 다 번역해 "School Banking (School Banking)"
+    # 중복 출력하는 문제 발생. 대신 번역어를 restore 값으로 stash해 NLLB 통과 후 복원.
     injected = masked
     for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
-        injected = injected.replace(
-            hit["korean"], f"{hit['korean']}({hit['preferred_term']})"
-        )
+        korean = hit["korean"]
+        preferred = hit["preferred_term"]
+        while korean in injected:
+            idx = len(placeholders)
+            placeholders.append(preferred)
+            injected = injected.replace(korean, f"__SLOT{idx}__", 1)
 
     target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
     try:
