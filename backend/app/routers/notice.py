@@ -558,12 +558,18 @@ async def analyze_notice(
     llm_elapsed = 0.0
     if req.use_llm_normalizer:
         normalized, llm_status, llm_elapsed = llm_normalize_text(analysis_text)
+        # 디버그용 — LLM이 phone/URL 같은 핵심 정보 빠뜨리는지 추적.
+        # 발표 후엔 logger.info로 다시 낮출 것.
+        in_len = len(analysis_text)
+        out_len = len(normalized)
+        head = normalized[:200].replace("\n", " / ")
+        tail = normalized[-200:].replace("\n", " / ") if out_len > 200 else ""
+        logger.warning(
+            "[analyze] llm_normalizer: status=%s elapsed=%.2fs in=%d out=%d head=%r tail=%r",
+            llm_status, llm_elapsed, in_len, out_len, head, tail,
+        )
         if llm_status == "ok":
             analysis_text = normalized
-        logger.info(
-            "[analyze] llm_normalizer: status=%s elapsed=%.2fs",
-            llm_status, llm_elapsed,
-        )
 
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     try:
