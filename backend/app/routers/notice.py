@@ -336,6 +336,85 @@ def _amount_to_ko(amount: int | None) -> str | None:
     return f"{amount:,}원"
 
 
+def _reconstruct_text_from_layout(layout_json) -> str | None:
+    """ML Kit layout_json(라인별 bbox) → Y/X 좌표 기반 구조화 텍스트.
+
+    같은 Y대에 있는 라인 → 한 행으로 묶고 X gap이 크면 열 구분(|).
+    Y gap이 크면 빈 줄 삽입 → 두 단락/프로그램 블록 자연 분리.
+    layout_json 없거나 파싱 불가면 None 반환 → 호출부가 notice.text 사용.
+    """
+    if not layout_json:
+        return None
+    items = layout_json if isinstance(layout_json, list) else None
+    if not isinstance(items, list) or not items:
+        return None
+
+    entries = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        text = (item.get("text") or "").strip()
+        if not text:
+            continue
+        bbox = item.get("bbox") or {}
+        entries.append({
+            "page": item.get("page", 1),
+            "x": float(bbox.get("x", 0)),
+            "y": float(bbox.get("y", 0)),
+            "w": float(bbox.get("width", 0)),
+            "h": float(bbox.get("height", 20)),
+            "text": text,
+        })
+
+    if not entries:
+        return None
+
+    entries.sort(key=lambda e: (e["page"], e["y"], e["x"]))
+
+    heights = [e["h"] for e in entries if e["h"] > 0]
+    median_h = sorted(heights)[len(heights) // 2] if heights else 20.0
+    row_thr  = median_h * 0.65   # 같은 행 판정: Y 차이 < 65% 줄높이
+    para_thr = median_h * 2.5    # 단락 구분: Y gap > 2.5배 줄높이
+    col_thr  = median_h * 2.0    # 열 구분: X gap(이전 우단~현재 좌단) > 2배 줄높이
+
+    rows: list[list[dict]] = []
+    cur: list[dict] = [entries[0]]
+    for e in entries[1:]:
+        prev = cur[-1]
+        if e["page"] == prev["page"] and abs(e["y"] - prev["y"]) <= row_thr:
+            cur.append(e)
+        else:
+            rows.append(cur)
+            cur = [e]
+    rows.append(cur)
+
+    out_lines: list[str] = []
+    prev_page: int | None = None
+    prev_y: float | None = None
+
+    for row in rows:
+        row_page = row[0]["page"]
+        row_y    = row[0]["y"]
+
+        if prev_y is not None and (prev_page != row_page or (row_y - prev_y) > para_thr):
+            out_lines.append("")
+
+        row.sort(key=lambda e: e["x"])
+        parts: list[str] = []
+        for j, e in enumerate(row):
+            if j > 0:
+                prev_right = row[j - 1]["x"] + row[j - 1]["w"]
+                gap = e["x"] - prev_right
+                parts.append(" | " if gap > col_thr else " ")
+            parts.append(e["text"])
+        out_lines.append("".join(parts))
+
+        prev_page = row_page
+        prev_y    = row_y
+
+    return "\n".join(out_lines).strip() or None
+
+
 def _page_count_from_layout(layout_json) -> int:
     """layout_json에서 페이지 수 추출. 없거나 형식 다르면 1."""
     if not layout_json:
@@ -467,9 +546,13 @@ async def analyze_notice(
         )
     target_lang = req.target_language
 
+    # layout_json 있으면 bbox 기반 구조화 텍스트로 슬롯 추출 품질 향상.
+    # 없으면 업로드 시 저장된 notice.text 그대로 사용.
+    analysis_text = _reconstruct_text_from_layout(req.layout_json) or notice.text
+
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     try:
-        todos = extract_todos(notice.text)
+        todos = extract_todos(analysis_text)
         if not todos:
             todos = MOCK_TODOS
     except Exception as error:
@@ -477,13 +560,13 @@ async def analyze_notice(
         todos = MOCK_TODOS
 
     # [3'] 제목 추출 (윤정님 PR #90 heuristic) — split_sentences 이전, 원문 직접 스캔
-    title_ko = extract_title(notice.text) or ""
+    title_ko = extract_title(analysis_text) or ""
     title_translated = (
         translate_short_sentence(title_ko, target_lang) if title_ko else ""
     )
 
     # [2] 정규식 슬롯 (전체 통신문 단위, summary 재료)
-    regex_slots = extract_summary_regex_slots(notice.text, target_lang)
+    regex_slots = extract_summary_regex_slots(analysis_text, target_lang)
 
     # [4]+[6] items: 각 todo에 경이님 카테고리 + 슬롯 결합 (deprecated, 다음 PR 폐기)
     items = [_build_item(t, target_lang) for t in todos]
