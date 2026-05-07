@@ -381,6 +381,25 @@ def extract_sentences(
     if not cleaned_list:
         return _empty_structured(), "skip:empty_sentences", elapsed
 
+    # DEBUG (임시): Gemini가 추출한 sentence list 내용 docker logs에 dump.
+    # 후속 모델(윤정 todo / card_builder)이 sentence boundary 따라가는지 진단용.
+    # 프롬프트 튜닝 끝나면 제거.
+    sample = [
+        {
+            "id": s.get("sentence_id", ""),
+            "section": s.get("section", ""),
+            "role": s.get("role_hint", ""),
+            "act": s.get("is_action_candidate", False),
+            "text": (s.get("text") or "")[:120],
+        }
+        for s in cleaned_list[:30]
+    ]
+    logger.warning(
+        "extract_sentences DEBUG dump (first %d/%d):\n%s",
+        len(sample), len(cleaned_list),
+        json.dumps(sample, ensure_ascii=False, indent=2),
+    )
+
     return (
         {
             "document_title": parsed.get("document_title", "") or "",
