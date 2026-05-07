@@ -31,7 +31,9 @@ _FALLBACK_MAX_TRANSLATED_LEN = 120
 
 # 정상 헤더(명시) 카드도 value 과도하게 길면 trim — 신청방법 등이 전체 안내문 흡수하는 문제 방지
 # translated는 translate_short_sentence 내부 MAX_TRANSLATE_CHARS=100으로 이미 제한됨
-_NAMED_MAX_KO_LEN = 150
+# 250 (이전 150)으로 상향 — Claude가 학년 prefix를 sentence 끝 괄호 ("(1학년 공용)")로
+# 보존하는데 긴 학년별 준비물 sentence가 150자에서 잘려 끝의 학년 정보 잃는 문제 방지.
+_NAMED_MAX_KO_LEN = 250
 
 # regex 슬롯별 기본 헤더 (todo에서 못 잡은 정보 보강용 카드)
 # todo로 헤더가 추정된 경우엔 이 카드를 만들지 않음 (중복 방지).
