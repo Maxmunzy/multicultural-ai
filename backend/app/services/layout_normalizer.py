@@ -142,7 +142,9 @@ def extract_sentences(text: str) -> tuple[dict, str, float]:
         return _empty_structured(), "skip:no_key", 0.0
 
     prompt = _EXTRACT_PROMPT.format(text=text)
-    max_output_tokens = min(8192, max(1024, int(len(text) * 1.5)))
+    # gemini-2.5-flash outputTokenLimit=65536. schema가 풍부(필드 8개)라 출력이
+    # 입력의 2~3배까지 늘어남. 절단(JSON parse 실패) 방지 위해 cap 32768.
+    max_output_tokens = min(32768, max(2048, int(len(text) * 3.0)))
 
     payload = json.dumps({
         "contents": [{"parts": [{"text": prompt}]}],
