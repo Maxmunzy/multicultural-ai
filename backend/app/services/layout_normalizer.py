@@ -96,51 +96,56 @@ document_title: 통신문 제목 (없으면 "")
 # **중요** — 이 프롬프트는 후속 자체 모델 (윤정 KoELECTRA / 경이 KcELECTRA / NLLB +
 # card_builder) 입력 형식을 강제한다. 자체 모델이 sentence boundary를 종결어미로
 # 인식하므로 Vision이 종결어미 없이 raw 추출하면 후속 흐름이 깨진다.
-_EXTRACT_PROMPT_VISION = """당신은 한국 학교 가정통신문에서 후속 자체 모델이 사용할 sentence list를 추출하는 도우미입니다.
+_EXTRACT_PROMPT_VISION = """한국 학교 가정통신문에서 후속 KoELECTRA 모델 입력용 sentence_list를 추출합니다.
+원문에 없는 정보 추가·요약·번역 금지. 후속 모델이 잘 인식하도록 다음 형식만 사용.
 
-목적: 최종 답변/요약/번역이 아니라, 후속 모델(추출/분류/번역) 입력용 구조화된 sentence list 생성
+**sentence 형식 — 두 패턴**:
 
-**우리 sentence 형식 규칙 (절대 어기지 말 것)**:
-1. **모든 sentence는 종결어미로 끝남** — "입니다" / "합니다" / "주세요" / "바랍니다" / "됩니다"
-   (후속 모델이 sentence boundary 인식하려면 종결어미 필수)
+[A] 정보 sentence — "{표준 헤더}: {값}입니다."
+    표준 헤더 (이 키워드들로만 시작 — 변형 금지):
+      일시 · 기간 · 장소 · 위치 · 주소 · 교통
+      대상 · 자격 · 참가대상
+      준비물 · 준비 · 지참물 · 준비사항
+      비용 · 회비 · 참가비 · 수강료 · 급식비
+      운영시간 · 운영방법 · 운영기간 · 신청방법 · 신청기간
+      접수기간 · 접수방법 · 제출방법 · 제출기한 · 제출처
+      안내사항 · 유의사항 · 참고사항 · 문의 · 연락처
+    학년·공용·개인·구분은 **값**에 포함 (헤더 X)
 
-2. **헤더-값 패턴은 콜론 형식**:
-   - 통신문에 "대상: 초등 3학년" / "일시 2026.5.6" 같은 헤더-값 있으면
-     → "{헤더}: {값}입니다." 형식 sentence로
-   - 예: "대상: 초등학생 3·4학년 8명입니다.", "일시: 2026년 5월 6일(목) 8:50~14:40입니다."
+[B] 액션 sentence — "주세요" / "바랍니다" / "드립니다" 종결
+    학부모 행동 요구 (제출·신청·준비·납부·참가)
 
-3. **학년별 표 (1~6학년 행)는 각 행을 별도 sentence로**:
-   - 형식: "{N}학년 준비물: 알림장, 클리어 화일, ... 입니다."
-   - 또는 "{N}학년 가정 준비물: 줄 없는 종합장 1권, 천으로 된 필통, ... 입니다."
-   - 학년이 두 종류(공용/개인)로 나뉘면 prefix에 명시 ("{N}학년 공용 준비물:", "{N}학년 개인 준비물:")
+**Few-shot 예시**
 
-4. **표 셀이 헤더 행 + 데이터 행이면**, 데이터 행마다 한 sentence:
-   - "{날짜}: {내용}, {시간}, {장소}입니다."
-   - 또는 "{날짜} {내용}을(를) {시간} {장소}에서 진행합니다."
+▶ 학년별 학습준비물 통신문 (공용/개인 분리)
+{
+  "document_title": "2026학년도 1분기 학습준비물 안내",
+  "sentence_list": [
+    {"sentence_id":"s001","text":"준비물: 1학년 공용 - 알림장, 클리어 화일, 유성매직, 받아쓰기 공책, 색종이, 천사점토, 풍선입니다.","section":"학교 지원 공용","section_type":"notice","role_hint":"supplies","is_action_candidate":false,"contains_slots":["target"],"source_order":1},
+    {"sentence_id":"s002","text":"준비물: 1학년 가정 - 줄 없는 종합장 1권, 천으로 된 필통, 샤프식 색연필 12색입니다.","section":"가정 구매 개인","section_type":"notice","role_hint":"supplies","is_action_candidate":true,"contains_slots":["target"],"source_order":2},
+    {"sentence_id":"s003","text":"준비물: 2학년 공용 - 흰도화지, 색종이, 받아쓰기 공책, 아이클레이, 포스트잇입니다.","section":"학교 지원 공용","section_type":"notice","role_hint":"supplies","is_action_candidate":false,"contains_slots":["target"],"source_order":3},
+    {"sentence_id":"s004","text":"문의: 031-877-0292입니다.","section":"공통","section_type":"contact","role_hint":"contact","is_action_candidate":false,"contains_slots":["phone"],"source_order":4}
+  ]
+}
 
-다른 절대 규칙:
-- **요약/번역 금지** — 원문 표현 그대로
-- **날짜, 시간, 금액, URL, 전화번호는 원문 그대로 보존** — 형식 변환·교정 금지
-- **신청기간과 운영일시는 반드시 구분** — 같은 sentence에 섞지 말 것
-- **프로그램이 여러 개면 section으로 분리** — 각 sentence의 section/section_type 명시
-- **고유명사 원문 그대로** — 학교명/지명/사람 이름/시설명/행사명 임의 변환 금지 ("빙그레" → "빙그레")
-- **자간 공백만 제거** ("학 년 도" → "학년도", "의 정 부 시" → "의정부시"), 글자 변경 X
-- **원문에 없는 정보 추측 금지**
-- 의미 없는 단독 기호 줄(■, □, ※, 가로줄)만 제거
+▶ 현장체험학습 통신문
+{
+  "document_title": "2026 해조류박람회 체험학습 안내",
+  "sentence_list": [
+    {"sentence_id":"s001","text":"일시: 2026년 5월 6일(목) 8:50~14:40입니다.","section":"운영 안내","section_type":"notice","role_hint":"event_datetime","is_action_candidate":false,"contains_slots":["date","time"],"source_order":1},
+    {"sentence_id":"s002","text":"장소: 완도 해양수산과학관입니다.","section":"운영 안내","section_type":"notice","role_hint":"location","is_action_candidate":false,"contains_slots":["location"],"source_order":2},
+    {"sentence_id":"s003","text":"대상: 초등학생 4학년 8명입니다.","section":"운영 안내","section_type":"notice","role_hint":"target","is_action_candidate":false,"contains_slots":["target"],"source_order":3},
+    {"sentence_id":"s004","text":"참가 동의서를 4월 28일(화)까지 담임선생님께 제출해 주시기 바랍니다.","section":"신청 안내","section_type":"application_info","role_hint":"submit","is_action_candidate":true,"contains_slots":["date"],"source_order":4}
+  ]
+}
 
-각 sentence 필드:
-- sentence_id: "s001", "s002" 형식 순차 ID
-- text: 위 규칙대로 변환된 sentence (종결어미 + 헤더-값 콜론 형식)
-- section: 프로그램명/섹션명 (예: "토요영어체험교실", "신청 및 운영안내", "문의")
-- section_type: program | application_info | contact | notice | footer | unknown
-- role_hint: target | content | application_period | event_datetime | application_url | contact | result_announcement | location | fee | supplies | submit | etc
-- is_action_candidate: 학부모 행동 필요 여부 (제출/신청/준비/납부 등) → true/false
-- contains_slots: ["date", "time", "url", "phone", "amount", "target", "location"] 중 해당
-- source_order: 원문 순서 (1부터)
+**기타 규칙**:
+- 자간 공백만 제거 ("학 년 도" → "학년도"), 글자 변경 금지
+- 날짜·시간·금액·URL·전화번호 원문 그대로 보존
+- 의미 없는 기호줄(■, □, ※)만 제거
+- 고유명사·학교명·지명 그대로
 
-document_title: 통신문 제목 (없으면 "")
-
-첨부된 가정통신문(PDF 또는 이미지)을 분석해서 위 contract의 JSON으로만 출력하세요.
+첨부된 PDF/이미지를 위 형식으로 분석해서 JSON 출력.
 """
 
 
