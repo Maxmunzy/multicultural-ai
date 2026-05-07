@@ -56,6 +56,17 @@ _PHONE = re.compile(
 # 한글 프로 마커(❍❏|※)도 종결자 — pdfplumber 본문이 한 줄로 들어와도 항목 단위로 끊김
 _DEADLINE_PHRASE = re.compile(r"([^.\n❍❏|※]*?까지[^.\n❍❏|※]*?)(?=[.\n❍❏|※]|$)")
 
+# 날짜 앞뒤 60자에 서명/발신 문구가 있으면 발송일(통지 날짜)로 판단 → dates 슬롯 제외.
+# "드립니다"는 본문 어디서나 쓰이므로 "드림"만 단독 매칭 (드림니다 제외).
+_NOTICE_SIGN_OFF = re.compile(
+    r"드림(?!니다)"
+    r"|올림(?!니다)"
+    r"|담임\s*교사"
+    r"|교\s*장\s*직인"
+    r"|작성\s*일"
+    r"|발송\s*일"
+)
+
 # 안내문 줄머리 장식 마크업 (■ ▶ ▸ etc.) — items/슬롯 추출 전 strip
 _MARKER_STRIP = re.compile(r"^[\s■▶▸◆●○*\-•]+")
 
@@ -326,14 +337,20 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
         "deadlines": [], "supplies": [],
     }
     for d in extract_dates(text):
-        # 날짜 뒤 30자 안에 "까지" / "마감" 있으면 마감일 슬롯으로 분리.
-        # 가통문 보편 패턴: "4월 28일(화) 까지 ... 제출 바랍니다"
         idx = text.find(d["ko"])
         is_deadline = False
+        is_notice_date = False
         if idx >= 0:
-            after = text[idx + len(d["ko"]) : idx + len(d["ko"]) + 30]
-            if "까지" in after or "마감" in after:
+            before = text[max(0, idx - 60) : idx]
+            after = text[idx + len(d["ko"]) : idx + len(d["ko"]) + 60]
+            # 날짜 뒤 60자 안에 "까지" / "마감" → 마감일 슬롯
+            if "까지" in after[:30] or "마감" in after[:30]:
                 is_deadline = True
+            # 앞뒤 60자 안에 서명 문구(드림/올림/담임교사/교장직인) → 발송일 → 이벤트 슬롯 제외
+            elif _NOTICE_SIGN_OFF.search(before) or _NOTICE_SIGN_OFF.search(after):
+                is_notice_date = True
+        if is_notice_date:
+            continue
         target_key = "deadlines" if is_deadline else "dates"
         out[target_key].append({
             "ko": d["ko"],
