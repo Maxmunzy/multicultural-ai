@@ -174,14 +174,15 @@ def extract_sentences(
             {"text": _USER_PROMPT_VISION},
             {"inlineData": {"mimeType": mime_type, "data": encoded}},
         ]
-        # paragraph 정제 출력 cap — 통신문 보통 1500~3000자 → 8192 토큰이면 여유.
-        max_output_tokens = 8192
+        # paragraph 정제 출력 cap — 통신문 길이 모름 + few-shot 영향으로 길어질 수 있어
+        # 절단 방지 차원에서 32768. 짧은 통신문은 빠르게 끝남 (실제 출력 토큰만 과금).
+        max_output_tokens = 32768
     else:
         if not text or not text.strip():
             return _empty_structured(), "skip:empty", 0.0
         parts = [{"text": _USER_PROMPT_TEXT.format(text=text)}]
-        # 입력 길이 + 1.5배 cap. paragraph 정제는 보통 입력 비슷한 길이.
-        max_output_tokens = min(8192, max(2048, int(len(text) * 1.5)))
+        # 입력 길이 + 2배 cap. 절단 방지.
+        max_output_tokens = min(32768, max(2048, int(len(text) * 2.0)))
 
     payload = json.dumps({
         "systemInstruction": {"parts": [{"text": _SYSTEM_INSTRUCTION}]},
