@@ -47,6 +47,9 @@ logger = logging.getLogger(__name__)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_TIMEOUT_SECONDS = float(os.environ.get("GEMINI_TIMEOUT_SECONDS", "60"))
+# paid tier 활성화된 GCP project ID. set 되면 X-Goog-User-Project 헤더에 실어
+# 명시적 quota 부과 — API key가 default project로 흘러가는 케이스 방어.
+GEMINI_QUOTA_PROJECT = os.environ.get("GEMINI_QUOTA_PROJECT", "")
 
 
 # 세종님 contract 기반 프롬프트 — 후속 모델 입력용 sentence list 생성.
@@ -259,6 +262,8 @@ def extract_sentences(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
+    if GEMINI_QUOTA_PROJECT:
+        req.add_header("X-Goog-User-Project", GEMINI_QUOTA_PROJECT)
 
     # 5xx (Gemini 일시 폭주) 또는 Timeout/URLError는 backoff 재시도.
     # 4xx (키 오류/quota 등)는 즉시 실패 — retry 무의미.
