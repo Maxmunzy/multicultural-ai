@@ -320,14 +320,15 @@ v3.1.1에서 no_match로 False 처리된 케이스 중 문맥상 학부모가 �
 
 ## 모델 성능 이력
 
-| 모델 | 학습 데이터 | Recall (val) | F1 (val) | Recall (galsan unseen) |
-| --- | --- | --- | --- | --- |
-| v3 | v3_dual_labeled_clean (27,799개) | 0.8303 | 0.8225 | 0.7978 |
-| v3.1 | v3.1_dual_labeled (28,247개) | 0.8431 | 0.8223 | 0.8455 |
-| v3.1.1 | v3.1.1_dual_labeled (28,247개) | *재학습 후 측정 예정* | — | — |
-| v3.1.2 | v3.1.2_dual_labeled (28,247개) | *재학습 후 측정 예정* | — | — |
+| 모델 | 백본 | 학습 데이터 | Threshold | Accuracy | F1 (val) | Precision | Recall |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| v3 Small | koelectra-small | v3_dual_labeled_clean (27,799) | 0.65 | 89.58% | 0.8225 | 0.8149 | 0.8303 |
+| v3.1 Small | koelectra-small | v3.1_dual_labeled (28,247) | 0.55 | 89.40% | 0.8223 | 0.8025 | 0.8431 |
+| **Base** | **koelectra-base** | **v3.1.3_dual_labeled (22,523)** | **0.40** | **90.69%** | **0.8387** | **0.8459** | 0.8315 |
 
-> v3.1.2 재학습 시 True 기준이 더 엄격해 Precision 향상 예상. Recall 변화 모니터링 필요.
+> - Base 모델: v3.1.3(B그룹 제외) + 소프트 라벨(KL Divergence) 학습, T4 약 60분
+> - galsan unseen(테스트셋 B) 평가 미완료 — 추후 측정 필요
+> - 상세 비교: `docs/eval-base-vs-small-2026-05-07.md`
 
 ---
 
