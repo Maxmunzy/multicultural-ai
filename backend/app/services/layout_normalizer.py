@@ -168,33 +168,64 @@ def extract_sentences(text: str) -> tuple[dict, str, float]:
         method="POST",
     )
 
+    # 5xx (Gemini 일시 폭주) 또는 Timeout/URLError는 backoff 재시도.
+    # 4xx (키 오류/quota 등)는 즉시 실패 — retry 무의미.
+    backoffs = [0, 2, 5]  # 0=즉시, 2초, 5초 — 총 최대 3회 시도
     started = time.monotonic()
-    try:
-        with urllib.request.urlopen(req, timeout=GEMINI_TIMEOUT_SECONDS) as resp:
-            body = resp.read().decode("utf-8")
-    except urllib.error.HTTPError as error:
-        elapsed = time.monotonic() - started
+    body = None
+    last_status = "skip:error:Unknown"
+    last_attempt_log = ""
+    for attempt, delay in enumerate(backoffs):
+        if delay > 0:
+            time.sleep(delay)
         try:
-            err_body = error.read().decode("utf-8")[:300]
-        except Exception:
-            err_body = ""
+            with urllib.request.urlopen(req, timeout=GEMINI_TIMEOUT_SECONDS) as resp:
+                body = resp.read().decode("utf-8")
+            break  # 성공 → loop 빠져나옴
+        except urllib.error.HTTPError as error:
+            try:
+                err_body = error.read().decode("utf-8")[:200]
+            except Exception:
+                err_body = ""
+            last_attempt_log = f"HTTP {error.code}: {error.reason} | {err_body}"
+            last_status = f"skip:error:HTTP{error.code}"
+            if 400 <= error.code < 500:
+                # 4xx는 retry 무의미 — 즉시 종료
+                logger.warning(
+                    "extract_sentences Gemini %s (no retry, attempt %d/%d)",
+                    last_attempt_log, attempt + 1, len(backoffs),
+                )
+                elapsed = time.monotonic() - started
+                return _empty_structured(), last_status, -1
+            logger.warning(
+                "extract_sentences Gemini %s (attempt %d/%d, retrying)",
+                last_attempt_log, attempt + 1, len(backoffs),
+            )
+        except (urllib.error.URLError, TimeoutError) as error:
+            last_attempt_log = f"{type(error).__name__}: {error}"
+            last_status = "skip:error:URLError" if isinstance(error, urllib.error.URLError) else "skip:error:Timeout"
+            logger.warning(
+                "extract_sentences Gemini %s (attempt %d/%d, retrying)",
+                last_attempt_log, attempt + 1, len(backoffs),
+            )
+        except Exception as error:
+            last_attempt_log = f"{type(error).__name__}: {error}"
+            last_status = f"skip:error:{type(error).__name__}"
+            logger.warning(
+                "extract_sentences Gemini %s (attempt %d/%d, no retry — unknown)",
+                last_attempt_log, attempt + 1, len(backoffs),
+            )
+            elapsed = time.monotonic() - started
+            return _empty_structured(), last_status, -1
+
+    if body is None:
+        # 모든 retry 실패
+        elapsed = time.monotonic() - started
         logger.warning(
-            "extract_sentences Gemini HTTP %d after %.2fs: %s | %s",
-            error.code, elapsed, error.reason, err_body,
+            "extract_sentences Gemini all %d retries failed after %.2fs: %s",
+            len(backoffs), elapsed, last_attempt_log,
         )
-        return _empty_structured(), f"skip:error:HTTP{error.code}", -1
-    except urllib.error.URLError as error:
-        elapsed = time.monotonic() - started
-        logger.warning("extract_sentences Gemini URL error after %.2fs: %s", elapsed, error)
-        return _empty_structured(), "skip:error:URLError", -1
-    except TimeoutError as error:
-        elapsed = time.monotonic() - started
-        logger.warning("extract_sentences Gemini timeout after %.2fs: %s", elapsed, error)
-        return _empty_structured(), "skip:error:Timeout", -1
-    except Exception as error:
-        elapsed = time.monotonic() - started
-        logger.warning("extract_sentences Gemini failed after %.2fs: %s", elapsed, error)
-        return _empty_structured(), f"skip:error:{type(error).__name__}", -1
+        return _empty_structured(), last_status, -1
 
     elapsed = time.monotonic() - started
     try:
