@@ -187,17 +187,42 @@ _VI_TEMPLATES: dict[str, str] = {
     "pay":     "Vui lòng thanh toán {items}.",
 }
 
-# supply item이 아닌 청중/제출처는 template item 목록에서 분리해 구조 정보로 활용.
-_AUDIENCE_KO: dict[str, str] = {
-    "전교생": "toàn thể học sinh",
-    "재학생": "học sinh",
-}
-_RECIPIENT_KO: dict[str, str] = {
-    "담임선생님": "giáo viên chủ nhiệm",
-    "담임 선생님": "giáo viên chủ nhiệm",
-    "담임교사": "giáo viên chủ nhiệm",
-}
-_TEMPLATE_EXCLUDE_KO: frozenset[str] = frozenset(_AUDIENCE_KO) | frozenset(_RECIPIENT_KO)
+# 청중/제출처는 term_glossary.csv의 role 컬럼(audience/recipient)으로 관리.
+# 코드 수정 없이 CSV 편집만으로 용어 추가 가능.
+_TEMPLATE_EXCLUDE_KO: frozenset[str] = frozenset()  # _build_role_sets() 호출 후 갱신
+_AUDIENCE_BY_LANG: dict[str, dict[str, str]] = {}   # lang → {ko: translated}
+_RECIPIENT_BY_LANG: dict[str, dict[str, str]] = {}  # lang → {ko: translated}
+_ROLE_SETS_BUILT = False
+
+
+def _build_role_sets(glossary: list) -> None:
+    """glossary rows에서 role=audience/recipient 항목을 언어별로 인덱싱."""
+    global _TEMPLATE_EXCLUDE_KO, _AUDIENCE_BY_LANG, _RECIPIENT_BY_LANG, _ROLE_SETS_BUILT
+    if _ROLE_SETS_BUILT:
+        return
+    audience: dict[str, dict[str, str]] = {}
+    recipient: dict[str, dict[str, str]] = {}
+    exclude: set[str] = set()
+    for row in glossary:
+        role = row.get("role", "item").strip()
+        if role not in ("audience", "recipient"):
+            continue
+        ko = row.get("korean", "").strip()
+        if not ko:
+            continue
+        exclude.add(ko)
+        for lang in LANG_TO_NLLB:
+            val = row.get(f"preferred_{lang}", "").strip()
+            if not val:
+                continue
+            if role == "audience":
+                audience.setdefault(lang, {})[ko] = val
+            else:
+                recipient.setdefault(lang, {})[ko] = val
+    _TEMPLATE_EXCLUDE_KO = frozenset(exclude)
+    _AUDIENCE_BY_LANG = audience
+    _RECIPIENT_BY_LANG = recipient
+    _ROLE_SETS_BUILT = True
 
 
 def _classify_sentence(text: str) -> str:
@@ -232,17 +257,17 @@ def _extract_template_items(text: str, glossary: list, target_lang: str) -> list
     return [(ko, vi) for _, _, ko, vi in spans]
 
 
-def _extract_audience_vi(text: str) -> str | None:
-    for ko, vi in _AUDIENCE_KO.items():
+def _extract_audience(text: str, lang: str) -> str | None:
+    for ko, val in _AUDIENCE_BY_LANG.get(lang, {}).items():
         if ko in text:
-            return vi
+            return val
     return None
 
 
-def _extract_recipient_vi(text: str) -> str | None:
-    for ko, vi in _RECIPIENT_KO.items():
+def _extract_recipient(text: str, lang: str) -> str | None:
+    for ko, val in _RECIPIENT_BY_LANG.get(lang, {}).items():
         if ko in text:
-            return vi
+            return val
     return None
 
 
@@ -267,7 +292,7 @@ def _build_from_template_vi(
         return None
     sentence = tpl.format(items=_join_vi_items([vi for _, vi in items]))
     if recipient and stype == "submit":
-        sentence = sentence[:-1] + f" cho {recipient}."
+        sentence = sentence.rstrip(".") + f" cho {recipient}."
     if audience:
         sentence = f"Dành cho {audience}: {sentence}"
     return sentence
@@ -425,10 +450,11 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         stype = _classify_sentence(text)
         if stype != "info":
             glossary = _get_glossary()
+            _build_role_sets(glossary)
             items = _extract_template_items(text, glossary, target_lang)
             if items:
-                audience = _extract_audience_vi(text)
-                recipient = _extract_recipient_vi(text)
+                audience = _extract_audience(text, target_lang)
+                recipient = _extract_recipient(text, target_lang)
                 result = _build_from_template_vi(stype, items, audience, recipient)
                 if result:
                     return _restore_protected_entities(result, placeholders)
