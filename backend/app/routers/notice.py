@@ -633,17 +633,26 @@ async def analyze_notice(
     _t_marks["llm_normalizer"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
-    # 2026-05-07: paragraph 통째 윤정에 넘기지 말고 sentence별로 미리 split.
-    # 윤정 v2 predict 안의 split 휴리스틱이 ○,✕ 같은 특수문자/명사구 사이에서
-    # 잘못 자르는 케이스 회피. 학년 prefix("1학년 가정") + 헤더("준비물:")가
-    # 두 sentence로 분리돼 학년 정보 잃는 문제도 해결.
-    # 우리가 \n 단위로 split → 한 줄씩 윤정에 넘김 → 윤정 자체 split 발생 X.
+    # \n 단위로 sentence 분리 후 한 줄씩 윤정에 개별 호출.
     try:
         sentences = [s.strip() for s in analysis_text.split("\n") if s.strip()]
+        # DEBUG (임시): 윤정에 넘기는 input dump — 학년 prefix 어디서 사라지는지 추적용
+        logger.warning(
+            "[analyze] DEBUG yunjeong INPUT (%d sentences):\n%s",
+            len(sentences),
+            json.dumps([s[:120] for s in sentences[:30]], ensure_ascii=False, indent=2),
+        )
         all_todos: list = []
         for sent in sentences:
             try:
                 sent_todos = extract_todos(sent)
+                # DEBUG: 각 sentence input → output 매핑 (학년 prefix 처리 추적)
+                if sent_todos:
+                    out_texts = [t.text[:80] for t in sent_todos]
+                    logger.warning(
+                        "[analyze] DEBUG yunjeong %r -> %s",
+                        sent[:80], json.dumps(out_texts, ensure_ascii=False),
+                    )
                 all_todos.extend(sent_todos)
             except Exception as error:
                 logger.warning("[analyze] extractor failed for sentence %r: %s", sent[:50], error)
