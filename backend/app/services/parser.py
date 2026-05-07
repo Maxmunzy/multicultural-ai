@@ -113,13 +113,19 @@ def _split_sentences_korean(text: str) -> str:
 
 
 def _split_grade_table_rows(text: str) -> str:
-    """학년별 표 행에 명시 헤더 부여 — fallback "기타" 카드 잘림 방지.
+    """학년별 표 행에 명시 헤더 + 종결 어미 부여 — fallback "기타" 카드 잘림 방지.
 
     학습준비물·신청서 등 학년별 표가 윤정 모델에 단일 단락으로 들어가
-    한 카드에 6학년치가 뭉쳐 잘리는 문제 대응. 줄 시작 "1~6 + 공백 + 한글"
-    + 콤마 나열 행에 한해 "{N}학년: ..." prefix 추가.
+    한 카드에 6학년치가 뭉쳐 잘리는 문제 대응.
+
+    - 줄 시작 "1~6 + 공백 + 한글" + 콤마 나열 행에 한해 변환
+    - prefix "{N}학년 준비물: " + suffix "입니다." 부여
+    - 종결어미 "다." 가 _split_sentences_korean의 _SENTENCE_END 매처에 잡혀
+      학년별로 별도 sentence로 분리됨 → 윤정 모델이 6 todo로 추출 가능
     """
-    return _GRADE_TABLE_ROW.sub(r"\g<grade>학년: \g<items>", text)
+    return _GRADE_TABLE_ROW.sub(
+        r"\g<grade>학년 준비물: \g<items>입니다.", text
+    )
 
 
 def _pdf_to_text(pdf_path: Path) -> str:
@@ -423,8 +429,11 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
             odt_path = _hwp_to_odt(src_path, tmp_dir)
             raw = _odt_to_text(odt_path)
             raw = _split_joined_enumerations(raw)
-            raw = _split_sentences_korean(raw)
+            # _split_grade_table_rows가 추가하는 "...입니다." 종결어미를
+            # _split_sentences_korean이 sentence boundary로 잡아야 하므로
+            # split 함수 호출 순서가 중요 — 학년 행 처리 → 종결어미 split.
             raw = _split_grade_table_rows(raw)
+            raw = _split_sentences_korean(raw)
             return normalize(raw)
 
         if suffix in IMG_EXTS:
