@@ -359,7 +359,8 @@ def _clean_for_translation(text: str) -> str:
 # URL/전화 보호 — NLLB가 깨먹는 패턴 방어.
 # ⟦…⟧ (U+27E6/27E7) 는 NLLB SentencePiece 어휘에 없어서 tokenize 시 소실됨 → "P0"만 남아 복원 실패.
 # __SLOT0__ 형태(ASCII 대문자 + 언더스코어)는 NLLB가 코드/약어로 인식해 그대로 통과.
-_PROTECT_TOKEN = re.compile(r"__\s*SLOT\s*(\d+)\s*__", re.IGNORECASE)
+# NLLB가 "SLOT" → "SLO T" 로 쪼개는 경우도 복원할 수 있도록 SLO\s+T 패턴 추가.
+_PROTECT_TOKEN = re.compile(r"__\s*(?:SLOT|SLO\s+T)\s*(\d+)\s*__", re.IGNORECASE)
 
 
 def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple[str, list[str]]:
@@ -462,11 +463,17 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
     # 3) NLLB fallback — info 유형, 비vi 언어, glossary 항목 미감지
     glossary = _get_glossary()
     hits = _find_glossary_hits_safe(masked, glossary, target_lang)
+    # glossary 용어를 __SLOT__으로 보호: "스쿨뱅킹(School Banking)" 주입 방식은
+    # NLLB가 한국어 음역 + 괄호 힌트를 둘 다 번역해 "School Banking (School Banking)"
+    # 중복 출력하는 문제 발생. 대신 번역어를 restore 값으로 stash해 NLLB 통과 후 복원.
     injected = masked
     for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
-        injected = injected.replace(
-            hit["korean"], f"{hit['korean']}({hit['preferred_term']})"
-        )
+        korean = hit["korean"]
+        preferred = hit["preferred_term"]
+        while korean in injected:
+            idx = len(placeholders)
+            placeholders.append(preferred)
+            injected = injected.replace(korean, f"__SLOT{idx}__", 1)
 
     target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
     try:

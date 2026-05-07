@@ -27,6 +27,10 @@ _FALLBACK_MAX_CARDS = 3
 _FALLBACK_MAX_KO_LEN = 80
 _FALLBACK_MAX_TRANSLATED_LEN = 120
 
+# 정상 헤더(명시) 카드도 value 과도하게 길면 trim — 신청방법 등이 전체 안내문 흡수하는 문제 방지
+# translated는 translate_short_sentence 내부 MAX_TRANSLATE_CHARS=100으로 이미 제한됨
+_NAMED_MAX_KO_LEN = 150
+
 # regex 슬롯별 기본 헤더 (todo에서 못 잡은 정보 보강용 카드)
 # todo로 헤더가 추정된 경우엔 이 카드를 만들지 않음 (중복 방지).
 _SLOT_HEADERS: dict[str, str] = {
@@ -65,6 +69,10 @@ def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
     header, value = split_header_value(todo.text)
     if header is None:
         header = _FALLBACK_HEADER
+    elif len(value) > _NAMED_MAX_KO_LEN:
+        # 명시 헤더 카드도 value가 너무 길면 trim (신청방법 등이 전체 안내문 흡수 방지)
+        # _smart_trim은 이 함수보다 아래에 정의되지만 호출 시점엔 이미 존재
+        value = _smart_trim(value, max_len=_NAMED_MAX_KO_LEN)
 
     category = classify_category(value)
     chip = category.value if category != Category.other else None
