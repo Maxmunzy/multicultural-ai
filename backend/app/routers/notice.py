@@ -23,6 +23,7 @@ from app.services.slot_extractor import (
 )
 from app.services.card_builder import build_cards
 from app.services.highlight_mapper import build_highlights_from_cards
+from app.services.layout_normalizer import normalize_text as llm_normalize_text
 from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
 from app.models.schemas import OcrCorrectionEntry
 from app.services.mock import MOCK_TODOS
@@ -467,9 +468,22 @@ async def analyze_notice(
         )
     target_lang = req.target_language
 
+    # [2.5] LLM 정리기 (PoC, opt-in) — req.use_llm_normalizer=true일 때만.
+    # Ollama(qwen2.5:3b)에 통신문 텍스트 보내 표 행 분리/자간 정상화/노이즈 제거.
+    # 실패·타임아웃·너무 짧은 출력은 원본으로 fallback.
+    extract_input_text = notice.text
+    llm_status = "off"
+    llm_elapsed = 0.0
+    if req.use_llm_normalizer:
+        extract_input_text, llm_status, llm_elapsed = llm_normalize_text(notice.text)
+        logger.info(
+            "[analyze] llm_normalizer: status=%s elapsed=%.2fs in=%d out=%d",
+            llm_status, llm_elapsed, len(notice.text), len(extract_input_text),
+        )
+
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     try:
-        todos = extract_todos(notice.text)
+        todos = extract_todos(extract_input_text)
         if not todos:
             todos = MOCK_TODOS
     except Exception as error:

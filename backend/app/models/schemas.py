@@ -73,6 +73,9 @@ class NoticeAnalyzeRequest(BaseModel):
     # 있으면 highlight_mapper가 카드 ↔ bbox 매칭해 highlights[]를 채운다.
     # 없으면 highlights는 빈 리스트로 남고 안드는 텍스트 카드만 표시.
     layout_json: Any | None = None
+    # LLM(Ollama) preprocessor PoC — true면 윤정 모델 입력 전 텍스트 정리.
+    # 실패/타임아웃 시 원본 텍스트로 fallback해 회귀 방지. 기본 false.
+    use_llm_normalizer: bool = False
 
 
 # ── 슬롯 기반 응답 (강사 처방 1·3 대응) ──────────────────────────
