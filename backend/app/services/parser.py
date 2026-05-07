@@ -88,6 +88,15 @@ _NONDIGIT_THEN_ENUM = re.compile(r"(?<=\S)(?<!\d)(\d{1,2})\.\s+(?=[가-힣])")
 _SENTENCE_END = re.compile(r"([다요까니])([.?!])(?=\S)")
 _CIRCLED_DIGIT = re.compile(r"(?<=\S)([①②③④⑤⑥⑦⑧⑨⑩⑪⑫])")
 
+# 학년별 표 행 — "1 알림장, 클리어 화일, ..." 패턴.
+# 한 행에 콤마 1개 이상 (나열) + 줄 시작 1~6 + 공백 + 한글 시작이면 학년 표로 간주.
+# "{N} ..." → "{N}학년 준비물: ..." 변환해 윤정 모델·카드 빌더가
+# fallback "기타"가 아닌 명확한 헤더로 카드를 만들 수 있게 한다.
+_GRADE_TABLE_ROW = re.compile(
+    r"^(?P<grade>[1-6])\s+(?P<items>[가-힣][^\n]*,[^\n]*)$",
+    re.MULTILINE,
+)
+
 
 def _split_joined_enumerations(text: str) -> str:
     """HWPX 추출본의 붙은 list enumeration 사이에 줄바꿈 삽입."""
@@ -101,6 +110,16 @@ def _split_sentences_korean(text: str) -> str:
     text = _SENTENCE_END.sub(r"\1\2\n", text)
     text = _CIRCLED_DIGIT.sub(r"\n\1", text)
     return text
+
+
+def _split_grade_table_rows(text: str) -> str:
+    """학년별 표 행에 명시 헤더 부여 — fallback "기타" 카드 잘림 방지.
+
+    학습준비물·신청서 등 학년별 표가 윤정 모델에 단일 단락으로 들어가
+    한 카드에 6학년치가 뭉쳐 잘리는 문제 대응. 줄 시작 "1~6 + 공백 + 한글"
+    + 콤마 나열 행에 한해 "{N}학년: ..." prefix 추가.
+    """
+    return _GRADE_TABLE_ROW.sub(r"\g<grade>학년: \g<items>", text)
 
 
 def _pdf_to_text(pdf_path: Path) -> str:
@@ -405,6 +424,7 @@ def parse_bytes_to_text(data: bytes, filename: str) -> str:
             raw = _odt_to_text(odt_path)
             raw = _split_joined_enumerations(raw)
             raw = _split_sentences_korean(raw)
+            raw = _split_grade_table_rows(raw)
             return normalize(raw)
 
         if suffix in IMG_EXTS:
