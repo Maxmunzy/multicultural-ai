@@ -1,9 +1,114 @@
 # Model A 개발일지 — 추출 파이프라인 (A단계 이진 분류)
 
 **담당**: 윤정 · `model/extraction/file/predict.py`  
-**모델**: KoELECTRA-small-v3 fine-tuned (`yunjeong116/koelectra-extractor`)  
+**모델**: KoELECTRA-base-v3 fine-tuned (2026-05-07 base 전환)  
 **원칙**: 최신 날짜가 맨 위
 
+---
+
+## 2026-05-07
+
+### 작업 요약
+
+| 분류 | 내용 | 파일 |
+| --- | --- | --- |
+| feat | `is_todo_label.py` 신규 — 규칙 기반 is_todo 재라벨러 | `file/is_todo_label.py` |
+| data | v3.1.1 생성 (규칙 기반, True 12.1%) | `data/train/v3.1.1_dual_labeled.jsonl` |
+| data | v3.1.2 생성 (no_match 228건 True 회복, True 12.9%) | `data/train/v3.1.2_dual_labeled.jsonl` |
+| data | v3.1.3 생성 (B그룹 제외 + 소프트 라벨, True 16.2%) | `data/train/v3.1.3_dual_labeled.jsonl` |
+| feat | `train_koelectra_base.ipynb` 신규 — KoELECTRA-base 학습 노트북 | `file/train_koelectra_base.ipynb` |
+| model | KoELECTRA-base 학습 완료 (v3.1.3 + 소프트 라벨, T4 약 60분) | `checkpoints/koelectra-binary-base/` |
+| fix | `BINARY_THRESHOLD` 0.55 → **0.40** (base 모델 최적값 반영) | `predict.py` |
+| fix | `_LOCAL_CHECKPOINT_DIR` `koelectra-binary-v3.1` → `koelectra-binary-base` | `predict.py` |
+| docs | `labeling-guide.md` 전면 업데이트 (v3.1.1 / v3.1.2 이력·규칙 상세화) | `docs/labeling-guide.md` |
+| docs | `eval-base-vs-small-2026-05-07.md` 신규 — Base vs Small 성능 비교 | `docs/eval-base-vs-small-2026-05-07.md` |
+
+---
+
+### 1. 라벨링 파이프라인 재설계 — is_todo_label.py
+
+**배경**: v3.1(Haiku 라벨)의 True 비율 29.1%가 galsan unseen 실제 분포(13.2%)의 2배. 노이즈 라벨이 모델 학습에 혼선 유발.
+
+**판별 구조**:
+
+```text
+is_title=True → 제목 전용 3분류 (액션형/일정형 → True, 공지형 → False)
+F1~F7 False 조건 체크 (표 헤더, 인사말, 발신자, 개인정보 등)
+  └ 3가지 우선순위 역전:
+      F2_timetable + 학부모 → True (학부모 참여 행사)
+      F3_sender_info + 장소: 헤더 → True (장소 정보)
+      F7_privacy + CAT3 제출 패턴 → True (동의서 제출 요청)
+CAT1~7 True 카테고리 OR 체크
+기본값 False
+```
+
+**버전별 True 비율 변화**:
+
+| 버전 | True 비율 | 변경 내용 |
+| --- | --- | --- |
+| v3.1 | 29.1% | Haiku 원본 |
+| v3.1.1 | 12.1% | 규칙 기반 재라벨링 |
+| v3.1.2 | 12.9% | no_match 228건 회복 (수강료/교재비/보호자동반/이상소견 등) |
+| **v3.1.3** | **16.2%** | B그룹(5,724건) 제외 + 소프트 라벨 |
+
+---
+
+### 2. v3.1.3 소프트 라벨 설계
+
+B그룹(v3.1=True, v3.1.2=False)은 ~50% 노이즈 혼재 → 학습 데이터에서 완전 제외.  
+남은 A/C/D 그룹에 신뢰도 기반 확률 부여.
+
+| 그룹 | 구성 | 건수 | is_todo_prob |
+| --- | --- | --- | --- |
+| A | 양쪽 True (v3.1 ∩ v3.1.2) | 2,496 | 0.95 |
+| C | v3.1.2만 True | 1,159 | 0.85 |
+| D | 양쪽 False | 18,868 | 0.05 |
+
+---
+
+### 3. KoELECTRA-base 학습
+
+**학습 환경**: Google Colab T4 GPU, 약 60분  
+**학습 데이터**: `v3.1.3_dual_labeled.jsonl` (22,523건)  
+**손실 함수**: KL Divergence (소프트 라벨 대응)  
+**배치**: 8 + gradient_accumulation_steps=2 (유효 배치 16), fp16=True
+
+**val split(5,650개) 결과**:
+
+| 모델 | Accuracy | F1 (할 일) | Precision | Recall | Threshold |
+| --- | --- | --- | --- | --- | --- |
+| v3.1 Small | 89.40% | 0.8223 | 0.8025 | 0.8431 | 0.55 |
+| **Base** | **90.69%** | **0.8387** | **0.8459** | 0.8315 | **0.40** |
+| 변화 | +1.29%p | +0.016 | **+0.043** | -0.012 | — |
+
+Precision +4.3%p — 학부모 체크리스트에서 노이즈 문장이 보이는 빈도 감소.  
+Recall -1.2%p — 허용 범위. 서비스 UX 관점에서 오탐 감소가 더 가치 있음.
+
+**임계값 0.55 → 0.40으로 낮아진 이유**: KL Divergence 학습으로 모델이 경계 케이스에 확신을 덜 가짐. 임계값 곡선이 평탄 (0.40~0.70 구간 F1 차이 0.005) — 모델이 경계선에서 명확하게 분리하고 있음.
+
+---
+
+### 4. 서비스 방향성 논의
+
+갈산초 unseen 테스트셋 비교 평가 중 (CPU 추론으로 시간 소요).
+
+**파이프라인 한계 파악**: 문장 단위 추출 → 카드 나열 방식은 Gemini 대비 문서 구조 이해·프로그램별 그룹화에서 열위. 단, 다국어 TTS·OCR·교사-학부모 워크플로우·학교 용어사전은 명확한 차별성.
+
+**향후 방향 검토**:
+
+- XLM-RoBERTa + LoRA 멀티태스크 (is_todo + 카테고리 + NER) → 구조화 출력 → 다국어 자동
+- 체크리스트 완성도 + 달력 등록 + D-day 알림 = 핵심 UX 3종
+
+---
+
+### 다음 작업
+
+- [ ] galsan unseen 기준 Small vs Base 비교 평가 완료 (`eval_compare.py` 실행 중)
+- [ ] Base 체크포인트 HF Hub 업로드 (`yunjeong116/koelectra-extractor`)
+- [ ] `eval_compare.py` 결과로 `eval-base-vs-small-2026-05-07.md` 완성
+- [ ] `eval_compare.py` 임시 파일 삭제
+
+---
 ---
 
 ## 2026-05-06
