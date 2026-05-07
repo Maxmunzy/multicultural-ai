@@ -450,6 +450,11 @@ def _build_item(todo: YunjeongTodo, target_lang: str) -> AnalyzeItem:
     - when : 자유텍스트의 일시 표현은 정규식으로 추가 추출
     - what : 준비물 카테고리일 때만 토큰 분해
     - 마크업(■)은 보존, TTS 빌더에서만 strip.
+
+    NOTE — title_translated NLLB 호출 제거 (2026-05-07 시간 단축):
+    items 응답 필드는 deprecated (안드 미사용, _build_summary는 category/what/deadline
+    만 사용, _build_tts_text는 호출처 없는 dead code). NLLB 14번 호출이 분석 시간
+    89초 차지하던 것 제거. value_ko/title_ko는 그대로 — 응답 schema 호환.
     """
     text = todo.text
     category = classify_category(text)
@@ -460,13 +465,11 @@ def _build_item(todo: YunjeongTodo, target_lang: str) -> AnalyzeItem:
     if category == Category.supplies:
         what = split_supply_tokens(text)
 
-    title_translated = translate_short_sentence(text, target_lang) or text
-
     return AnalyzeItem(
         category=category,
         action_hint=todo.action_hint,
         title_ko=text,
-        title_translated=title_translated,
+        title_translated="",  # NLLB skip — items deprecated, 사용처 없음
         when=when,
         where=None,
         what=what,
