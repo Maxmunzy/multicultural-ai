@@ -34,6 +34,13 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_TIMEOUT_SECONDS = float(os.environ.get("GEMINI_TIMEOUT_SECONDS", "60"))
 
+# LLM provider 토글: "gemini" (기본) | "claude"
+# Gemini 503 폭주 회피용 fallback. Anthropic Claude는 다른 인프라.
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini").lower()
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-3-5-haiku-20241022")
+CLAUDE_TIMEOUT_SECONDS = float(os.environ.get("CLAUDE_TIMEOUT_SECONDS", "60"))
+
 
 # 모든 모드(Vision/text) 공통 — Gemini systemInstruction.
 # user contents와 분리해서 instruction 강도 ↑ (Gemini API systemInstruction은
@@ -128,7 +135,10 @@ def extract_sentences(
     text: str = "",
     inline_data: tuple[bytes, str] | None = None,
 ) -> tuple[dict, str, float]:
-    """Gemini로 통신문 본문 정제 → {document_title, cleaned_text} 반환.
+    """LLM(Gemini/Claude)으로 통신문 본문 정제 → {document_title, cleaned_text} 반환.
+
+    Provider 토글: LLM_PROVIDER=gemini (기본) | claude
+    Gemini 503 폭주 시 Claude로 전환 가능 (다른 인프라).
 
     함수 이름은 호환성 위해 그대로 유지. 내부적으론 sentence_list 분해 안 함.
 
@@ -136,18 +146,16 @@ def extract_sentences(
     - **text 모드** (기본): text 인자 사용, inline_data=None.
     - **Vision 모드**: inline_data=(raw_bytes, mime_type) 전달. PDF/이미지 첨부.
 
-    Gemini API의 systemInstruction을 사용해 지속 규칙을 분리 — preview 모델도
-    강제 따르게 함. user contents는 짧게 (PDF 첨부 또는 텍스트 본문만).
-
     실패 시 빈 dict({"document_title":"", "cleaned_text":""}) + status 반환.
 
     Returns:
         (structured, status, elapsed_seconds)
-        - structured: dict (document_title + cleaned_text)
-        - status: "ok" | "skip:empty" | "skip:no_key" | "skip:unsupported_mime:..." |
-                  "skip:invalid_format" | "skip:empty_text" | "skip:error:..."
-        - elapsed_seconds: API 호출 시간 (실패 시 -1)
     """
+    # Provider 분기 — Claude 우선
+    if LLM_PROVIDER == "claude":
+        return _call_claude(text, inline_data)
+
+    # 기본 Gemini 분기
     if not GEMINI_API_KEY:
         return _empty_structured(), "skip:no_key", 0.0
 
@@ -316,6 +324,175 @@ def extract_sentences(
     tail = cleaned_text[-200:].replace("\n", " / ") if len(cleaned_text) > 300 else ""
     logger.warning(
         "extract_sentences DEBUG cleaned_text len=%d title=%r head=%r tail=%r",
+        len(cleaned_text), document_title[:60], head, tail,
+    )
+
+    return (
+        {"document_title": document_title, "cleaned_text": cleaned_text},
+        "ok",
+        elapsed,
+    )
+
+
+def _call_claude(
+    text: str = "",
+    inline_data: tuple[bytes, str] | None = None,
+) -> tuple[dict, str, float]:
+    """Anthropic Claude API로 통신문 정제.
+
+    Gemini systemInstruction과 동일한 규칙을 Claude system parameter로 전달.
+    PDF는 "document" content block, 이미지는 "image" content block 사용.
+    """
+    if not ANTHROPIC_API_KEY:
+        return _empty_structured(), "skip:no_key", 0.0
+
+    if inline_data is not None:
+        raw_bytes, mime_type = inline_data
+        if not raw_bytes:
+            return _empty_structured(), "skip:empty", 0.0
+        if mime_type not in VISION_SUPPORTED_MIMES:
+            logger.warning("Claude unsupported mime: %s", mime_type)
+            return _empty_structured(), f"skip:unsupported_mime:{mime_type}", 0.0
+        encoded = base64.b64encode(raw_bytes).decode("utf-8")
+        # PDF는 document, 이미지는 image
+        if mime_type == "application/pdf":
+            block = {
+                "type": "document",
+                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
+            }
+        else:
+            block = {
+                "type": "image",
+                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
+            }
+        user_content = [block, {"type": "text", "text": _USER_PROMPT_VISION}]
+    else:
+        if not text or not text.strip():
+            return _empty_structured(), "skip:empty", 0.0
+        user_content = [{"type": "text", "text": _USER_PROMPT_TEXT.format(text=text)}]
+
+    payload = json.dumps({
+        "model": CLAUDE_MODEL,
+        "max_tokens": 8192,
+        "system": _SYSTEM_INSTRUCTION + "\n\n출력은 JSON만 (다른 설명·머리말·코드펜스 X).",
+        "messages": [{"role": "user", "content": user_content}],
+        "temperature": 0.0,
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.anthropic.com/v1/messages",
+        data=payload,
+        headers={
+            "x-api-key": ANTHROPIC_API_KEY,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+        },
+        method="POST",
+    )
+
+    backoffs = [0, 2, 5]
+    started = time.monotonic()
+    body = None
+    last_status = "skip:error:Unknown"
+    last_attempt_log = ""
+    for attempt, delay in enumerate(backoffs):
+        if delay > 0:
+            time.sleep(delay)
+        try:
+            with urllib.request.urlopen(req, timeout=CLAUDE_TIMEOUT_SECONDS) as resp:
+                body = resp.read().decode("utf-8")
+            break
+        except urllib.error.HTTPError as error:
+            try:
+                err_body = error.read().decode("utf-8")[:200]
+            except Exception:
+                err_body = ""
+            last_attempt_log = f"HTTP {error.code}: {error.reason} | {err_body}"
+            last_status = f"skip:error:HTTP{error.code}"
+            if 400 <= error.code < 500:
+                logger.warning(
+                    "Claude %s (no retry, attempt %d/%d)",
+                    last_attempt_log, attempt + 1, len(backoffs),
+                )
+                return _empty_structured(), last_status, -1
+            logger.warning(
+                "Claude %s (attempt %d/%d, retrying)",
+                last_attempt_log, attempt + 1, len(backoffs),
+            )
+        except (urllib.error.URLError, TimeoutError) as error:
+            last_attempt_log = f"{type(error).__name__}: {error}"
+            last_status = (
+                "skip:error:URLError"
+                if isinstance(error, urllib.error.URLError)
+                else "skip:error:Timeout"
+            )
+            logger.warning(
+                "Claude %s (attempt %d/%d, retrying)",
+                last_attempt_log, attempt + 1, len(backoffs),
+            )
+        except Exception as error:
+            last_status = f"skip:error:{type(error).__name__}"
+            logger.warning("Claude %s: %s", type(error).__name__, error)
+            return _empty_structured(), last_status, -1
+
+    if body is None:
+        elapsed = time.monotonic() - started
+        logger.warning(
+            "Claude all retries failed after %.2fs: %s", elapsed, last_attempt_log,
+        )
+        return _empty_structured(), last_status, -1
+
+    elapsed = time.monotonic() - started
+    try:
+        data = json.loads(body)
+        content = data.get("content", [])
+        if not content:
+            return _empty_structured(), "skip:no_content", elapsed
+        raw_out = (content[0].get("text") or "").strip()
+    except Exception as error:
+        logger.warning("Claude response parse failed: %s", error)
+        return _empty_structured(), "skip:error:ResponseParse", elapsed
+
+    if not raw_out:
+        return _empty_structured(), "skip:empty_response", elapsed
+
+    # JSON 추출 — Claude는 raw text. 코드펜스/머리말 가능성 대비.
+    s = raw_out
+    if s.startswith("```"):
+        first_nl = s.find("\n")
+        if first_nl != -1:
+            s = s[first_nl + 1:]
+        if s.rstrip().endswith("```"):
+            s = s.rstrip()[:-3]
+        s = s.strip()
+    start = s.find("{")
+    end = s.rfind("}")
+    if start == -1 or end == -1 or start >= end:
+        logger.warning("Claude no JSON block in output: %r", raw_out[:150])
+        return _empty_structured(), "skip:no_json", elapsed
+
+    try:
+        parsed = json.loads(s[start:end + 1])
+    except json.JSONDecodeError as error:
+        logger.warning(
+            "Claude JSON parse failed (took %.2fs, error=%s, head=%r)",
+            elapsed, error, raw_out[:150],
+        )
+        return _empty_structured(), "skip:error:JSONParse", elapsed
+
+    if not isinstance(parsed, dict):
+        return _empty_structured(), "skip:invalid_format", elapsed
+
+    cleaned_text = parsed.get("cleaned_text", "")
+    if not isinstance(cleaned_text, str) or not cleaned_text.strip():
+        return _empty_structured(), "skip:empty_text", elapsed
+
+    document_title = parsed.get("document_title", "") or ""
+
+    head = cleaned_text[:300].replace("\n", " / ")
+    tail = cleaned_text[-200:].replace("\n", " / ") if len(cleaned_text) > 300 else ""
+    logger.warning(
+        "extract_sentences[claude] DEBUG cleaned_text len=%d title=%r head=%r tail=%r",
         len(cleaned_text), document_title[:60], head, tail,
     )
 
