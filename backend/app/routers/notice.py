@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _notices: dict[str, Notice] = {}
-MAX_CARDS = 8
+MAX_CARDS = 16  # 학년별 표(공용+개인 12행) 같은 다중 카드 통신문 누락 방지
 
 NOTICES_DIR = Path("/app/static/notices")
 
