@@ -12,13 +12,17 @@
 
 | 분류 | 내용 | 파일 |
 | --- | --- | --- |
-| fix | `BINARY_THRESHOLD` 0.65 → 0.50 (준비물·유의사항 recall 개선) | `predict.py` |
+| fix | `BINARY_THRESHOLD` 0.65 → 0.50 → **0.55** 조정 (FP/FN 균형) | `predict.py` |
 | eval | Base / v3 / v3.1 성능 비교 — v3 val split 기준 문서화 | `docs/eval-model-comparison-2026-05-06.md` |
 | data | v3.1 증강 데이터 생성 — 7패턴 448개 True 샘플 | `data/train/v3.1_augmented.jsonl` |
 | data | v3.1 병합 학습 데이터 생성 (27,799 + 448 = 28,247개) | `data/train/v3.1_dual_labeled.jsonl` |
-| model | v3.1 재학습 완료 | `checkpoints/koelectra-binary-v3.1/` |
+| model | v3.1 재학습 완료 · HF Hub 업로드 | `checkpoints/koelectra-binary-v3.1/` |
 | eval | v3 vs v3.1 양방향 비교 평가 (val split + unseen galsan) | `docs/eval-v3-vs-v3.1-2026-05-06.md` |
+| fix | `_load_model()` HF Hub 우선 로드로 변경 (배포 안정성) | `predict.py` |
+| fix | `_clean_symbols` whitelist 방식 전환 — PUA·체크박스 변종 기호 제거 | `predict.py` |
+| fix | `_LOCAL_CHECKPOINT_DIR` 경로 `koelectra-binary-v3.1`로 수정 | `predict.py` |
 | docs | README 전면 최신화 — 파일구조·성능지표·파이프라인 반영 | `README.md` |
+| docs | v3.1 생성 배경 문서 추가 — 문제 파악·증강 전략·재학습 결과 | `docs/v3.1-problem-and-solution.md` |
 
 ---
 
