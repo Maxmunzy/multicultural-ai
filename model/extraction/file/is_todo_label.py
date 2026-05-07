@@ -189,12 +189,15 @@ _CAT1_SCHEDULE = re.compile(
     r"수학여행|방학|개학|입학식|졸업식|공휴일|임시\s*공휴일|단축수업|조기하교|"
     r"발표회|음악회|캠프|체육대회)"
     r".{0,40}(\d+\s*월\s*\d+\s*일|\d+\.\s*\d+\.?)"
+    # 학부모가 직접 참여하는 행사 (수업공개·총회·설명회 등) — F2 예외와 연계
+    r"|학부모\s*(수업\s*공개|공개\s*수업|총회|설명회|간담회|연수|참여|상담|줄다리기)"
+    r"|\d{1,2}:\d{2}\s*[-~–]\s*\d{1,2}:\d{2}.{0,30}학부모"
 )
 
 # CAT2: 준비물 — 지참물 목록, 복장 지침, 반입 금지 안내
 _CAT2_SUPPLIES = re.compile(
-    # 준비물·지참물 헤더
-    r"^(준비물|지참물|준비\s*사항|지참\s*사항)\s*[:：]"
+    # 준비물·지참물 헤더 (^ 제거 → "6. 준비물:" 같은 숫자 prefix 허용)
+    r"(준비물|지참물|준비\s*사항|지참\s*사항)\s*[:：]"
     # 지참 요청 표현
     r"|지참\s*(해주세요|바랍니다|하세요|하시기|하십시오)"
     r"|챙겨\s*(주세요|오세요|오시기|주시기)"
@@ -325,6 +328,17 @@ def label_with_reason(text: str, is_title: bool = False) -> tuple[bool, str]:
 
     for pat, reason in _FALSE_CHECKS:
         if pat.search(text):
+            # F2_timetable 예외: 학부모가 직접 참여하는 행사 시간표는 True
+            if reason == "F2_timetable" and "학부모" in text:
+                continue
+            # F3_sender_info 예외: 장소 헤더에 주소가 포함된 경우는 True
+            if reason == "F3_sender_info" and re.search(
+                r"(장소|체험\s*장소|집합\s*장소|오디션\s*장소|시험\s*장소)\s*[:：]", text
+            ):
+                continue
+            # F7_privacy 예외: 제출 기한이 함께 있으면 학부모 행동 필요 → True
+            if reason == "F7_privacy" and _CAT3_SUBMISSION.search(text):
+                return True, "CAT3_submission_override_F7"
             return False, reason
 
     for pat, reason in _TRUE_CHECKS:
