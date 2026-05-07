@@ -33,6 +33,7 @@ Google Gemini (gemini-2.5-flash 기본)에 통신문 텍스트를 보내 후속 
 """
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import os
@@ -89,6 +90,52 @@ document_title: 통신문 제목 (없으면 "")
 """
 
 
+# Vision 모드(inlineData로 PDF/이미지를 직접 전달)용 프롬프트.
+# 텍스트 본문은 첨부 파일에 있으므로 [입력]/{text} placeholder 없음.
+_EXTRACT_PROMPT_VISION = """당신은 한국 학교 가정통신문에서 후속 자체 모델이 사용할 sentence list를 추출하는 도우미입니다.
+
+목적: 최종 답변/요약/번역이 아니라, 후속 모델(추출/분류/번역) 입력용 구조화된 sentence list 생성
+
+규칙 (반드시 지킬 것):
+- **요약하지 말 것** — 원문 표현 가능한 그대로 유지
+- **번역하지 말 것** — 한국어 그대로
+- **날짜, 시간, 금액, URL, 전화번호는 원문 그대로 보존** — 형식 변환 금지
+- **신청기간과 운영일시는 반드시 구분** — 같은 sentence에 섞지 말 것
+- **프로그램이 여러 개면 section으로 분리** — 각 sentence의 section/section_type 명시
+- **대상/내용/운영일시/신청기간/문의/URL/장소/비용/준비물/제출** 같은 의미는 role_hint로 태깅
+- **원문에 없는 정보는 추측 금지**
+- **고유명사 원문 그대로** — 학교명/지명/사람 이름/시설명/행사명 임의 변환 금지
+- 의미 없는 단독 기호 줄(■, □, ※, 가로줄)만 제거
+
+각 sentence 필드:
+- sentence_id: "s001", "s002" 형식 순차 ID
+- text: 원문 sentence
+- section: 프로그램명/섹션명 (예: "토요영어체험교실", "신청 및 운영안내", "문의")
+- section_type: program | application_info | contact | notice | footer | unknown
+- role_hint: target | content | application_period | event_datetime | application_url | contact | result_announcement | location | fee | supplies | submit | etc
+- is_action_candidate: 학부모 행동 필요 여부 (제출/신청/준비/납부 등) → true/false
+- contains_slots: ["date", "time", "url", "phone", "amount", "target", "location"] 중 해당
+- source_order: 원문 순서 (1부터)
+
+document_title: 통신문 제목 (없으면 "")
+
+첨부된 가정통신문(PDF 또는 이미지)을 분석해서 위 contract의 JSON으로만 출력하세요.
+"""
+
+
+# Gemini Vision API가 inlineData로 직접 받을 수 있는 mime types.
+# (HWP/HWPX는 직접 X — _save_original이 PDF로 변환해서 저장하므로 그 PDF를 보냄)
+VISION_SUPPORTED_MIMES = frozenset({
+    "application/pdf",
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/heic",
+    "image/heif",
+})
+
+
 # Gemini가 JSON 강제 출력하도록 schema 정의 (responseSchema)
 _RESPONSE_SCHEMA = {
     "type": "object",
@@ -123,31 +170,55 @@ def _empty_structured() -> dict:
     return {"document_title": "", "sentence_list": []}
 
 
-def extract_sentences(text: str) -> tuple[dict, str, float]:
+def extract_sentences(
+    text: str = "",
+    inline_data: tuple[bytes, str] | None = None,
+) -> tuple[dict, str, float]:
     """세종님 contract: {document_title, sentence_list[...]} 구조화 출력.
+
+    두 가지 모드:
+    - **text 모드** (기본): text 인자 사용, inline_data=None. 프롬프트에 본문 포함.
+    - **Vision 모드**: inline_data=(raw_bytes, mime_type) 전달. PDF/이미지가
+      Gemini Vision에 직접 전송. text 인자는 무시. 표/자간 등 구조 자연 처리.
 
     실패 시 빈 contract({"document_title":"", "sentence_list":[]}) + status 반환.
 
     Returns:
         (structured, status, elapsed_seconds)
         - structured: dict (document_title + sentence_list)
-        - status: "ok" | "skip:empty" | "skip:no_key" | "skip:invalid_format" |
-                  "skip:empty_sentences" | "skip:error:..."
+        - status: "ok" | "skip:empty" | "skip:no_key" | "skip:unsupported_mime:..." |
+                  "skip:invalid_format" | "skip:empty_sentences" | "skip:error:..."
         - elapsed_seconds: API 호출 시간 (실패 시 -1)
     """
-    if not text or not text.strip():
-        return _empty_structured(), "skip:empty", 0.0
-
     if not GEMINI_API_KEY:
         return _empty_structured(), "skip:no_key", 0.0
 
-    prompt = _EXTRACT_PROMPT.format(text=text)
-    # gemini-2.5-flash outputTokenLimit=65536. schema가 풍부(필드 8개)라 출력이
-    # 입력의 2~3배까지 늘어남. 절단(JSON parse 실패) 방지 위해 cap 32768.
-    max_output_tokens = min(32768, max(2048, int(len(text) * 3.0)))
+    if inline_data is not None:
+        raw_bytes, mime_type = inline_data
+        if not raw_bytes:
+            return _empty_structured(), "skip:empty", 0.0
+        if mime_type not in VISION_SUPPORTED_MIMES:
+            logger.warning(
+                "extract_sentences unsupported mime_type for Vision: %s", mime_type,
+            )
+            return _empty_structured(), f"skip:unsupported_mime:{mime_type}", 0.0
+        # Vision 입력 토큰은 PDF 페이지/이미지 크기 따라 다름. 출력 cap은 보수적으로 32768.
+        max_output_tokens = 32768
+        encoded = base64.b64encode(raw_bytes).decode("utf-8")
+        parts = [
+            {"text": _EXTRACT_PROMPT_VISION},
+            {"inlineData": {"mimeType": mime_type, "data": encoded}},
+        ]
+    else:
+        if not text or not text.strip():
+            return _empty_structured(), "skip:empty", 0.0
+        prompt = _EXTRACT_PROMPT.format(text=text)
+        # 출력은 입력의 2~3배까지 늘어남. cap 32768로 절단 방지.
+        max_output_tokens = min(32768, max(2048, int(len(text) * 3.0)))
+        parts = [{"text": prompt}]
 
     payload = json.dumps({
-        "contents": [{"parts": [{"text": prompt}]}],
+        "contents": [{"parts": parts}],
         "generationConfig": {
             "temperature": 0.2,
             "topP": 0.9,

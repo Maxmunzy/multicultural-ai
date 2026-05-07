@@ -23,7 +23,11 @@ from app.services.slot_extractor import (
 )
 from app.services.card_builder import build_cards
 from app.services.highlight_mapper import build_highlights_from_cards
-from app.services.layout_normalizer import normalize_text as llm_normalize_text
+from app.services.layout_normalizer import (
+    normalize_text as llm_normalize_text,
+    extract_sentences,
+    VISION_SUPPORTED_MIMES,
+)
 from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
 from app.models.schemas import OcrCorrectionEntry
 from app.services.mock import MOCK_TODOS
@@ -551,25 +555,64 @@ async def analyze_notice(
     # (세종님 PR #133). 없으면 업로드 시 저장된 notice.text 그대로 사용.
     analysis_text = _reconstruct_text_from_layout(req.layout_json) or notice.text
 
-    # [2.5b] LLM normalizer — bbox 재구성 위에 Ollama로 자연어 정리.
-    # 표 행 분리, 자간 정상화, 노이즈 제거. 실패·타임아웃 시 analysis_text 유지.
-    # (req.use_llm_normalizer=true일 때만 호출, 기본값 true)
+    # [2.5b] LLM normalizer — Gemini로 sentence list 추출.
+    # Vision 우선 (PDF/이미지 disk 파일 → inlineData 전송) → 표/자간 자연 처리.
+    # Vision 미지원 mime(HWP 변환 실패 케이스) 또는 호출 실패 시 text fallback.
     llm_status = "off"
     llm_elapsed = 0.0
     if req.use_llm_normalizer:
-        normalized, llm_status, llm_elapsed = llm_normalize_text(analysis_text)
-        # 디버그용 — LLM이 phone/URL 같은 핵심 정보 빠뜨리는지 추적.
-        # 발표 후엔 logger.info로 다시 낮출 것.
-        in_len = len(analysis_text)
-        out_len = len(normalized)
-        head = normalized[:200].replace("\n", " / ")
-        tail = normalized[-200:].replace("\n", " / ") if out_len > 200 else ""
-        logger.warning(
-            "[analyze] llm_normalizer: status=%s elapsed=%.2fs in=%d out=%d head=%r tail=%r",
-            llm_status, llm_elapsed, in_len, out_len, head, tail,
-        )
-        if llm_status == "ok":
-            analysis_text = normalized
+        structured = None
+        # Vision path 시도 — disk에 저장된 원본 파일이 있고 mime이 Vision 지원이면
+        if (
+            notice.original_file_url
+            and notice.mime_type
+            and notice.mime_type in VISION_SUPPORTED_MIMES
+        ):
+            file_name = Path(notice.original_file_url).name
+            file_path = NOTICES_DIR / file_name
+            if file_path.exists():
+                try:
+                    raw_bytes = file_path.read_bytes()
+                    structured, llm_status, llm_elapsed = extract_sentences(
+                        inline_data=(raw_bytes, notice.mime_type),
+                    )
+                    logger.warning(
+                        "[analyze] llm_normalizer Vision: status=%s elapsed=%.2fs "
+                        "file=%s mime=%s bytes=%d sentences=%d",
+                        llm_status, llm_elapsed, file_name, notice.mime_type,
+                        len(raw_bytes),
+                        len(structured.get("sentence_list", [])),
+                    )
+                except Exception as error:
+                    logger.warning(
+                        "[analyze] Vision file read failed (%s), text fallback",
+                        error,
+                    )
+                    structured = None
+
+        # Vision 성공 → sentence_list의 text를 \n으로 join해 후속 모델 입력으로
+        if structured is not None and llm_status == "ok":
+            sentences = structured.get("sentence_list", [])
+            joined = "\n".join(
+                s.get("text", "").strip() for s in sentences if s.get("text")
+            )
+            if joined:
+                analysis_text = joined
+
+        # Vision 미시도/실패 → text 기반 extract_sentences로 fallback
+        if structured is None or llm_status != "ok":
+            normalized, llm_status, llm_elapsed = llm_normalize_text(analysis_text)
+            in_len = len(analysis_text)
+            out_len = len(normalized)
+            head = normalized[:200].replace("\n", " / ")
+            tail = normalized[-200:].replace("\n", " / ") if out_len > 200 else ""
+            logger.warning(
+                "[analyze] llm_normalizer text-fallback: status=%s elapsed=%.2fs "
+                "in=%d out=%d head=%r tail=%r",
+                llm_status, llm_elapsed, in_len, out_len, head, tail,
+            )
+            if llm_status == "ok":
+                analysis_text = normalized
 
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     try:
