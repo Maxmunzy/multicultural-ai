@@ -23,6 +23,9 @@ from app.services.translator import translate_short_sentence, translate_term
 
 # 헤더 추정 실패 시 fallback
 _FALLBACK_HEADER = "기타"
+_FALLBACK_MAX_CARDS = 3
+_FALLBACK_MAX_KO_LEN = 80
+_FALLBACK_MAX_TRANSLATED_LEN = 120
 
 # regex 슬롯별 기본 헤더 (todo에서 못 잡은 정보 보강용 카드)
 # todo로 헤더가 추정된 경우엔 이 카드를 만들지 않음 (중복 방지).
@@ -68,7 +71,7 @@ def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
 
     return SlotCard(
         header_ko=header,
-        header_translated=translate_term(header, target_lang),
+        header_translated="" if header == _FALLBACK_HEADER else translate_term(header, target_lang),
         value_ko=value,
         value_easy_ko=to_easy_korean(value),
         value_translated=translate_short_sentence(value, target_lang) or value,
@@ -211,20 +214,38 @@ def _trim_long_fallback_card(card: SlotCard) -> SlotCard:
     """
     if card.header_ko != _FALLBACK_HEADER:
         return card
-    if len(card.value_ko) <= 100:
+    if len(card.value_ko) <= _FALLBACK_MAX_KO_LEN:
         return card
-    new_ko = _smart_trim(card.value_ko, max_len=100)
+    new_ko = _smart_trim(card.value_ko, max_len=_FALLBACK_MAX_KO_LEN)
     new_easy = card.value_easy_ko
-    if card.value_easy_ko and len(card.value_easy_ko) > 100:
-        new_easy = _smart_trim(card.value_easy_ko, max_len=100)
+    if card.value_easy_ko and len(card.value_easy_ko) > _FALLBACK_MAX_KO_LEN:
+        new_easy = _smart_trim(card.value_easy_ko, max_len=_FALLBACK_MAX_KO_LEN)
     new_tr = card.value_translated
-    if card.value_translated and len(card.value_translated) > 150:
-        new_tr = _smart_trim(card.value_translated, max_len=150)
+    if card.value_translated and len(card.value_translated) > _FALLBACK_MAX_TRANSLATED_LEN:
+        new_tr = _smart_trim(card.value_translated, max_len=_FALLBACK_MAX_TRANSLATED_LEN)
     return card.model_copy(update={
         "value_ko": new_ko,
         "value_easy_ko": new_easy,
         "value_translated": new_tr,
     })
+
+
+def _limit_fallback_cards(cards: list[SlotCard], max_fallback: int = _FALLBACK_MAX_CARDS) -> list[SlotCard]:
+    """Limit noisy fallback cards while preserving classified/regex cards.
+
+    OCR paragraphs that fail header splitting become "기타" cards. Keeping all
+    of them makes the translated section read as repeated "Khac:" blocks, so
+    keep only the highest-importance fallback cards after sorting.
+    """
+    kept: list[SlotCard] = []
+    fallback_count = 0
+    for card in cards:
+        if card.header_ko == _FALLBACK_HEADER:
+            fallback_count += 1
+            if fallback_count > max_fallback:
+                continue
+        kept.append(card)
+    return kept
 
 
 # 종결 어미로 끝나는 짧은 단편 — 윤정 split 의 잔재로 직전 카드에 흡수 대상
@@ -326,4 +347,5 @@ def build_cards(
     cards = [_trim_long_fallback_card(c) for c in cards]
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
+    cards = _limit_fallback_cards(cards)
     return cards

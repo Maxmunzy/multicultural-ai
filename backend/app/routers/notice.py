@@ -23,6 +23,8 @@ from app.services.slot_extractor import (
 )
 from app.services.card_builder import build_cards
 from app.services.highlight_mapper import build_highlights_from_cards
+from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
+from app.models.schemas import OcrCorrectionEntry
 from app.services.mock import MOCK_TODOS
 
 logger = logging.getLogger(__name__)
@@ -188,6 +190,8 @@ async def upload_notice(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="파일에서 추출된 텍스트가 비어있습니다",
         )
+    text, raw_corrections = apply_ocr_slot_corrections(text)
+    ocr_entries = [OcrCorrectionEntry(**{k: v for k, v in c.items() if k in OcrCorrectionEntry.model_fields}) for c in raw_corrections]
 
     notice_id = str(uuid.uuid4())
     original_url, mime_type = _save_original(notice_id, raw_bytes, file.filename or "")
@@ -200,6 +204,7 @@ async def upload_notice(
         original_file_url=original_url,
         original_filename=file.filename,
         mime_type=mime_type,
+        ocr_corrections=ocr_entries,
     )
     _notices[notice_id] = notice
     return ApiResponse.success(
@@ -238,6 +243,8 @@ async def upload_notice_self(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="파일에서 추출된 텍스트가 비어있습니다",
         )
+    text, raw_corrections = apply_ocr_slot_corrections(text)
+    ocr_entries = [OcrCorrectionEntry(**{k: v for k, v in c.items() if k in OcrCorrectionEntry.model_fields}) for c in raw_corrections]
 
     notice_id = str(uuid.uuid4())
     original_url, mime_type = _save_original(notice_id, raw_bytes, file.filename or "")
@@ -250,6 +257,7 @@ async def upload_notice_self(
         original_file_url=original_url,
         original_filename=file.filename,
         mime_type=mime_type,
+        ocr_corrections=ocr_entries,
     )
     return ApiResponse.success(
         data={"notice_id": notice_id, "char_count": len(text), "text": text},
@@ -526,6 +534,8 @@ async def analyze_notice(
         "tts_url_easy_ko": tts_url_easy_ko,
         "quality_note": "",
         "review_needed": "",
+        "ocr_corrections": [c.model_dump() for c in notice.ocr_corrections],
+        "has_review_required": any(c.review_required for c in notice.ocr_corrections),
     }
     return ApiResponse.success(data=response)
 
