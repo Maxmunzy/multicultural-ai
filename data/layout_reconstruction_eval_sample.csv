@@ -1,0 +1,8 @@
+case_id,description,scenario,input_blocks,expected_output_contains,expected_separator,pass_criteria
+LAYOUT-001,두 프로그램 블록 분리,two_program_blocks,"[토요영어체험교실@y=100, 대상:초등3·4학년@y=150] gap=220px [토요다문화이야기@y=420, 대상:유치원~초등1·2학년@y=465]",토요영어체험교실|토요다문화이야기,blank_line,두 블록 사이 빈 줄 존재
+LAYOUT-002,표 2열 구조 복원,table_two_column,"[납부 기간@x=30 w=150, 2024.9.9.(월)~9.13.(금)@x=300 w=250] [납부 방법@x=30 w=150, 스쿨뱅킹@x=300 w=120]",납부 기간|납부 방법,pipe_separator,| 구분자로 키-값 분리
+LAYOUT-003,같은 행 붙은 텍스트 과다 구분 방지,single_line_close,"[문의:@x=30 w=60, 064-767-9811@x=100 w=180]",문의: 064-767-9811,no_separator,x_gap(10px) < col_thr(80px) → 공백만
+LAYOUT-004,layout_json None → fallback,no_layout_json,None,notice.text_used,none,None 반환으로 notice.text fallback 보장
+LAYOUT-005,빈 리스트 → fallback,empty_layout_json,[],notice.text_used,none,[] 반환으로 notice.text fallback 보장
+LAYOUT-006,단일 페이지 연속 텍스트,single_column_body,"[보호자님 안녕하십니까@y=100, 체험학습을 실시합니다@y=145, 신청서를 제출해 주세요@y=190]",보호자님 안녕하십니까|체험학습을 실시합니다,newline_only,Y gap < para_thr → 빈 줄 없이 개행만
+LAYOUT-007,제목 + 본문 단락 분리,title_body_gap,"[5학년 백제권 체험현장배움@y=80 h=50] gap=180px [보호자님 안녕하십니까@y=310 h=40]",5학년 백제권|보호자님,blank_line,제목-본문 Y gap > para_thr → 빈 줄 삽입
