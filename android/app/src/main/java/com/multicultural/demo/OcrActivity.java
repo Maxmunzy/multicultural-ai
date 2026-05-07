@@ -3,6 +3,7 @@ package com.multicultural.demo;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ClipData;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
@@ -15,6 +16,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.ViewGroup;
 import android.widget.Button;
@@ -51,6 +53,7 @@ import org.opencv.core.Point;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -80,6 +83,8 @@ import java.util.regex.Pattern;
  *   Tesseract Korean: CER 0.97 → 사용 불가
  */
 public class OcrActivity extends Activity {
+    private static final String TAG = "SchoolBridgeOcr";
+    private static final String STATE_PHOTO_PATH = "photo_path";
 
     // 호출자(MainActivity)가 putExtra로 전달해야 하는 키
     public static final String EXTRA_BASE_URL     = "base_url";
@@ -141,11 +146,21 @@ public class OcrActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(TAG, "onCreate savedState=" + (savedInstanceState != null));
 
         baseUrl   = getIntent().getStringExtra(EXTRA_BASE_URL);
         teacherId = getIntent().getStringExtra(EXTRA_TEACHER_ID);
         parentId  = getIntent().getStringExtra(EXTRA_PARENT_ID);
         if (baseUrl == null) baseUrl = "http://172.30.1.45:8000";
+        if (savedInstanceState != null) {
+            String savedPhotoPath = savedInstanceState.getString(STATE_PHOTO_PATH);
+            if (savedPhotoPath != null && !savedPhotoPath.isEmpty()) {
+                photoFile = new File(savedPhotoPath);
+                Log.d(TAG, "restored photoFile=" + savedPhotoPath
+                        + " exists=" + photoFile.exists()
+                        + " length=" + (photoFile.exists() ? photoFile.length() : -1));
+            }
+        }
 
         recognizer = TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build());
         buildUI();
@@ -153,7 +168,16 @@ public class OcrActivity extends Activity {
     }
 
     @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        if (photoFile != null) {
+            outState.putString(STATE_PHOTO_PATH, photoFile.getAbsolutePath());
+        }
+    }
+
+    @Override
     protected void onDestroy() {
+        Log.d(TAG, "onDestroy finishing=" + isFinishing());
         executor.shutdownNow();
         if (recognizer != null) recognizer.close();
         super.onDestroy();
@@ -279,10 +303,13 @@ public class OcrActivity extends Activity {
         try {
             photoFile = File.createTempFile("ocr_", ".jpg",
                     getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir());
+            Log.d(TAG, "launchCamera file=" + photoFile.getAbsolutePath());
             photoUri = FileProvider.getUriForFile(this,
                     getPackageName() + ".fileprovider", photoFile);
             Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
             intent.putExtra(MediaStore.EXTRA_OUTPUT, photoUri);
+            intent.setClipData(ClipData.newUri(getContentResolver(), "ocr_image", photoUri));
+            intent.addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION | Intent.FLAG_GRANT_READ_URI_PERMISSION);
             startActivityForResult(intent, REQUEST_CAMERA);
         } catch (IOException e) {
             setStatus("❌ 카메라 파일 생성 실패: " + e.getMessage());
@@ -293,8 +320,24 @@ public class OcrActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode != REQUEST_CAMERA) return;
-        if (resultCode != RESULT_OK || photoFile == null || !photoFile.exists()) {
-            finish();
+        Log.d(TAG, "onActivityResult result=" + resultCode
+                + " photoFile=" + (photoFile == null ? "null" : photoFile.getAbsolutePath())
+                + " exists=" + (photoFile != null && photoFile.exists())
+                + " length=" + (photoFile != null && photoFile.exists() ? photoFile.length() : -1)
+                + " data=" + (data != null));
+        boolean fileReady = isPhotoFileReady();
+        if (!fileReady && data != null && data.getExtras() != null) {
+            Object thumbnail = data.getExtras().get("data");
+            if (thumbnail instanceof Bitmap) {
+                fileReady = saveThumbnailBitmap((Bitmap) thumbnail);
+            }
+        }
+
+        if (!fileReady) {
+            Log.w(TAG, "Camera returned without usable image. result=" + resultCode);
+            setStatus("사진을 불러오지 못했습니다. 다시 촬영해 주세요. (result=" + resultCode + ")");
+            showProgress(false);
+            showRetry(false);
             return;
         }
         setStatus("🔍  OCR 분석 중…");
@@ -302,11 +345,32 @@ public class OcrActivity extends Activity {
         runOcr();
     }
 
+    private boolean isPhotoFileReady() {
+        return photoFile != null && photoFile.exists() && photoFile.length() > 0;
+    }
+
+    private boolean saveThumbnailBitmap(Bitmap bitmap) {
+        try {
+            if (photoFile == null) {
+                photoFile = File.createTempFile("ocr_thumb_", ".jpg",
+                        getExternalCacheDir() != null ? getExternalCacheDir() : getCacheDir());
+            }
+            try (FileOutputStream out = new FileOutputStream(photoFile)) {
+                bitmap.compress(Bitmap.CompressFormat.JPEG, 95, out);
+            }
+            return isPhotoFileReady();
+        } catch (IOException e) {
+            setStatus("카메라 미리보기 저장 실패: " + e.getMessage());
+            return false;
+        }
+    }
+
     // ─────────────────────────────────────────────
     //  OCR Pipeline
     // ─────────────────────────────────────────────
 
     private void runOcr() {
+        Log.d(TAG, "runOcr fileReady=" + isPhotoFileReady());
         executor.execute(() -> {
             Bitmap original = loadAndRotateBitmap(photoFile.getAbsolutePath());
             if (original == null) {
@@ -423,8 +487,8 @@ public class OcrActivity extends Activity {
                     regions.add(new Rect(x, y, x + w, y + h));
                 }
             }
-        } catch (Exception e) {
-            // fall through, return empty
+        } catch (Throwable e) {
+            Log.w(TAG, "detectTableRegions skipped: OpenCV unavailable or table detection failed", e);
         }
         return regions;
     }
@@ -491,8 +555,7 @@ public class OcrActivity extends Activity {
                 return;
             }
             if (finalOverall >= AUTO_PASS_THRESHOLD) {
-                setStatus(String.format("✅ OCR 완료 (점수 %.2f) — 업로드 중…", finalOverall));
-                uploadOcrText(bestOcrText);
+                showOcrPreview(bestOcrText, finalOverall);
             } else {
                 showQualityWarning(bestOcrText, finalOverall);
             }
@@ -569,7 +632,8 @@ public class OcrActivity extends Activity {
             Bitmap bmp = Bitmap.createBitmap(result.cols(), result.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(result, bmp);
             return bmp;
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            Log.w(TAG, "warpDocument skipped: OpenCV unavailable or preprocessing failed", e);
             return null;
         }
     }
@@ -603,7 +667,8 @@ public class OcrActivity extends Activity {
             Bitmap result = Bitmap.createBitmap(rgb.cols(), rgb.rows(), Bitmap.Config.ARGB_8888);
             Utils.matToBitmap(rgb, result);
             return result;
-        } catch (Exception e) {
+        } catch (Throwable e) {
+            Log.w(TAG, "toGrayscaleClahe skipped: OpenCV unavailable or preprocessing failed", e);
             return null;
         }
     }
@@ -826,6 +891,13 @@ public class OcrActivity extends Activity {
     private void showQualityWarning(String text, double score) {
         setStatus(String.format("⚠️  OCR 품질 낮음 (점수 %.2f / 기준 %.2f)", score, AUTO_PASS_THRESHOLD));
         resultText.setText(text.length() > 500 ? text.substring(0, 500) + "…" : text);
+        resultScroll.setVisibility(android.view.View.VISIBLE);
+        showRetry(true);
+    }
+
+    private void showOcrPreview(String text, double score) {
+        setStatus(String.format("✅ OCR 완료 (점수 %.2f) — 결과 확인 후 전송", score));
+        resultText.setText(text.length() > 1000 ? text.substring(0, 1000) + "…" : text);
         resultScroll.setVisibility(android.view.View.VISIBLE);
         showRetry(true);
     }

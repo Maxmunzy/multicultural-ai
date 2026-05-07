@@ -39,6 +39,14 @@ class YunjeongTodo(BaseModel):
     action_hint: str | None = None  # 신청 / 제출 / 납부 / 준비 / 참여 / 확인
 
 
+class OcrCorrectionEntry(BaseModel):
+    slot_type: str
+    raw_text: str
+    corrected_text: str
+    reason: str
+    review_required: bool = False
+
+
 class Notice(BaseModel):
     notice_id: str
     teacher_id: str
@@ -49,6 +57,8 @@ class Notice(BaseModel):
     original_file_url: str | None = None       # 예: "/static/notices/abc123.pdf"
     original_filename: str | None = None       # 예: "5월 가정통신문.pdf"
     mime_type: str | None = None               # 예: "application/pdf"
+    # OCR slot 보정 이력 — 업로드 시 적용, analyze 응답에 포함
+    ocr_corrections: list[OcrCorrectionEntry] = []
 
 
 class NoticeSendRequest(BaseModel):
@@ -171,6 +181,9 @@ class NoticeAnalyzeResponse(BaseModel):
     tts_url_easy_ko: str = ""            # 쉬운 한국어 합본 TTS (세종님 별도 버튼 요청)
     quality_note: str = ""
     review_needed: str = ""
+    # OCR slot 보정 요약 — has_review_required=True면 프론트에서 "사람 확인 필요" 표시
+    ocr_corrections: list[OcrCorrectionEntry] = []
+    has_review_required: bool = False
 
 
 class TTSRequest(BaseModel):

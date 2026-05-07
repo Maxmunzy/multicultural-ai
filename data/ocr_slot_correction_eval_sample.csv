@@ -1,0 +1,8 @@
+case_id,source_type,slot_type,raw_ocr,ground_truth,note
+OCR-SLOT-001,synthetic,amount,"체험학습비는 44,B70완입니다.","체험학습비는 44,870원입니다.","B/8, 완/원 금액 보정"
+OCR-SLOT-002,synthetic,time,"일시: 8:5O ~ 14:4O","일시: 8:50 ~ 14:40","O/0 시간 보정"
+OCR-SLOT-003,synthetic,date,"5원 6일(묵)까지 제출","5월 6일(목)까지 제출","월/원, 목/묵 보정"
+OCR-SLOT-004,synthetic,grade,"대상: l-6확년, 3밤","대상: 1-6학년, 3반","l/1, 확/학, 밤/반 보정"
+OCR-SLOT-005,synthetic,phone,"문의: O10-1234-567S","문의: 010-1234-5675","O/0, S/5 전화번호 보정"
+OCR-SLOT-006,synthetic,negative,"B반 학생은 OpenClass로 이동","B반 학생은 OpenClass로 이동","slot 외부 B/O는 보정하지 않아야 함"
+OCR-SLOT-007,synthetic,mixed,"5원 6일(묵) 8:5O까지 44,B70완 납부, 문의 O10-1234-567S","5월 6일(목) 8:50까지 44,870원 납부, 문의 010-1234-5675","복합 slot 보정"

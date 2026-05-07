@@ -167,6 +167,137 @@ def _normalize_glossary_key(text: str) -> str:
     return re.sub(r"\s+", "", text or "")
 
 
+# ── Template-based translation (vi) ───────────────────────────────────────────
+# 준비물/제출물 문장은 NLLB 대신 구조 분석 + glossary로 직접 번역.
+# 용어 보존율: NLLB 직접 입력 6% → 템플릿 100% (2026-05-07 실험)
+
+_SENTENCE_TYPES: dict[str, list[str]] = {
+    "prepare": ["준비해 주세요", "준비해주세요", "준비하세요", "준비 바랍니다"],
+    "bring":   ["가져오세요", "챙겨 주세요", "챙겨주세요", "지참해 주세요", "지참하세요", "지참 바랍니다"],
+    "submit":  ["제출해 주세요", "제출해주세요", "제출하세요", "내 주세요", "내주세요", "보내 주세요", "보내주세요"],
+    "attend":  ["참석해 주세요", "참석해주세요", "참석하세요", "참여해 주세요", "참여해주세요", "참여하세요"],
+    "pay":     ["납부해 주세요", "납부해주세요", "납부하세요", "입금해 주세요", "입금해주세요", "입금하세요"],
+}
+
+_VI_TEMPLATES: dict[str, str] = {
+    "prepare": "Vui lòng chuẩn bị {items}.",
+    "bring":   "Vui lòng mang theo {items}.",
+    "submit":  "Vui lòng nộp {items}.",
+    "attend":  "Vui lòng tham gia {items}.",
+    "pay":     "Vui lòng thanh toán {items}.",
+}
+
+# 청중/제출처는 term_glossary.csv의 role 컬럼(audience/recipient)으로 관리.
+# 코드 수정 없이 CSV 편집만으로 용어 추가 가능.
+_TEMPLATE_EXCLUDE_KO: frozenset[str] = frozenset()  # _build_role_sets() 호출 후 갱신
+_AUDIENCE_BY_LANG: dict[str, dict[str, str]] = {}   # lang → {ko: translated}
+_RECIPIENT_BY_LANG: dict[str, dict[str, str]] = {}  # lang → {ko: translated}
+_ROLE_SETS_BUILT = False
+
+
+def _build_role_sets(glossary: list) -> None:
+    """glossary rows에서 role=audience/recipient 항목을 언어별로 인덱싱."""
+    global _TEMPLATE_EXCLUDE_KO, _AUDIENCE_BY_LANG, _RECIPIENT_BY_LANG, _ROLE_SETS_BUILT
+    if _ROLE_SETS_BUILT:
+        return
+    audience: dict[str, dict[str, str]] = {}
+    recipient: dict[str, dict[str, str]] = {}
+    exclude: set[str] = set()
+    for row in glossary:
+        role = row.get("role", "item").strip()
+        if role not in ("audience", "recipient"):
+            continue
+        ko = row.get("korean", "").strip()
+        if not ko:
+            continue
+        exclude.add(ko)
+        for lang in LANG_TO_NLLB:
+            val = row.get(f"preferred_{lang}", "").strip()
+            if not val:
+                continue
+            if role == "audience":
+                audience.setdefault(lang, {})[ko] = val
+            else:
+                recipient.setdefault(lang, {})[ko] = val
+    _TEMPLATE_EXCLUDE_KO = frozenset(exclude)
+    _AUDIENCE_BY_LANG = audience
+    _RECIPIENT_BY_LANG = recipient
+    _ROLE_SETS_BUILT = True
+
+
+def _classify_sentence(text: str) -> str:
+    for stype, keywords in _SENTENCE_TYPES.items():
+        for kw in keywords:
+            if kw in text:
+                return stype
+    return "info"
+
+
+def _extract_template_items(text: str, glossary: list, target_lang: str) -> list[tuple[str, str]]:
+    """공급 용어(청중/제출처 제외)를 텍스트에서 추출, 출현 순서대로 반환."""
+    preferred_col = f"preferred_{target_lang}"
+    text_norm = _normalize_glossary_key(text)
+    spans: list[tuple[int, int, str, str]] = []
+    occupied: list[tuple[int, int]] = []
+    for row in sorted(glossary, key=lambda r: -len(r.get("korean", ""))):
+        korean = row.get("korean", "").strip()
+        preferred = row.get(preferred_col, "").strip()
+        if not korean or not preferred or len(korean) <= 1 or korean in _TEMPLATE_EXCLUDE_KO:
+            continue
+        ko_norm = _normalize_glossary_key(korean)
+        start = text_norm.find(ko_norm)
+        if start == -1:
+            continue
+        end = start + len(ko_norm)
+        if any(not (end <= a or start >= b) for a, b in occupied):
+            continue
+        spans.append((start, end, korean, preferred))
+        occupied.append((start, end))
+    spans.sort(key=lambda x: x[0])
+    return [(ko, vi) for _, _, ko, vi in spans]
+
+
+def _extract_audience(text: str, lang: str) -> str | None:
+    for ko, val in _AUDIENCE_BY_LANG.get(lang, {}).items():
+        if ko in text:
+            return val
+    return None
+
+
+def _extract_recipient(text: str, lang: str) -> str | None:
+    for ko, val in _RECIPIENT_BY_LANG.get(lang, {}).items():
+        if ko in text:
+            return val
+    return None
+
+
+def _join_vi_items(items: list[str]) -> str:
+    if not items:
+        return ""
+    if len(items) == 1:
+        return items[0]
+    return ", ".join(items[:-1]) + " và " + items[-1]
+
+
+def _build_from_template_vi(
+    stype: str,
+    items: list[tuple[str, str]],
+    audience: str | None,
+    recipient: str | None,
+) -> str | None:
+    if stype == "info" or not items:
+        return None
+    tpl = _VI_TEMPLATES.get(stype)
+    if tpl is None:
+        return None
+    sentence = tpl.format(items=_join_vi_items([vi for _, vi in items]))
+    if recipient and stype == "submit":
+        sentence = sentence.rstrip(".") + f" cho {recipient}."
+    if audience:
+        sentence = f"Dành cho {audience}: {sentence}"
+    return sentence
+
+
 def _find_glossary_hits_safe(text: str, glossary: list, target_lang: str) -> list[dict]:
     """Find glossary hits with whitespace normalization and 1-char term guard."""
     preferred_col = f"preferred_{target_lang}"
@@ -228,7 +359,7 @@ def _clean_for_translation(text: str) -> str:
 # URL/전화 보호 — NLLB가 깨먹는 패턴 방어.
 # ⟦…⟧ (U+27E6/27E7) 는 NLLB SentencePiece 어휘에 없어서 tokenize 시 소실됨 → "P0"만 남아 복원 실패.
 # __SLOT0__ 형태(ASCII 대문자 + 언더스코어)는 NLLB가 코드/약어로 인식해 그대로 통과.
-_PROTECT_TOKEN = re.compile(r"__SLOT(\d+)__")
+_PROTECT_TOKEN = re.compile(r"__\s*SLOT\s*(\d+)\s*__", re.IGNORECASE)
 
 
 def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple[str, list[str]]:
@@ -263,7 +394,7 @@ def _restore_protected_entities(text: str, placeholders: list[str]) -> str:
 
     def restore(match: re.Match) -> str:
         idx = int(match.group(1))
-        return placeholders[idx] if idx < len(placeholders) else match.group(0)
+        return placeholders[idx] if idx < len(placeholders) else ""
 
     return _PROTECT_TOKEN.sub(restore, text)
 
@@ -299,9 +430,10 @@ def translate_term(text: str, target_lang: str) -> str:
 
 
 def translate_short_sentence(text: str, target_lang: str) -> str:
-    """짧은 문장 NLLB 번역 (items[].title_translated용).
+    """짧은 문장 번역 (items[].title_translated용).
 
-    URL/전화 보호 → glossary injection → NLLB → 보호 토큰 복원 → vi post-process.
+    vi + prepare/bring/submit/attend/pay 유형: 템플릿 번역 (NLLB 없이 용어 100% 보존).
+    나머지: URL/전화 보호 → glossary injection → NLLB → 보호 토큰 복원 → vi post-process.
     실패 시 빈 문자열 반환 (호출부가 fallback 처리).
     """
     if not text or not text.strip():
@@ -310,10 +442,24 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return text
     text = _clean_for_translation(text)[:MAX_TRANSLATE_CHARS]
 
-    # 1) URL/전화/날짜/시간/금액 placeholder 치환 — NLLB가 깨먹지 못하게 격리
+    # 1) URL/전화/날짜/시간/금액 placeholder 치환
     masked, placeholders = _mask_protected_entities(text, target_lang)
 
-    # 2) glossary injection (긴 용어 먼저 치환해야 부분 치환 충돌 방지)
+    # 2) Template-based (vi only): 문장 유형 분류 → glossary 직접 매핑 → 템플릿 조립
+    if target_lang == "vi":
+        stype = _classify_sentence(text)
+        if stype != "info":
+            glossary = _get_glossary()
+            _build_role_sets(glossary)
+            items = _extract_template_items(text, glossary, target_lang)
+            if items:
+                audience = _extract_audience(text, target_lang)
+                recipient = _extract_recipient(text, target_lang)
+                result = _build_from_template_vi(stype, items, audience, recipient)
+                if result:
+                    return _restore_protected_entities(result, placeholders)
+
+    # 3) NLLB fallback — info 유형, 비vi 언어, glossary 항목 미감지
     glossary = _get_glossary()
     hits = _find_glossary_hits_safe(masked, glossary, target_lang)
     injected = masked
@@ -331,7 +477,6 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         print(f"[translator] translate_short_sentence failed: {error}")
         return ""
 
-    # 3) 보호 토큰 복원
     return _restore_protected_entities(translated, placeholders)
 
 

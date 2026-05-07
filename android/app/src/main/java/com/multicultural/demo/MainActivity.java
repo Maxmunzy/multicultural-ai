@@ -135,6 +135,9 @@ public class MainActivity extends Activity {
 
     private NoticeItem selectedNotice;
     private MediaPlayer player;
+    // OCR로 업로드된 가정통신문의 ML Kit layout JSON. analyze 호출 시 동일 notice_id면
+    // payload에 layout_json으로 실어보내 backend highlight_mapper가 카드 ↔ bbox 매칭.
+    private final Map<String, String> ocrLayoutByNoticeId = new LinkedHashMap<>();
     // 선생님이 첨부한 파일 (업로드 미리보기 → 발송 버튼 클릭 시 사용)
     private byte[] pendingFileBytes = null;
     private String pendingFilename = null;
@@ -1403,6 +1406,12 @@ public class MainActivity extends Activity {
         JSONObject payload = new JSONObject();
         selectedLanguage = getSavedLanguage();
         try { payload.put("target_language", backendLanguageCode(selectedLanguage)); } catch (Exception ignored) {}
+        // OCR 업로드 케이스: 보관해둔 ML Kit layout_json을 payload에 첨부 → backend가 highlights[] 채움.
+        // PDF/HWP 업로드는 layout 정보 없으니 그대로 패스 (highlights 빈 리스트로 응답).
+        String storedLayout = ocrLayoutByNoticeId.get(selectedNotice.noticeId);
+        if (storedLayout != null && !storedLayout.isEmpty()) {
+            try { payload.put("layout_json", new JSONArray(storedLayout)); } catch (Exception ignored) {}
+        }
         postJson("/notice/analyze/" + selectedNotice.noticeId, payload, result -> {
             if (!result.error.isEmpty()) {
                 if (analysisStatusText != null) {
@@ -1896,6 +1905,10 @@ public class MainActivity extends Activity {
             int    charCount = data.getIntExtra(OcrActivity.RESULT_CHAR_COUNT, 0);
             String layoutJson = data.getStringExtra(OcrActivity.RESULT_OCR_LAYOUT);
             int bboxLineCount = countOcrLayoutLines(layoutJson);
+            if (noticeId != null && !noticeId.isEmpty()
+                    && layoutJson != null && bboxLineCount > 0) {
+                ocrLayoutByNoticeId.put(noticeId, layoutJson);
+            }
             setSendResult(
                     "✅ OCR 업로드 완료\n→ " + DEFAULT_PARENT_ID
                             + " · #" + shorten(noticeId != null ? noticeId : "", 8)

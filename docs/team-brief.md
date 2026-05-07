@@ -39,20 +39,22 @@ Android 앱은 모델을 직접 실행하지 않습니다. 서버 API를 호출�
 | 태수 | FastAPI 서버, API 설계, Android 통신 연결 | `backend/` |
 | 윤정 | 중요 문장 추출 모델 | `model/extraction/` |
 | 경이 | 카테고리 분류, 중요도 모델 | `model/classification/` |
-| 세종 | NLLB 번역, 학교 용어사전 검수, Edge-TTS 출력, 데이터셋 | `model/translation_tts/`, `data/`, `demo/translation_tts/` |
+| 세종 | NLLB 번역, 학교 용어사전 검수, Edge-TTS 출력, OCR bbox/slot 보정 실험 | `model/translation_tts/`, `backend/app/services/ocr_slot_corrector.py`, `docs/experiments/` |
 | 찬영 | Android 실기기 데모, UI, 발표 자료 | `android/`, `docs/` |
 
 ---
 
-## 현재 구현 상태 (2026-05-05 갱신)
+## 현재 구현 상태 (2026-05-07 갱신)
 
 | 영역 | 상태 | 메모 |
 | --- | --- | --- |
 | Backend | 완료 + **HF Spaces 배포** | FastAPI, Docker, `/notice/{send,upload,upload-self,inbox,analyze}`, `/tts`, `/user`, `/health`. X-User-Id 헤더 + 역할 권한. v2 슬롯 응답(`summary` + `items`). **Notice 스키마에 `original_file_url`/`original_filename`/`mime_type` 필드 추가**. 실서버: `https://maxmunzy-schoolbridge.hf.space` (CPU basic, 24/7) |
-| Android | 완료 | Java 단일 Activity. 선생님 화면 PDF/HWP/이미지 업로드, 학부모 홈 카메라 OCR(ML Kit Korean), **알림 카드 클릭 → 원본 PDF/이미지 풀화면(PdfRenderer + ImageView)**, 우상단 ✨ AI → 분석 화면. `BASE_URL`은 HF Spaces 실서버로 통일 |
+| Android | 완료 + 실기기 OCR 안정화 | Java 단일 Activity. 선생님 화면 PDF/HWP/이미지 업로드, 학부모 홈 카메라 OCR(ML Kit Korean), **알림 카드 클릭 → 원본 PDF/이미지 풀화면(PdfRenderer + ImageView)**, 우상단 ✨ AI → 분석 화면. 2026-05-07 실기기에서 `사진 촬영 → OCR 결과 확인 → 그래도 전송 → 업로드 → AI 번역 시연` 성공. OpenCV native 로딩 실패 시 원본 ML Kit OCR로 fallback |
 | 데이터 | 완료 | `v3_dual_labeled.jsonl` 28,890행 (이중 라벨: is_todo + is_title). 분류 학습용 `notice_sample_v5_clean_full.csv` 4,992행 (수동 142 + Haiku 자동 4,850) |
 | 파일 입력 | 완료 | `services/parser.py` — HWP/PDF/text/이미지 → clean_text. LibreOffice + H2Orestart + 한글폰트 Dockerfile 영구. `POST /notice/upload` multipart. **원본 raw bytes는 `static/notices/{id}{ext}`에 보존되어 학부모가 풀화면으로 조회 가능** |
-| URL/전화 보호 | 완료 | NLLB가 깨먹는 패턴 방어 — 슬롯 단위 ko 그대로 + 본문은 `⟦P0⟧` placeholder 마스킹 |
+| OCR slot 보정 | PoC 완료 | `ocr_slot_corrector.py` — OCR 결과 중 날짜/시간/금액/학년/반/전화번호 slot 내부 confusable 문자만 보정. 합성 샘플 7건 기준 raw exact 1/7 → corrected 7/7. 실제 ML Kit OCR 결과 20~30줄로 확장 검증 예정 |
+| URL/전화/slot 보호 | 완료 + 보강 | NLLB가 깨먹는 패턴 방어. `__SLOTn__` 계열 placeholder 복원 시 대소문자 변형(`__Slot1__`, `__SLOt2__`)과 내부 공백을 허용하고, 미복원 token은 화면에 노출하지 않도록 제거 |
+| 번역 화면 노이즈 감소 | 진행 중 | OCR 실기기 결과에서 fallback 카드가 반복되어 `Khac:`가 많이 보이는 문제 확인. `기타` 카드 번역 header 비움, 긴 fallback 카드 trim, fallback 카드 최대 3개 제한 적용. NCP 반영 후 재검증 필요 |
 | 번역/TTS | 완료 | NLLB 다국어 번역(vi/en/ru/ms/mn/zh/th/ja), 용어사전 검수, Edge-TTS 9개 보이스 매핑, 통화 오번역 후처리 |
 | 추출 모델 | v2 연결 완료 | 윤정 KoELECTRA binary 추출 (`yunjeong116/koelectra-extractor`). 첫 호출 시 HF Hub 자동 다운로드 |
 | 분류 모델 | **v3 연결 완료** | 경이 KcELECTRA v3 파인튜닝 (`kysophia/kcelectra-category` subfolder `kcelectra-category-v3`). **Macro F1 0.8545** (Simple 베이스라인 0.8116 대비 +4.29%p, 건강·안전 클래스 0.29 → 0.91 대폭 회복). 첫 호출 시 HF Hub fallback |
@@ -88,10 +90,11 @@ Android 출력 (슬롯 칩 + 할일 카드 + TTS 재생)
 
 ## 다음 우선 과제
 
-1. 추출 모델 인사말 필터 보강 (체크리스트에 인사말 포함되는 문제)
-2. 모델 튜닝: 체크리스트 정밀도 향상, NLLB 번역 품질 개선
-3. 용어사전 지속 확장
-4. 발표에서 E2E 파이프라인 시연 및 검수 루프 설명
+1. NCP 반영 후 같은 촬영본으로 번역 화면 재검증: `__Slot` 누수, `Khac:` 반복, 긴 기타 카드 감소 여부
+2. 실제 ML Kit OCR 결과 20~30줄 수집 후 OCR slot 보정 평가셋 확장
+3. OCR bbox/highlight PoC: 원본 문서 위 중요 문장 표시
+4. 모델 튜닝: 체크리스트 정밀도 향상, NLLB 번역 품질 개선
+5. 발표에서 E2E 파이프라인 시연 및 검수 루프 설명
 
 ---
 
