@@ -359,7 +359,8 @@ def _clean_for_translation(text: str) -> str:
 # URL/전화 보호 — NLLB가 깨먹는 패턴 방어.
 # ⟦…⟧ (U+27E6/27E7) 는 NLLB SentencePiece 어휘에 없어서 tokenize 시 소실됨 → "P0"만 남아 복원 실패.
 # __SLOT0__ 형태(ASCII 대문자 + 언더스코어)는 NLLB가 코드/약어로 인식해 그대로 통과.
-_PROTECT_TOKEN = re.compile(r"__\s*SLOT\s*(\d+)\s*__", re.IGNORECASE)
+# NLLB가 "SLOT" → "SLO T" 로 쪼개는 경우도 복원할 수 있도록 SLO\s+T 패턴 추가.
+_PROTECT_TOKEN = re.compile(r"__\s*(?:SLOT|SLO\s+T)\s*(\d+)\s*__", re.IGNORECASE)
 
 
 def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple[str, list[str]]:
