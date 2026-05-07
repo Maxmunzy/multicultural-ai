@@ -137,14 +137,18 @@ def extract_times(text: str) -> list[dict]:
             "ampm": m.group("ampm"),
         })
     for m in _TIME_24H.finditer(text):
+        hour = int(m.group("hour"))
+        minute = int(m.group("minute"))
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            continue
         ko = m.group(0).strip()
         if ko in seen:
             continue
         seen.add(ko)
         out.append({
             "ko": ko,
-            "hour": int(m.group("hour")),
-            "minute": int(m.group("minute")),
+            "hour": hour,
+            "minute": minute,
             "ampm": None,
         })
     return out
@@ -186,12 +190,14 @@ def extract_deadline_phrases(text: str) -> list[str]:
     return [m.group(1).strip() for m in _DEADLINE_PHRASE.finditer(masked)]
 
 
+_URL_TRAILING_JOSA = re.compile(r"[가-힣]+$")
+
 def extract_urls(text: str) -> list[str]:
     """URL 표면형 그대로. NLLB로 보내지 말고 슬롯으로 격리."""
     seen: set[str] = set()
     out: list[str] = []
     for m in _URL.finditer(text):
-        ko = m.group(0).strip().rstrip(".,)]")
+        ko = _URL_TRAILING_JOSA.sub("", m.group(0).strip().rstrip(".,)]"))
         if ko in seen:
             continue
         seen.add(ko)
