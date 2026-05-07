@@ -28,7 +28,8 @@ HEADER_KEYWORDS: list[str] = [
     "일시", "기간", "장소", "위치", "주소", "교통",
     # 대상/자격
     "대상", "자격", "참가대상",
-    # 준비물/비용
+    # 준비물/비용 — "학습준비물" 도 추가 (Gemini sentence_list가 만드는 정제 헤더)
+    "학습준비물",
     "준비물", "준비", "지참물", "준비사항",
     "비용", "회비", "참가비", "수강료", "급식비",
     # 안내/유의
@@ -42,12 +43,25 @@ HEADER_KEYWORDS: list[str] = [
 
 _HEADER_KEYWORDS_SORTED = sorted(HEADER_KEYWORDS, key=len, reverse=True)
 
-# 줄 시작 + 헤더 키워드 + (선택적 `|`/`:`/`：` 구분자) + 값.
-# 키워드 글자 사이 \s* 허용 — HWP 표 셀의 공백 변형 ("일 시", "장 소", "대 상",
-# "준 비", "교 통") 매치. 윤정 split_sentences 결과가 "일 시: ..." 형태로
-# 들어와도 헤더 정상 추출.
+# 학년 prefix ("1학년" / "1 학년" 등) — Gemini sentence_list가 학년별 행을
+# "{N}학년 ... 학습준비물:" 형식으로 만드는 케이스 보강.
+# 자체 휴리스틱 시점엔 원본 통신문에 "1학년 준비물" 형태로 들어와 매칭 안 깨졌지만,
+# Gemini 정제 후엔 prefix 명시 인식 필요.
+_GRADE_PREFIX_RE = r"(?:[1-6]\s*학년)"
+# Sub-modifier (공용/개인/가정/학교) — 학년과 헤더 사이 끼어드는 분류어.
+_SUB_MODIFIER_RE = r"(?:공용|개인|가정|학교|학교\s*지원|가정\s*구매)"
+
+# 줄 시작 + (선택적 학년 prefix) + (선택적 sub modifier) + 헤더 키워드 +
+# (선택적 `|`/`:`/`：` 구분자) + 값.
+# 키워드 글자 사이 \s* 허용 — HWP 표 셀의 공백 변형 ("일 시", "장 소", "대 상")
+# + Gemini sentence ("학 습 준 비 물") 매치.
 _HEADER_RE = re.compile(
-    r"^\s*(?P<header>" + "|".join(
+    r"^\s*"
+    r"(?P<grade>" + _GRADE_PREFIX_RE + r")?"
+    r"\s*"
+    r"(?P<sub>" + _SUB_MODIFIER_RE + r")?"
+    r"\s*"
+    r"(?P<header>" + "|".join(
         r"\s*".join(re.escape(c) for c in k) for k in _HEADER_KEYWORDS_SORTED
     ) + r")"
     r"\s*[|:：]?\s*"
@@ -59,11 +73,23 @@ _HEADER_RE = re.compile(
 def split_header_value(text: str) -> tuple[str | None, str]:
     """todo.text → (헤더, 값) 페어.
 
+    학년/공용·개인 prefix 인식 — "1학년 공용 학습준비물: ..." → 헤더 "1학년 공용 학습준비물".
     매칭 실패 시 (None, text.strip()) 반환 — 호출부에서 "기타" 같은 fallback 헤더 처리.
     """
     if not text or not text.strip():
         return None, ""
     m = _HEADER_RE.match(text.strip())
     if m:
-        return m.group("header"), m.group("value").strip()
+        parts: list[str] = []
+        grade = m.group("grade")
+        sub = m.group("sub")
+        keyword = m.group("header")
+        if grade:
+            # "1 학년" → "1학년" 공백 제거 (시각적 통일)
+            parts.append(re.sub(r"\s+", "", grade))
+        if sub:
+            parts.append(re.sub(r"\s+", " ", sub).strip())
+        parts.append(keyword)
+        header = " ".join(parts)
+        return header, m.group("value").strip()
     return None, text.strip()
