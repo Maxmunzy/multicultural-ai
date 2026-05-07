@@ -562,6 +562,9 @@ async def analyze_notice(
     # [2.5a] bbox 기반 구조 재구성 — layout_json 있으면 좌표 기반 행/열 정리
     # (세종님 PR #133). 없으면 업로드 시 저장된 notice.text 그대로 사용.
     analysis_text = _reconstruct_text_from_layout(req.layout_json) or notice.text
+    # title 추출은 Vision sentence_list로 덮어씌워지기 전 원본 텍스트에서 — Gemini가
+    # sentence_list로 분해해버리면 첫 줄이 메타정보(날짜/담당) 라 윤정 heuristic이 제목 못 잡음.
+    original_text = analysis_text
     _t_marks["bbox_recon"] = time.time() - _t_start
 
     # [2.5b] LLM normalizer — Gemini로 sentence list 추출.
@@ -569,6 +572,8 @@ async def analyze_notice(
     # Vision 미지원 mime(HWP 변환 실패 케이스) 또는 호출 실패 시 text fallback.
     llm_status = "off"
     llm_elapsed = 0.0
+    # Gemini가 명시 추출한 document_title (Vision 성공 시) — extract_title 휴리스틱보다 우선.
+    gemini_title_override = ""
     if req.use_llm_normalizer:
         structured = None
         # Vision path 시도 — disk에 저장된 원본 파일이 있고 mime이 Vision 지원이면
@@ -599,12 +604,26 @@ async def analyze_notice(
                     )
                     structured = None
 
-        # Vision 성공 → sentence_list의 text를 \n으로 join해 후속 모델 입력으로
+        # Vision 성공 → 윤정 input 만들 때 sentence_list를 단순 \n join 하지 말고
+        # **section별 paragraph 재조합** — paragraph 흐름 보존이 핵심. 단순 \n join은
+        # paragraph context 신호가 사라져 윤정 KoELECTRA가 todo 인식률 급락
+        # (Gemini 3 Flash Preview 측정에서 cards 15→3 회귀로 확인).
+        # 같은 section sentence들을 한 paragraph로 묶고, paragraph 사이는 \n\n.
         if structured is not None and llm_status == "ok":
+            gemini_title_override = (structured.get("document_title") or "").strip()
             sentences = structured.get("sentence_list", [])
-            joined = "\n".join(
-                s.get("text", "").strip() for s in sentences if s.get("text")
-            )
+            paragraphs: dict[str, list[str]] = {}
+            order: list[str] = []
+            for s in sentences:
+                text = (s.get("text") or "").strip()
+                if not text:
+                    continue
+                section = (s.get("section") or "").strip() or "_default"
+                if section not in paragraphs:
+                    paragraphs[section] = []
+                    order.append(section)
+                paragraphs[section].append(text)
+            joined = "\n\n".join(" ".join(paragraphs[sec]) for sec in order)
             if joined:
                 analysis_text = joined
 
@@ -635,8 +654,10 @@ async def analyze_notice(
         todos = MOCK_TODOS
     _t_marks["yunjeong_extract"] = time.time() - _t_start - sum(_t_marks.values())
 
-    # [3'] 제목 추출 (윤정님 PR #90 heuristic) — split_sentences 이전, 원문 직접 스캔
-    title_ko = extract_title(analysis_text) or ""
+    # [3'] 제목 추출 — Gemini document_title 우선, 없으면 원본 텍스트(Vision 적용 전)에서
+    # 윤정님 PR #90 heuristic. analysis_text는 sentence_list로 덮어씌워졌을 수 있어
+    # 첫 줄이 메타정보(날짜/담당) — 휴리스틱이 본문 한 줄을 제목으로 잘못 잡음.
+    title_ko = gemini_title_override or extract_title(original_text) or ""
     title_translated = (
         translate_short_sentence(title_ko, target_lang) if title_ko else ""
     )
