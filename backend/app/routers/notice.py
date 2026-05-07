@@ -396,7 +396,7 @@ def _reconstruct_text_from_layout(layout_json) -> str | None:
         row_page = row[0]["page"]
         row_y    = row[0]["y"]
 
-        if prev_y is not None and prev_page == row_page and (row_y - prev_y) > para_thr:
+        if prev_y is not None and (prev_page != row_page or (row_y - prev_y) > para_thr):
             out_lines.append("")
 
         row.sort(key=lambda e: e["x"])
