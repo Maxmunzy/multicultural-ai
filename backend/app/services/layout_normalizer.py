@@ -3,18 +3,16 @@
 Google Gemini (gemini-2.5-flash 기본)에 통신문 텍스트/PDF/이미지를 보내 후속
 자체 모델(윤정 KoELECTRA)이 받을 **정제된 paragraph 본문**을 추출.
 
-2026-05-07 변경: sentence_list 분해 → cleaned_text(paragraph) 전환.
-- 이유: 윤정 KoELECTRA는 paragraph 흐름에 학습됨. sentence별 분해 후 \n join은
-  학습 데이터에 없는 형태라 윤정의 sentence boundary 인식이 헷갈림 (잘림 발생).
-- 자체 휴리스틱(text fallback) 시점은 원본 paragraph 그대로 윤정에 입력 →
-  잘림 없이 cards 정상 추출.
-- Gemini Vision의 정제 효과(자간 제거, 표 풀어쓰기, 노이즈 제거)는 살리되
-  paragraph 흐름은 그대로 유지.
+2026-05-07 변경: Gemini systemInstruction 분리 + few-shot 강화.
+- preview 모델(gemini-3-flash-preview)이 instruction following 약함
+- systemInstruction 분리 + temperature 0 + 윤정 split 헷갈리는 패턴 명시 금지로
+  preview 모델도 강제 따르게 만듦
+- few-shot 3개로 우리 실제 통신문 패턴 명시
 
 목적:
-- Gemini가 "최종 답변" 만들지 않음 (요약·번역 X)
-- 후속 윤정 모델이 받을 paragraph 본문만 정제
-- 신청기간 ↔ 운영일시 혼합, "대 상" 자간 오역, 표 행 미분리 차단
+- Gemini 출력이 자체 PDF 파서(pdfplumber) raw 텍스트 형태로
+- 윤정이 학습 데이터에서 본 적 없는 패턴 안 만들도록 명시 금지
+- Vision 강점(자간 정상화, 표 풀어쓰기)만 추가
 
 기본값 활성 (use_llm_normalizer=True). 실패/타임아웃/JSON 파싱 실패는
 원본 텍스트로 fallback해 회귀 방지.
@@ -37,68 +35,74 @@ GEMINI_MODEL = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
 GEMINI_TIMEOUT_SECONDS = float(os.environ.get("GEMINI_TIMEOUT_SECONDS", "60"))
 
 
-# Text 모드 프롬프트 — 원본 텍스트가 input. paragraph 흐름 유지하며 정제만.
-_EXTRACT_PROMPT = """다음 한국 학교 가정통신문 텍스트를 후속 자체 모델(윤정 KoELECTRA) 입력용으로 정제합니다.
+# 모든 모드(Vision/text) 공통 — Gemini systemInstruction.
+# user contents와 분리해서 instruction 강도 ↑ (Gemini API systemInstruction은
+# 지속 규칙으로 더 강하게 적용됨). preview 모델도 강제 따르게 만들기 위함.
+_SYSTEM_INSTRUCTION = """당신은 한국 학교 가정통신문에서 후속 자체 모델(윤정 KoELECTRA) 입력용 본문을 추출하는 도우미입니다.
 
-**목적**: 원본 통신문의 paragraph 흐름과 문장 구조를 그대로 유지한 채 정제. 후속 모델이 자연스러운 paragraph 안에서 todo 추출.
-
-**규칙** (절대 어기지 말 것):
-- **paragraph 흐름 유지** — 원문의 자연스러운 줄과 단락 구조 그대로. sentence별 분해 X
-- **자간 공백만 정상화** ("학 년 도" → "학년도", "의 정 부 시" → "의정부시"), 글자 변경 X
-- **표 행은 한 줄에 자연 sentence로** 풀어쓰기 ("1학년 공용 준비물: 알림장, 클리어 화일, ...")
-- **종결어미는 원문 흐름 그대로** ("입니다"/"바랍니다"/"주세요" 자연 사용)
-- **의미 없는 단독 기호 줄(■, □, ※, 가로줄)만 제거**
-- **요약·번역·축약 금지** — 원문 표현 그대로
-- **날짜·시간·금액·URL·전화번호 원문 그대로 보존**
-- **고유명사·학교명·지명 그대로**
-- **원문에 없는 정보 추측·추가 금지**
-
-출력 형식 — JSON 두 필드:
-- document_title: 통신문 제목 (없으면 빈 문자열)
-- cleaned_text: 정제된 통신문 본문 한 덩어리 (paragraph 사이 \\n\\n, 같은 paragraph 내부는 \\n)
-
-[입력]
-{text}
-"""
-
-
-# Vision 모드 프롬프트 — PDF/이미지가 첨부 input. 같은 정제 규칙.
-_EXTRACT_PROMPT_VISION = """첨부된 한국 학교 가정통신문(PDF/이미지)을 후속 자체 모델(윤정 KoELECTRA) 입력용으로 정제합니다.
-
-**목적**: 원본 통신문의 paragraph 흐름과 문장 구조를 그대로 유지한 채 정제. 후속 모델이 자연스러운 paragraph 안에서 todo 추출.
+**핵심 원칙**: 자체 PDF 파서(pdfplumber)가 만들 raw 텍스트 형태로 출력. 후속 모델이 paragraph 안에서 todo 추출.
 
 **규칙** (절대 어기지 말 것):
-- **paragraph 흐름 유지** — 원문의 자연스러운 줄과 단락 구조 그대로. sentence별 분해 X
-- **자간 공백만 정상화** ("학 년 도" → "학년도", "의 정 부 시" → "의정부시"), 글자 변경 X
-- **표 행은 한 줄에 자연 sentence로** 풀어쓰기:
-    "1학년 공용 준비물: 알림장, 클리어 화일, 유성매직, ..."
-    "1학년 가정 준비물: 줄 없는 종합장 1권, 천으로 된 필통, ..."
-    학년별 공용/개인 두 줄로 분리 (한 줄에 합치지 말 것)
-- **종결어미는 원문 흐름 그대로** ("입니다"/"바랍니다"/"주세요" 자연 사용)
-- **의미 없는 단독 기호 줄(■, □, ※, 가로줄)만 제거**
-- **요약·번역·축약 금지** — 원문 표현 그대로
-- **날짜·시간·금액·URL·전화번호 원문 그대로 보존**
-- **고유명사·학교명·지명 그대로**
-- **원문에 없는 정보 추측·추가 금지**
+1. **줄바꿈 = sentence boundary** — 한 줄에 한 sentence 완결. 한 문장을 두 줄에 걸치지 말 것
+2. **헤더는 콜론(:) 사용** — "신청방법: ..." (O). "신청방법은 ..." (X — 조사 시작 금지)
+3. **한 sentence에 같은 헤더 키워드 두 번 금지** — "준비물" / "일시" / "대상" 등은 한 sentence에 한 번만
+4. **학년 prefix는 sentence 시작에만** — 줄 끝에 다른 학년 prefix 안 나오게
+5. **표 행은 한 줄 자연 sentence**: "1학년 가정 준비물: 줄 없는 종합장 1권, 천으로 된 필통, ..."
+   학년별 공용/개인 두 줄로 분리 (한 줄에 합치지 말 것)
+6. **마크업·기호 보존** — ■, □, ▣, ※, ▶ 등 텍스트 안의 기호 그대로 유지
+7. **자간 공백만 정상화** ("학 년 도" → "학년도", "의 정 부 시" → "의정부시"), 다른 글자 변경 X
+8. **단독 기호 줄만 제거** — "■■■", "------------" 가로줄 같이 텍스트 없는 기호 줄만
+9. **종결어미 강제 X** — 원문 그대로
+10. **요약·번역·축약 금지** — 원문 표현 그대로
+11. **날짜·시간·금액·URL·전화번호 원문 그대로 보존**
+12. **고유명사·학교명·지명 그대로**
+13. **원문에 없는 정보 추측·추가 금지**
 
-출력 형식 — JSON 두 필드:
+**금지 sentence 예시 (잘못된 형식 — 절대 만들지 말 것)**:
+❌ "1학년 공용 학습준비물: ..." — 헤더 키워드 변형 금지. 반드시 "준비물" 사용
+❌ "신청방법은 제주특별자치도교육청..." — 조사("은/는") 시작 금지
+❌ "준비: 간편한 복장, 물, 기타 개인 준비물 등입니다." — 한 sentence에 "준비물" 두 번 금지
+❌ "운영시간: 토요다문화이야기 2026. 5. 23.(토) 13:00 ~ 15:00입니다." — 헤더 + 프로그램명 + 날짜 + 시간 한 sentence 압축 금지
+
+**올바른 sentence 예시**:
+✅ "1학년 공용 준비물: 알림장, 클리어 화일, 유성매직, ..." (학년 prefix가 시작, 헤더는 "준비물")
+✅ "신청방법: 제주특별자치도교육청 통합예약시스템에서 신청"
+✅ "준비물: 간편한 복장, 물, 기타 개인 용품" ("준비물" 한 번만)
+✅ "운영일시: 2026. 5. 23.(토) 13:00 ~ 15:00" (헤더 + 값만, 다른 정보 분리)
+
+**출력 — JSON 두 필드만**:
 - document_title: 통신문 제목 (없으면 빈 문자열)
-- cleaned_text: 정제된 통신문 본문 한 덩어리 (paragraph 사이 \\n\\n, 같은 paragraph 내부는 \\n)
+- cleaned_text: 정제된 본문 한 덩어리 (paragraph 사이 \\n\\n, 같은 paragraph 내부는 \\n)
 
-**예시 1 — 학년별 학습준비물 통신문**
+**Few-shot 예시 1 — 학년별 학습준비물 (공용/개인 분리)**:
 {
   "document_title": "2026학년도 1분기 학습준비물 안내",
-  "cleaned_text": "학부모님, 안녕하십니까?\\n본교에서는 학생들이 다양한 학습활동에 집중하며, 학부모님의 부담을 경감하고자 학생들에게 학습준비물을 지원하고 있습니다. 학습준비물 지원은 연간 총 2분기로 지원되며 이번 1분기에 지원되는 학습준비물은 아래와 같습니다.\\n\\n1분기 운영 시기: 3월\\n2분기 운영 시기: 9월\\n\\n학교에서 지원되는 공용 학습준비물\\n1학년 공용 준비물: 알림장, 클리어 화일, 유성매직, 받아쓰기 공책, 색종이, 천사점토, 풍선\\n2학년 공용 준비물: 흰도화지, 색종이, 받아쓰기 공책, 아이클레이, 포스트잇\\n3학년 공용 준비물: 마커, 유성 매직, 수채화 물감, 붓, 물통, 먹, A4 용지, 도화지\\n\\n가정에서 구매가 필요한 개인 학습준비물\\n1학년 가정 준비물: 줄 없는 종합장 1권, 천으로 된 필통, 샤프식 색연필 12색\\n2학년 가정 준비물: 알림장 1권, 줄공책 1권, 종합장 1권, 필통, 연필, 15cm 자\\n\\n학급 안내에 따라 개인학습준비물은 달라질 수 있습니다.\\n\\n문의: 031-877-0292\\n2026. 3. 10. 의정부서초등학교장"
+  "cleaned_text": "학부모님, 안녕하십니까?\\n본교에서는 학생들이 다양한 학습활동에 집중하며, 학부모님의 부담을 경감하고자 학생들에게 학습준비물을 지원하고 있습니다.\\n학습준비물 지원은 연간 총 2분기로 지원되며 이번 1분기에 지원되는 학습준비물은 아래와 같습니다.\\n\\n■ 총 2분기\\n1분기 운영 시기: 3월\\n2분기 운영 시기: 9월\\n\\n■ 학교에서 지원되는 공용 학습준비물\\n1학년 공용 준비물: 알림장, 클리어 화일, 유성매직, 받아쓰기 공책, 색종이, 천사점토, 풍선\\n2학년 공용 준비물: 흰도화지, 색종이, 받아쓰기 공책, 아이클레이, 포스트잇\\n3학년 공용 준비물: 마커, 유성 매직, 수채화 물감, 붓, 물통, 먹\\n4학년 공용 준비물: 색종이, 색지, 유성매직, 도화지, 물감, 붓, 찰흙\\n5학년 공용 준비물: 식물 모종, 찰흙, 아크릴물감, 포스트잇, 수채 물감\\n6학년 공용 준비물: 풀, 가위, 도화지, 물감 등\\n\\n■ 가정에서 구매가 필요한 개인 학습준비물\\n1학년 가정 준비물: 줄 없는 종합장 1권, 천으로 된 필통, 샤프식 색연필 12색\\n2학년 가정 준비물: 알림장 1권, 줄공책 1권, 종합장 1권, 필통, 연필, 15cm 자\\n3학년 가정 준비물: 리코더, 유성 매직, 풀, 가위, 테이프, 네임펜\\n4학년 가정 준비물: 색연필, 사인펜, 풀, 가위, 15cm 자, 필기구, 줄넘기\\n5학년 가정 준비물: 개인 물병, 물티슈, 미니 빗자루 세트, 하얀 실내화\\n6학년 가정 준비물: 연필, 지우개 등 학용품, 칫솔, 치약, 물티슈, 휴지 등\\n\\n※ 학급 안내에 따라 개인학습준비물은 달라질 수 있습니다.\\n\\n문의: 031-877-0292\\n2026. 3. 10. 의정부서초등학교장"
 }
 
-**예시 2 — 현장체험학습 통신문**
+**Few-shot 예시 2 — 현장체험학습**:
 {
   "document_title": "2026 해조류박람회 체험학습 안내",
-  "cleaned_text": "학부모님, 안녕하십니까?\\n늘 건강하시고 웃음꽃이 피어나는 행복한 가정의 달 5월 맞이하시기를 기원합니다.\\n\\n일시: 2026년 5월 6일(목) 8:50~14:40\\n장소: 해조류박람회 및 빙그레 시네마\\n대상: 유치원생, 1-6학년 전교생\\n교통: 통학버스 2대\\n준비물: 간편한 복장, 물, 기타 개인 준비물\\n\\n참가 동의서는 4월 28일(화)까지 담임선생님께 제출 바랍니다. 당일 점심은 학교에서 제공되니 별도 도시락은 필요 없습니다.\\n\\n문의: 신지초등학교 강동재 교사"
+  "cleaned_text": "학부모님, 안녕하십니까?\\n늘 건강하시고 웃음꽃이 피어나는 행복한 가정의 달 5월 맞이하시기를 기원합니다.\\n드릴 말씀은 본교 교육과정 운영계획에 의거 다음과 같이 체험학습을 실시할 예정입니다.\\n\\n■ 일시: 2026년 5월 6일(목) 8:50~14:40\\n■ 장소: 해조류박람회 및 빙그레 시네마\\n■ 대상: 유치원생, 1-6학년 전교생\\n■ 교통: 통학버스 2대\\n■ 준비물: 간편한 복장, 물, 기타 개인 용품\\n\\n※ 참가 동의서는 4월 28일(화)까지 담임선생님께 제출 바랍니다.\\n※ 당일 점심은 학교에서 제공되니 별도 도시락은 필요 없습니다.\\n\\n2026. 신지초등학교장"
 }
 
-첨부된 PDF/이미지 분석해서 위 두 필드 JSON으로만 출력.
+**Few-shot 예시 3 — 여러 프로그램 + 신청기간/운영일시 분리**:
+{
+  "document_title": "2026년 5월 서귀포외국문화학습관 토요프로그램 추가모집 안내",
+  "cleaned_text": "제주국제교육원 서귀포외국문화학습관\\n주소: 제주특별자치도 서귀포시 중앙로150번길 4-1\\nURL: https://org.jje.go.kr/jiei/index.jje\\n전화: 064-767-9811~5\\n\\n■ 토요영어체험교실\\n대상: 초등학생 3·4학년 8명\\n내용: 카네이션 케이크 만들기 등\\n신청기간: 2026. 4. 21.(화) 10:00 ~ 4. 24.(금) 24:00\\n운영일시: 2026. 5. 9.(토) 10:00 ~ 12:00\\n\\n■ 토요다문화이야기\\n대상: 유치원(7세) ~ 초등 1·2학년 9명\\n내용: 꼬꼬붱, 알쏭달쏭 동전 지우기 게임\\n신청기간: 2026. 4. 21.(화) 10:00 ~ 4. 24.(금) 24:00\\n운영일시: 2026. 5. 23.(토) 13:00 ~ 15:00\\n\\n■ 신청 안내\\n신청방법: 제주특별자치도교육청 통합예약시스템 홈페이지에서 로그인 후 신청\\n선발조건: 이주·비이주배경학생 구분없이 동일하게 선착순 접수\\n결과발표: 2026. 4. 28.(화) 문자 알림 및 홈페이지 공지\\n\\n문의: 064-767-9811~5\\n2026. 4. 21. 서귀포외국문화학습관장"
+}
 """
+
+
+# Vision mode user prompt — 짧게. 모든 규칙은 systemInstruction에 있음.
+_USER_PROMPT_VISION = "첨부된 한국 학교 가정통신문(PDF/이미지)을 systemInstruction의 형식·규칙·예시대로 분석해서 JSON 두 필드(document_title, cleaned_text)로 출력하세요."
+
+
+# Text mode user prompt — 짧게. 본문은 [입력] 안에.
+_USER_PROMPT_TEXT = """다음 가정통신문 텍스트를 systemInstruction의 형식·규칙·예시대로 정제해서 JSON 두 필드(document_title, cleaned_text)로 출력하세요.
+
+[입력]
+{text}"""
 
 
 # Gemini Vision API가 inlineData로 직접 받을 수 있는 mime types.
@@ -115,9 +119,6 @@ VISION_SUPPORTED_MIMES = frozenset({
 
 
 # Gemini가 JSON 강제 출력하도록 schema 정의 (responseSchema).
-# 2026-05-07 변경: sentence_list → cleaned_text. 윤정 모델이 paragraph 흐름에
-# 학습됐기에 sentence_list 분해보다 paragraph 정제가 친화적 (자체 휴리스틱
-# 시점 형태와 동등). sentence_list metadata는 사용처 없어 제거.
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
@@ -139,13 +140,13 @@ def extract_sentences(
     """Gemini로 통신문 본문 정제 → {document_title, cleaned_text} 반환.
 
     함수 이름은 호환성 위해 그대로 유지. 내부적으론 sentence_list 분해 안 함.
-    윤정 KoELECTRA가 paragraph 흐름에 학습됐기에 paragraph 그대로 입력하는 것이
-    sentence별 분해 후 \\n join보다 친화적 (자체 휴리스틱 시점 형태와 동등).
 
     두 가지 모드:
-    - **text 모드** (기본): text 인자 사용, inline_data=None. 프롬프트에 본문 포함.
-    - **Vision 모드**: inline_data=(raw_bytes, mime_type) 전달. PDF/이미지가
-      Gemini Vision에 직접 전송. text 인자는 무시. 표/자간 등 구조 자연 처리.
+    - **text 모드** (기본): text 인자 사용, inline_data=None.
+    - **Vision 모드**: inline_data=(raw_bytes, mime_type) 전달. PDF/이미지 첨부.
+
+    Gemini API의 systemInstruction을 사용해 지속 규칙을 분리 — preview 모델도
+    강제 따르게 함. user contents는 짧게 (PDF 첨부 또는 텍스트 본문만).
 
     실패 시 빈 dict({"document_title":"", "cleaned_text":""}) + status 반환.
 
@@ -168,25 +169,26 @@ def extract_sentences(
                 "extract_sentences unsupported mime_type for Vision: %s", mime_type,
             )
             return _empty_structured(), f"skip:unsupported_mime:{mime_type}", 0.0
-        # Vision 입력 토큰은 PDF 페이지/이미지 크기 따라 다름. 출력 cap은 보수적으로 32768.
-        max_output_tokens = 32768
         encoded = base64.b64encode(raw_bytes).decode("utf-8")
         parts = [
-            {"text": _EXTRACT_PROMPT_VISION},
+            {"text": _USER_PROMPT_VISION},
             {"inlineData": {"mimeType": mime_type, "data": encoded}},
         ]
+        # paragraph 정제 출력 cap — 통신문 보통 1500~3000자 → 8192 토큰이면 여유.
+        max_output_tokens = 8192
     else:
         if not text or not text.strip():
             return _empty_structured(), "skip:empty", 0.0
-        prompt = _EXTRACT_PROMPT.format(text=text)
-        # 출력은 입력의 1.5~2배 정도 (paragraph 정제). cap 32768로 절단 방지.
-        max_output_tokens = min(32768, max(2048, int(len(text) * 2.0)))
-        parts = [{"text": prompt}]
+        parts = [{"text": _USER_PROMPT_TEXT.format(text=text)}]
+        # 입력 길이 + 1.5배 cap. paragraph 정제는 보통 입력 비슷한 길이.
+        max_output_tokens = min(8192, max(2048, int(len(text) * 1.5)))
 
     payload = json.dumps({
+        "systemInstruction": {"parts": [{"text": _SYSTEM_INSTRUCTION}]},
         "contents": [{"parts": parts}],
         "generationConfig": {
-            "temperature": 0.2,
+            # temperature 0 — 결정적 출력 (사실 추출이라 다양성 X 좋음)
+            "temperature": 0.0,
             "topP": 0.9,
             "maxOutputTokens": max_output_tokens,
             "responseMimeType": "application/json",
