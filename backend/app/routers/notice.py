@@ -633,26 +633,15 @@ async def analyze_notice(
     _t_marks["llm_normalizer"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
-    # \n 단위로 sentence 분리 후 한 줄씩 윤정에 개별 호출.
+    # \n 단위 sentence 분리 후 한 줄씩 윤정에 개별 호출.
+    # 원칙: API는 윤정 input quality 개선 도구. 후처리 X — Gemini가 윤정 친화 형태로
+    # 출력하면 윤정 결과가 그대로 학부모 카드에 들어감.
     try:
         sentences = [s.strip() for s in analysis_text.split("\n") if s.strip()]
-        # DEBUG (임시): 윤정에 넘기는 input dump — 학년 prefix 어디서 사라지는지 추적용
-        logger.warning(
-            "[analyze] DEBUG yunjeong INPUT (%d sentences):\n%s",
-            len(sentences),
-            json.dumps([s[:120] for s in sentences[:30]], ensure_ascii=False, indent=2),
-        )
         all_todos: list = []
         for sent in sentences:
             try:
                 sent_todos = extract_todos(sent)
-                # DEBUG: 각 sentence input → output 매핑 (학년 prefix 처리 추적)
-                if sent_todos:
-                    out_texts = [t.text[:80] for t in sent_todos]
-                    logger.warning(
-                        "[analyze] DEBUG yunjeong %r -> %s",
-                        sent[:80], json.dumps(out_texts, ensure_ascii=False),
-                    )
                 all_todos.extend(sent_todos)
             except Exception as error:
                 logger.warning("[analyze] extractor failed for sentence %r: %s", sent[:50], error)
