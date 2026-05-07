@@ -24,11 +24,12 @@
 | 체크리스트 표시 | 해야 할 일을 카테고리별로 보여 줌 | 실제 모델 결과 표시 |
 | 쉬운 한국어 | 학부모가 이해하기 쉬운 문장으로 요약 | 완료 |
 | 다국어 번역 | NLLB 기반 8개국어 번역(vi/en/ru/ms/mn/zh/th/ja) + 통화 오번역 후처리 | 완료 |
+| 번역 화면 안정화 | `__Slot` placeholder 누수 방지, fallback `기타/Khac` 반복 감소, 긴 OCR fallback 카드 trim | 진행 중 |
 | 용어사전 검수 | 학교 안내 핵심 용어 누락 확인 | 완료 (용어 확장) |
 | TTS 재생 | 언어별 Edge-TTS 음성(9개) 또는 앱 내장 mp3 fallback | 완료 |
 | Android 실기기 데모 | Java 단일 Activity 앱 | 완료 |
 | HWP/PDF/텍스트 파일 업로드 | `POST /notice/upload` — LibreOffice + H2Orestart 변환, `services/parser.py` | 완료 |
-| 카메라 OCR (학부모) | `OcrActivity` — ML Kit Korean 온디바이스, 4종 전처리, 2-pass 표 재인식, `POST /notice/upload-self` | 완료 |
+| 카메라 OCR (학부모) | `OcrActivity` — ML Kit Korean 온디바이스, 촬영 결과 preview 후 `POST /notice/upload-self`. 2026-05-07 실기기에서 업로드 후 AI 번역 시연까지 확인. OpenCV 전처리/표 2-pass는 native 로딩 실패 시 skip하고 원본 OCR로 fallback | 완료 |
 | **원본 가정통신문 표시 (학부모)** | 백엔드 `static/notices/{id}{ext}` 보존 + Notice 응답에 `original_file_url`/`mime_type`, 안드 카드 클릭 → PDF/이미지 풀화면 | 완료 |
 | **HF Spaces 실서버 배포** | `https://maxmunzy-schoolbridge.hf.space` (Docker SDK, CPU basic, 24/7) | 완료 |
 
@@ -78,6 +79,8 @@
 - [x] 고정 데모 산출물 생성: `demo/translation_tts/demo_case_01/`
 - [x] Android 앱에 데모 산출물 포함
 - [x] 서버 API에 번역/TTS 파이프라인 직접 연결 (target_language 파라미터로 8개국어 동적 라우팅)
+- [x] protected slot restore 보강: `__Slot1__`, `__SLOt2__`, `__ SLOT 0 __` 복원 대응
+- [ ] NCP 반영 후 OCR 촬영본 재검증: slot token 누수, `Khac:` 반복, 긴 fallback 카드 감소 확인
 
 ### Backend
 
@@ -110,7 +113,7 @@
 - [x] TTS 재생/정지 토글
 - [x] 내장 데모 산출물 fallback (서버 연결 실패 시)
 - [x] 내장 mp3 TTS 재생
-- [x] 학부모 홈 카메라 OCR (OcrActivity — ML Kit Korean, 4종 전처리, 2-pass 표 재인식)
+- [x] 학부모 홈 카메라 OCR (OcrActivity — ML Kit Korean, 실기기 촬영/업로드/AI 번역 시연 성공. OpenCV 전처리는 fallback 처리)
 - [x] 선생님 홈 HWP/PDF/이미지 파일 업로드
 - [x] **학부모 알림 카드 클릭 → 원본 PDF/이미지 풀화면 표시 (PdfRenderer + ImageView, 다중 페이지 PDF 네비)**
 - [x] **`BASE_URL`을 HF Spaces 실서버(`https://maxmunzy-schoolbridge.hf.space`)로 통일 — 팀 시연 환경 일관성**

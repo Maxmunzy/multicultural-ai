@@ -70,3 +70,6 @@ docs/meetings/
 # 학습 데이터 draft (대용량, 미완성)
 data/processed/
 data/raw/
+
+# 용어사전 후보 아카이브 (term_glossary.csv에 전부 반영 완료)
+model/translation_tts/archive/
