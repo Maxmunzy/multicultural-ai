@@ -623,7 +623,8 @@ async def analyze_notice(
                     paragraphs[section] = []
                     order.append(section)
                 paragraphs[section].append(text)
-            joined = "\n\n".join(" ".join(paragraphs[sec]) for sec in order)
+            # 같은 section 내 sentence는 \n (학년별 행 시각적 구분), section 사이는 \n\n.
+            joined = "\n\n".join("\n".join(paragraphs[sec]) for sec in order)
             if joined:
                 analysis_text = joined
 
@@ -653,6 +654,23 @@ async def analyze_notice(
         logger.warning("[analyze] extractor failed: %s", error)
         todos = MOCK_TODOS
     _t_marks["yunjeong_extract"] = time.time() - _t_start - sum(_t_marks.values())
+
+    # DEBUG (임시): 윤정 모델이 어느 sentence를 todo로 잡았는지 dump.
+    # Gemini sentence_list 어떤 형식이 todo로 인식되는지 진단용. 튜닝 후 제거.
+    yunjeong_dump = [
+        {
+            "text": (t.text or "")[:120],
+            "action": t.action_hint,
+            "due": t.due_date,
+            "amount": t.amount,
+            "conf": round(t.confidence, 3),
+        }
+        for t in todos[:30]
+    ]
+    logger.warning(
+        "[analyze] DEBUG yunjeong todos (%d):\n%s",
+        len(todos), json.dumps(yunjeong_dump, ensure_ascii=False, indent=2),
+    )
 
     # [3'] 제목 추출 — Gemini document_title 우선, 없으면 원본 텍스트(Vision 적용 전)에서
     # 윤정님 PR #90 heuristic. analysis_text는 sentence_list로 덮어씌워졌을 수 있어
