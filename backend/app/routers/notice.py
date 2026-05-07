@@ -2,6 +2,7 @@ import json
 import logging
 import mimetypes
 import os
+import time
 import uuid
 from pathlib import Path
 
@@ -551,9 +552,14 @@ async def analyze_notice(
         )
     target_lang = req.target_language
 
+    # 단계별 시간 측정 — 어디서 시간 잡아먹는지 진단용. 발표 후 logger.info로 낮출 것.
+    _t_start = time.time()
+    _t_marks: dict[str, float] = {}
+
     # [2.5a] bbox 기반 구조 재구성 — layout_json 있으면 좌표 기반 행/열 정리
     # (세종님 PR #133). 없으면 업로드 시 저장된 notice.text 그대로 사용.
     analysis_text = _reconstruct_text_from_layout(req.layout_json) or notice.text
+    _t_marks["bbox_recon"] = time.time() - _t_start
 
     # [2.5b] LLM normalizer — Gemini로 sentence list 추출.
     # Vision 우선 (PDF/이미지 disk 파일 → inlineData 전송) → 표/자간 자연 처리.
@@ -614,6 +620,8 @@ async def analyze_notice(
             if llm_status == "ok":
                 analysis_text = normalized
 
+    _t_marks["llm_normalizer"] = time.time() - _t_start - sum(_t_marks.values())
+
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     try:
         todos = extract_todos(analysis_text)
@@ -622,6 +630,7 @@ async def analyze_notice(
     except Exception as error:
         logger.warning("[analyze] extractor failed: %s", error)
         todos = MOCK_TODOS
+    _t_marks["yunjeong_extract"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [3'] 제목 추출 (윤정님 PR #90 heuristic) — split_sentences 이전, 원문 직접 스캔
     title_ko = extract_title(analysis_text) or ""
@@ -634,6 +643,7 @@ async def analyze_notice(
 
     # [4]+[6] items: 각 todo에 경이님 카테고리 + 슬롯 결합 (deprecated, 다음 PR 폐기)
     items = [_build_item(t, target_lang) for t in todos]
+    _t_marks["title_items_classify"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [6] summary 집계: 정규식 + items 모델 슬롯 통합 (deprecated, 다음 PR 폐기)
     summary = _build_summary(regex_slots, items, target_lang)
@@ -641,6 +651,7 @@ async def analyze_notice(
     # [6'] cards: 신규 슬롯 카드 응답 — 시연 안정성을 위해 상위 N개만 번역/TTS 대상으로 사용.
     top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
     cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
+    _t_marks["card_build_nllb"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.
     # layout_json은 안드 ML Kit OCR JSON 또는 backend pdfplumber probe JSON.
@@ -664,6 +675,20 @@ async def analyze_notice(
     except Exception as error:
         logger.warning("[analyze] TTS (easy_ko) failed: %s", error)
         tts_url_easy_ko = ""
+    _t_marks["tts"] = time.time() - _t_start - sum(_t_marks.values())
+
+    _t_total = time.time() - _t_start
+    logger.warning(
+        "[timing] cards=%d total=%.2fs | bbox=%.2fs llm=%.2fs yunjeong=%.2fs "
+        "title_items=%.2fs cards_nllb=%.2fs tts=%.2fs",
+        len(cards), _t_total,
+        _t_marks.get("bbox_recon", 0),
+        _t_marks.get("llm_normalizer", 0),
+        _t_marks.get("yunjeong_extract", 0),
+        _t_marks.get("title_items_classify", 0),
+        _t_marks.get("card_build_nllb", 0),
+        _t_marks.get("tts", 0),
+    )
 
     response = {
         "notice_id": notice_id,
