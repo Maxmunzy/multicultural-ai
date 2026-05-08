@@ -324,10 +324,11 @@ v3.1.1에서 no_match로 False 처리된 케이스 중 문맥상 학부모가 �
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | v3 Small | koelectra-small | v3_dual_labeled_clean (27,799) | 0.65 | 89.58% | 0.8225 | 0.8149 | 0.8303 |
 | v3.1 Small | koelectra-small | v3.1_dual_labeled (28,247) | 0.55 | 89.40% | 0.8223 | 0.8025 | 0.8431 |
-| **Base** | **koelectra-base** | **v3.1.3_dual_labeled (22,523)** | **0.40** | **90.69%** | **0.8387** | **0.8459** | 0.8315 |
+| Base (v3.1.3) | koelectra-base | v3.1.3_dual_labeled (22,523) | 0.40 | 90.69% | 0.8387 | 0.8459 | 0.8315 |
+| **Base (v4_merged)** | **koelectra-base** | **v3.1.3 + v4_clean (47,148)** | **0.55** | **94.74%** | **0.9003** | **0.8945** | **0.9061** |
 
-> - Base 모델: v3.1.3(B그룹 제외) + 소프트 라벨(KL Divergence) 학습, T4 약 60분
-> - galsan unseen(테스트셋 B) 평가 미완료 — 추후 측정 필요
+> - Base (v4_merged): v3.1.3 + v4_clean 병합, 소프트 라벨(KL Divergence), val split 기준
+> - ⚠️ val split이 v4_merged(True 26.2%) 기반 — galsan unseen 평가로 일반화 검증 필요
 > - 상세 비교: `docs/eval-base-vs-small-2026-05-07.md`
 
 ---
