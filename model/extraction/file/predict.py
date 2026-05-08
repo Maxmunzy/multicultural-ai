@@ -156,9 +156,9 @@ _BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub 파인튜닝 모�
 _HF_SUBFOLDER = "koelectra-extractor"
 _LOCAL_CHECKPOINT_DIR = os.path.join(
     os.path.dirname(__file__), "..", "checkpoints", "koelectra-binary-base"
-)  # base 재학습 체크포인트 (2026-05-07). 학습 데이터: v3.1.3 (B그룹 제외 + 소프트 라벨)
-# label-1 (할 일) 확률 임계값 — base 모델 임계값 탐색 결과 0.40 최적 (F1=0.8393)
-BINARY_THRESHOLD = 0.40
+)  # base 재학습 체크포인트 (2026-05-08). 학습 데이터: v3.1.3 + v4_clean 병합 (47,148개, 소프트 라벨)
+# label-1 (할 일) 확률 임계값 — v4_merged 재학습 임계값 탐색 결과 0.55 최적 (F1=0.9003)
+BINARY_THRESHOLD = 0.55
 
 _tokenizer: Optional[AutoTokenizer] = None
 _model: Optional[AutoModelForSequenceClassification] = None
