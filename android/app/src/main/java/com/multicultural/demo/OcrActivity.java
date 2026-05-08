@@ -53,6 +53,7 @@ import org.opencv.core.Point;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -839,7 +840,15 @@ public class OcrActivity extends Activity {
 
                 try (OutputStream os = conn.getOutputStream()) {
                     writeField(os, boundary, "parent_id", parentId != null ? parentId : "parent_001");
+                    if (bestOcrLayoutJson != null && !bestOcrLayoutJson.isEmpty()) {
+                        writeField(os, boundary, "layout_json", bestOcrLayoutJson);
+                    }
                     writeFilePart(os, boundary, "file", filename, bytes);
+                    if (photoFile != null && photoFile.exists() && photoFile.length() > 0) {
+                        writeFilePart(
+                                os, boundary, "original_file", "ocr_capture.jpg",
+                                readFileBytes(photoFile), "image/jpeg");
+                    }
                     os.write(("--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
                 }
 
@@ -940,13 +949,31 @@ public class OcrActivity extends Activity {
     private void writeFilePart(OutputStream os, String boundary,
                                String fieldName, String filename,
                                byte[] data) throws IOException {
+        writeFilePart(os, boundary, fieldName, filename, data, "text/plain; charset=utf-8");
+    }
+
+    private void writeFilePart(OutputStream os, String boundary,
+                               String fieldName, String filename,
+                               byte[] data, String contentType) throws IOException {
         String header = "--" + boundary + "\r\n"
                 + "Content-Disposition: form-data; name=\"" + fieldName
                 + "\"; filename=\"" + filename + "\"\r\n"
-                + "Content-Type: text/plain; charset=utf-8\r\n\r\n";
+                + "Content-Type: " + contentType + "\r\n\r\n";
         os.write(header.getBytes(StandardCharsets.UTF_8));
         os.write(data);
         os.write("\r\n".getBytes(StandardCharsets.UTF_8));
+    }
+
+    private byte[] readFileBytes(File file) throws IOException {
+        try (FileInputStream in = new FileInputStream(file);
+             ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            byte[] buffer = new byte[8192];
+            int n;
+            while ((n = in.read(buffer)) != -1) {
+                out.write(buffer, 0, n);
+            }
+            return out.toByteArray();
+        }
     }
 
     private String readStream(InputStream stream) throws Exception {

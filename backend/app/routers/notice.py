@@ -23,6 +23,7 @@ from app.services.slot_extractor import (
     split_supply_tokens, strip_markers,
 )
 from app.services.card_builder import build_cards
+from app.services.info_card_builder import build_info_cards_from_sentence_document
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.layout_normalizer import (
     normalize_text as llm_normalize_text,
@@ -30,6 +31,7 @@ from app.services.layout_normalizer import (
     VISION_SUPPORTED_MIMES,
 )
 from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
+from app.services.sentence_skeleton import raw_text_to_sentence_list
 from app.models.schemas import OcrCorrectionEntry
 from app.services.mock import MOCK_TODOS
 
@@ -87,6 +89,16 @@ def _save_original(notice_id: str, raw_bytes: bytes, filename: str) -> tuple[str
     (NOTICES_DIR / safe_name).write_bytes(raw_bytes)
     mime_type, _ = mimetypes.guess_type(safe_name)
     return f"/static/notices/{safe_name}", mime_type
+
+
+def _parse_layout_json_field(layout_json: str | None):
+    if not layout_json:
+        return None
+    try:
+        return json.loads(layout_json)
+    except Exception:
+        logger.warning("[upload] invalid layout_json ignored")
+        return None
 
 
 @router.post("/send", response_model=ApiResponse)
@@ -167,6 +179,7 @@ async def extract_text(
 async def upload_notice(
     teacher_id: str = Form(...),
     parent_id: str = Form(...),
+    layout_json: str | None = Form(None),
     file: UploadFile = File(...),
     user: UserProfile = Depends(require_teacher),
 ):
@@ -211,6 +224,7 @@ async def upload_notice(
         original_filename=file.filename,
         mime_type=mime_type,
         ocr_corrections=ocr_entries,
+        layout_json=_parse_layout_json_field(layout_json),
     )
     _notices[notice_id] = notice
     return ApiResponse.success(
@@ -222,7 +236,9 @@ async def upload_notice(
 @router.post("/upload-self", response_model=ApiResponse)
 async def upload_notice_self(
     parent_id: str = Form(...),
+    layout_json: str | None = Form(None),
     file: UploadFile = File(...),
+    original_file: UploadFile | None = File(None),
     user: UserProfile = Depends(require_user),
 ):
     """학부모가 종이 통신문 사진/파일을 직접 업로드 → 수신함에 self-send 형태로 저장.
@@ -237,6 +253,8 @@ async def upload_notice_self(
         )
 
     raw_bytes = await file.read()
+    original_bytes = await original_file.read() if original_file is not None else None
+    original_filename = original_file.filename if original_file is not None else None
     try:
         text = parse_bytes_to_text(raw_bytes, file.filename or "")
     except ParserError as error:
@@ -253,7 +271,11 @@ async def upload_notice_self(
     ocr_entries = [OcrCorrectionEntry(**{k: v for k, v in c.items() if k in OcrCorrectionEntry.model_fields}) for c in raw_corrections]
 
     notice_id = str(uuid.uuid4())
-    original_url, mime_type = _save_original(notice_id, raw_bytes, file.filename or "")
+    original_url, mime_type = _save_original(
+        notice_id,
+        original_bytes or raw_bytes,
+        original_filename or file.filename or "",
+    )
     _notices[notice_id] = Notice(
         notice_id=notice_id,
         teacher_id=parent_id,
@@ -261,9 +283,10 @@ async def upload_notice_self(
         text=text,
         todos=[],
         original_file_url=original_url,
-        original_filename=file.filename,
+        original_filename=original_filename or file.filename,
         mime_type=mime_type,
         ocr_corrections=ocr_entries,
+        layout_json=_parse_layout_json_field(layout_json),
     )
     return ApiResponse.success(
         data={"notice_id": notice_id, "char_count": len(text), "text": text},
@@ -560,19 +583,20 @@ async def analyze_notice(
     _t_marks: dict[str, float] = {}
 
     # [2.5a] bbox 기반 구조 재구성 — layout_json 있으면 좌표 기반 행/열 정리
-    # (세종님 PR #133). 없으면 업로드 시 저장된 notice.text 그대로 사용.
-    analysis_text = _reconstruct_text_from_layout(req.layout_json) or notice.text
+    # (세종님 PR #133). req.layout_json 없으면 업로드 시 저장된 notice.layout_json 사용 (PR #139).
+    analysis_layout = req.layout_json if req.layout_json is not None else notice.layout_json
+    analysis_text = _reconstruct_text_from_layout(analysis_layout) or notice.text
     # title 추출은 Vision sentence_list로 덮어씌워지기 전 원본 텍스트에서 — Gemini가
     # sentence_list로 분해해버리면 첫 줄이 메타정보(날짜/담당) 라 윤정 heuristic이 제목 못 잡음.
     original_text = analysis_text
     _t_marks["bbox_recon"] = time.time() - _t_start
 
-    # [2.5b] LLM normalizer — Gemini로 sentence list 추출.
+    # [2.5b] LLM normalizer — Claude/Gemini로 정제된 텍스트 추출.
     # Vision 우선 (PDF/이미지 disk 파일 → inlineData 전송) → 표/자간 자연 처리.
     # Vision 미지원 mime(HWP 변환 실패 케이스) 또는 호출 실패 시 text fallback.
     llm_status = "off"
     llm_elapsed = 0.0
-    # Gemini가 명시 추출한 document_title (Vision 성공 시) — extract_title 휴리스틱보다 우선.
+    # LLM이 명시 추출한 document_title (Vision 성공 시) — extract_title 휴리스틱보다 우선.
     gemini_title_override = ""
     if req.use_llm_normalizer:
         structured = None
@@ -691,16 +715,22 @@ async def analyze_notice(
     # [6'] cards: 신규 슬롯 카드 응답 — 시연 안정성을 위해 상위 N개만 번역/TTS 대상으로 사용.
     top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
     cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
+
+    # [6.5] info_cards: slot preservation (세종님 PR #139) — 윤정/경이가 todo 분류 안 한
+    # 정보(날짜/시간/URL/연락처/대상/장소/비용 등) 별도 보존. cards와 분리해서 응답.
+    sentence_doc = raw_text_to_sentence_list(analysis_text)
+    info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
     _t_marks["card_build_nllb"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.
+    # 기존 action cards뿐 아니라 slot preservation info_cards도 원본 대조 대상이다.
     # layout_json은 안드 ML Kit OCR JSON 또는 backend pdfplumber probe JSON.
     try:
-        highlights = build_highlights_from_cards(cards, req.layout_json)
+        highlights = build_highlights_from_cards(cards + info_cards, analysis_layout)
     except Exception as error:
         logger.warning("[analyze] highlight mapping failed: %s", error)
         highlights = []
-    page_count = _page_count_from_layout(req.layout_json)
+    page_count = _page_count_from_layout(analysis_layout)
 
     # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
     tts_text_translated = _build_tts_text_from_cards(cards, "translated")
@@ -739,6 +769,7 @@ async def analyze_notice(
         "title_translated": title_translated,
         "highlights": highlights,
         "cards": [c.model_dump() for c in cards],
+        "info_cards": [c.model_dump() for c in info_cards],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
         "tts_text": tts_text_translated,

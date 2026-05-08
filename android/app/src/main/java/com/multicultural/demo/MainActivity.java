@@ -52,15 +52,20 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
     // BuildConfig.BASE_URL 로 분리 — 서버 IP 는 빌드 시점에 주입.
@@ -129,6 +134,8 @@ public class MainActivity extends Activity {
     private TextView easyKoText;
     private TextView translationText;
     private LinearLayout glossaryChipsBox;
+    private LinearLayout linkActionsBox;
+    private Button linkSideTabButton;
     private Button playButton;
     private Button easyKoPlayButton;
     private Button langPillBtn;
@@ -138,6 +145,10 @@ public class MainActivity extends Activity {
     // OCR로 업로드된 가정통신문의 ML Kit layout JSON. analyze 호출 시 동일 notice_id면
     // payload에 layout_json으로 실어보내 backend highlight_mapper가 카드 ↔ bbox 매칭.
     private final Map<String, String> ocrLayoutByNoticeId = new LinkedHashMap<>();
+    private final List<String> currentActionUrls = new ArrayList<>();
+    private static final Pattern URL_PATTERN = Pattern.compile(
+            "https?://[^\\s\\])}>,]+|www\\.[^\\s\\])}>,]+",
+            Pattern.CASE_INSENSITIVE);
     // 선생님이 첨부한 파일 (업로드 미리보기 → 발송 버튼 클릭 시 사용)
     private byte[] pendingFileBytes = null;
     private String pendingFilename = null;
@@ -1343,6 +1354,14 @@ public class MainActivity extends Activity {
         transCard.setVisibility(View.GONE);
         content.addView(transCard);
 
+        linkActionsBox = new LinearLayout(this);
+        linkActionsBox.setOrientation(LinearLayout.VERTICAL);
+        linkActionsBox.setVisibility(View.GONE);
+        LinearLayout linkWrap = cardWithView("🔗  신청 바로가기", linkActionsBox, COLOR_SKY);
+        linkWrap.setVisibility(View.GONE);
+        linkWrap.setTag("linkActionsWrap");
+        content.addView(linkWrap);
+
         // 학교 용어 chips (lemon)
         glossaryChipsBox = new LinearLayout(this);
         glossaryChipsBox.setOrientation(LinearLayout.VERTICAL);
@@ -1384,6 +1403,12 @@ public class MainActivity extends Activity {
         statusCard.setTag("statusCard");
 
         outer.addView(scroll);
+        linkSideTabButton = bottomLinkButton("🔗  신청 바로가기 · QR", v -> showLinkActionsDialog());
+        linkSideTabButton.setVisibility(View.GONE);
+        FrameLayout.LayoutParams tabLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, dp(56), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
+        tabLp.setMargins(dp(20), 0, dp(20), dp(16));
+        outer.addView(linkSideTabButton, tabLp);
         setContentView(outer);
 
         analyzeSelectedNotice();
@@ -1517,6 +1542,7 @@ public class MainActivity extends Activity {
         if (!renderCardChips(cards)) {
             renderSummarySlots(data.optJSONObject("summary"));
         }
+        renderLinkActions(data, cards);
 
         // === TTS ===
         currentTtsUrl = optStringDeep(data, "tts_url", "tts_path", "audio_url");
@@ -1608,6 +1634,201 @@ public class MainActivity extends Activity {
         if (!deadline.isEmpty()) meta.add(deadline);
         if (!meta.isEmpty()) sb.append(" · ").append(TextUtils.join(" · ", meta));
         sb.append('\n');
+    }
+
+    private void renderLinkActions(JSONObject data, JSONArray cards) {
+        currentActionUrls.clear();
+        if (linkActionsBox != null) {
+            linkActionsBox.removeAllViews();
+            linkActionsBox.setVisibility(View.GONE);
+            View wrap = (View) linkActionsBox.getParent();
+            if (wrap != null) wrap.setVisibility(View.GONE);
+        }
+
+        Set<String> urls = new LinkedHashSet<>();
+        collectUrlsFromCards(urls, cards);
+        collectUrlsFromCards(urls, data.optJSONArray("info_cards"));
+        JSONObject summary = data.optJSONObject("summary");
+        if (summary != null) collectUrlsFromSlots(urls, summary.optJSONArray("urls"));
+
+        if (urls.isEmpty()) {
+            if (linkSideTabButton != null) linkSideTabButton.setVisibility(View.GONE);
+            return;
+        }
+
+        for (String url : urls) {
+            if (currentActionUrls.size() >= 3) break;
+            currentActionUrls.add(url);
+        }
+        if (linkSideTabButton != null) linkSideTabButton.setVisibility(View.VISIBLE);
+    }
+
+    private void collectUrlsFromCards(Set<String> out, JSONArray cards) {
+        if (cards == null) return;
+        for (int i = 0; i < cards.length(); i++) {
+            JSONObject card = cards.optJSONObject(i);
+            if (card == null) continue;
+            String header = safeString(card, "header_ko") + " " + safeString(card, "header_translated");
+            String body = safeString(card, "value_ko") + " " + safeString(card, "value_translated");
+            if (header.toLowerCase(Locale.ROOT).contains("url")
+                    || header.contains("신청")
+                    || URL_PATTERN.matcher(body).find()) {
+                collectUrlsFromText(out, body);
+            }
+        }
+    }
+
+    private void collectUrlsFromSlots(Set<String> out, JSONArray slots) {
+        if (slots == null) return;
+        for (int i = 0; i < slots.length(); i++) {
+            JSONObject slot = slots.optJSONObject(i);
+            if (slot == null) continue;
+            collectUrlsFromText(out, safeString(slot, "ko"));
+            collectUrlsFromText(out, safeString(slot, "translated"));
+        }
+    }
+
+    private void collectUrlsFromText(Set<String> out, String text) {
+        if (text == null || text.isEmpty()) return;
+        Matcher matcher = URL_PATTERN.matcher(text);
+        while (matcher.find()) {
+            String normalized = normalizeUrl(matcher.group());
+            if (!normalized.isEmpty()) out.add(normalized);
+        }
+    }
+
+    private String normalizeUrl(String url) {
+        if (url == null) return "";
+        String s = url.trim();
+        while (s.endsWith(".") || s.endsWith(",") || s.endsWith(")") || s.endsWith("]")) {
+            s = s.substring(0, s.length() - 1).trim();
+        }
+        if (s.startsWith("www.")) s = "https://" + s;
+        if (!s.startsWith("http://") && !s.startsWith("https://")) return "";
+        return s;
+    }
+
+    private LinearLayout linkActionBlock(String url, int index) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        block.setPadding(0, index == 1 ? 0 : dp(12), 0, dp(8));
+
+        TextView label = text(url, 13, COLOR_INK, false);
+        label.setLineSpacing(0, 1.25f);
+        label.setPadding(0, 0, 0, dp(8));
+        block.addView(label);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button open = outlineButton("바로가기", v -> openExternalUrl(url));
+        Button qr = outlineButton("QR 크게 보기", v -> showQrDialog(url));
+        LinearLayout.LayoutParams openLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        openLp.setMargins(0, 0, dp(6), 0);
+        LinearLayout.LayoutParams qrLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+        qrLp.setMargins(dp(6), 0, 0, 0);
+        row.addView(open, openLp);
+        row.addView(qr, qrLp);
+        block.addView(row);
+
+        ImageView qrImage = new ImageView(this);
+        LinearLayout.LayoutParams qlp = new LinearLayout.LayoutParams(dp(132), dp(132));
+        qlp.gravity = Gravity.CENTER_HORIZONTAL;
+        qlp.setMargins(0, dp(8), 0, 0);
+        qrImage.setLayoutParams(qlp);
+        qrImage.setBackgroundColor(Color.WHITE);
+        qrImage.setPadding(dp(6), dp(6), dp(6), dp(6));
+        block.addView(qrImage);
+        loadQrImage(url, qrImage);
+
+        return block;
+    }
+
+    private void openExternalUrl(String url) {
+        try {
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+            startActivity(intent);
+        } catch (Exception error) {
+            Toast.makeText(this, "링크를 열 수 없습니다.", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void showQrDialog(String url) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(18), dp(12), dp(18), dp(4));
+
+        TextView label = text(url, 13, COLOR_INK, false);
+        label.setLineSpacing(0, 1.25f);
+        label.setPadding(0, 0, 0, dp(10));
+        box.addView(label);
+
+        ImageView image = new ImageView(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(240), dp(240));
+        lp.gravity = Gravity.CENTER_HORIZONTAL;
+        image.setLayoutParams(lp);
+        image.setBackgroundColor(Color.WHITE);
+        image.setPadding(dp(8), dp(8), dp(8), dp(8));
+        box.addView(image);
+        loadQrImage(url, image);
+
+        new AlertDialog.Builder(this)
+                .setTitle("신청 QR 코드")
+                .setView(box)
+                .setPositiveButton("바로가기", (d, w) -> openExternalUrl(url))
+                .setNegativeButton("닫기", null)
+                .show();
+    }
+
+    private void showLinkActionsDialog() {
+        if (currentActionUrls.isEmpty()) return;
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(18), dp(12), dp(18), dp(4));
+
+        TextView intro = text("신청 URL을 열거나 QR 코드로 공유할 수 있습니다.", 13, COLOR_INK2, false);
+        intro.setLineSpacing(0, 1.3f);
+        intro.setPadding(0, 0, 0, dp(8));
+        box.addView(intro);
+
+        for (int i = 0; i < currentActionUrls.size(); i++) {
+            box.addView(linkActionBlock(currentActionUrls.get(i), i + 1));
+        }
+
+        new AlertDialog.Builder(this)
+                .setTitle("신청 바로가기")
+                .setView(box)
+                .setNegativeButton("닫기", null)
+                .show();
+    }
+
+    private void loadQrImage(String url, ImageView image) {
+        executor.execute(() -> {
+            Bitmap bmp = null;
+            try {
+                String encoded = URLEncoder.encode(url, "UTF-8");
+                URL qrUrl = new URL("https://quickchart.io/qr?size=320&margin=2&text=" + encoded);
+                HttpURLConnection conn = (HttpURLConnection) qrUrl.openConnection();
+                conn.setConnectTimeout(8000);
+                conn.setReadTimeout(12000);
+                try (InputStream is = conn.getInputStream()) {
+                    bmp = BitmapFactory.decodeStream(is);
+                } finally {
+                    conn.disconnect();
+                }
+            } catch (Exception ignored) {
+                bmp = null;
+            }
+            final Bitmap fbmp = bmp;
+            runOnUiThread(() -> {
+                if (fbmp != null) image.setImageBitmap(fbmp);
+                else image.setVisibility(View.GONE);
+            });
+        });
     }
 
     private boolean renderCardChips(JSONArray cards) {
@@ -2944,6 +3165,25 @@ public class MainActivity extends Activity {
         button.setElevation(dp(3));
         button.setOnClickListener(listener);
         button.setLayoutParams(spacedParams());
+        return button;
+    }
+
+    private Button bottomLinkButton(String label, View.OnClickListener listener) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setTextSize(15);
+        button.setTextColor(Color.WHITE);
+        button.setAllCaps(false);
+        button.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        button.setPadding(dp(14), dp(10), dp(14), dp(10));
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.LEFT_RIGHT,
+                new int[]{COLOR_PEACH_DEEP, Color.parseColor("#E07744")});
+        bg.setCornerRadius(dp(18));
+        button.setBackground(bg);
+        button.setStateListAnimator(null);
+        button.setElevation(dp(8));
+        button.setOnClickListener(listener);
         return button;
     }
 
