@@ -155,7 +155,7 @@ class SlotCard(BaseModel):
 
 
 class CalendarAction(BaseModel):
-    type: str                            # open_url | show_qr | set_reminder
+    type: str                            # open_url (show_qr/set_reminder are follow-up actions)
     label: str
     value: str
 

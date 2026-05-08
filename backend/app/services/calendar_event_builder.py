@@ -38,12 +38,19 @@ ROLE_EVENT_TYPE: dict[str, tuple[str, str, str]] = {
 HOLIDAY_HINTS = ("공휴일", "휴업", "재량휴업", "기념일", "어린이날", "스승의 날")
 
 
-def _base_year(texts: Iterable[str]) -> int:
+def _base_year_month(texts: Iterable[str]) -> tuple[int, int | None]:
     for text in texts:
         match = FULL_DATE_RE.search(text or "")
         if match:
-            return int(match.group("year"))
-    return date.today().year
+            return int(match.group("year")), int(match.group("month"))
+    return date.today().year, None
+
+
+def _resolve_year(default_year: int, default_month: int | None, month: int) -> int:
+    """Infer next-year dates for winter notices that mention January/February."""
+    if default_month in (10, 11, 12) and month in (1, 2):
+        return default_year + 1
+    return default_year
 
 
 def _iso(year: int, month: int, day: int) -> str | None:
@@ -53,7 +60,7 @@ def _iso(year: int, month: int, day: int) -> str | None:
         return None
 
 
-def _extract_dates(text: str, default_year: int) -> list[str]:
+def _extract_dates(text: str, default_year: int, default_month: int | None = None) -> list[str]:
     found: list[str] = []
     occupied: list[tuple[int, int]] = []
     for match in FULL_DATE_RE.finditer(text or ""):
@@ -69,7 +76,9 @@ def _extract_dates(text: str, default_year: int) -> list[str]:
         for match in pattern.finditer(text or ""):
             if overlaps(match.span()):
                 continue
-            iso = _iso(default_year, int(match.group("month")), int(match.group("day")))
+            month = int(match.group("month"))
+            year = _resolve_year(default_year, default_month, month)
+            iso = _iso(year, month, int(match.group("day")))
             if iso and iso not in found:
                 found.append(iso)
     return found
@@ -107,12 +116,9 @@ def _event_meta(item: SentenceListItem) -> tuple[str, str, str] | None:
 
 
 def _actions(urls: list[str], start_date: str) -> list[CalendarAction]:
-    actions: list[CalendarAction] = [
-        CalendarAction(type="set_reminder", label="알림 설정", value=start_date),
-    ]
+    actions: list[CalendarAction] = []
     if urls:
-        actions.insert(0, CalendarAction(type="show_qr", label="QR 보기", value=urls[0]))
-        actions.insert(0, CalendarAction(type="open_url", label="바로가기", value=urls[0]))
+        actions.append(CalendarAction(type="open_url", label="바로가기", value=urls[0]))
     return actions
 
 
@@ -124,14 +130,14 @@ def build_calendar_events_from_sentence_document(
 ) -> list[CalendarEvent]:
     """Build calendar events from hard-fact sentence-list items."""
     texts = [item.text for item in document.sentence_list]
-    default_year = _base_year(texts)
+    default_year, default_month = _base_year_month(texts)
     events: list[CalendarEvent] = []
 
     for item in sorted(document.sentence_list, key=lambda x: x.source_order):
         meta = _event_meta(item)
         if not meta:
             continue
-        dates = _extract_dates(item.text, default_year)
+        dates = _extract_dates(item.text, default_year, default_month)
         if not dates:
             continue
         event_type, label, color = meta

@@ -60,5 +60,26 @@ def test_calendar_event_url_actions():
     event = build_calendar_events_from_sentence_document(doc, notice_id="n3")[0]
 
     action_types = [action.type for action in event.actions]
-    assert action_types[:2] == ["open_url", "show_qr"]
+    assert action_types == ["open_url"]
     assert event.actions[0].value == "https://example.com/apply"
+
+
+def test_calendar_event_january_after_december_notice_uses_next_year():
+    doc = SentenceListDocument(
+        document_title="겨울방학 프로그램 안내",
+        sentence_list=[
+            SentenceListItem(
+                sentence_id="s0",
+                text="발송일: 2025. 12. 20.",
+                role_hint="info",
+                source_order=0,
+                contains_slots=[],
+            ),
+            _item("s1", "운영일시: 1. 15. 10:00 ~ 12:00", "event_datetime", 1),
+        ],
+    )
+
+    events = build_calendar_events_from_sentence_document(doc, notice_id="n4")
+
+    assert len(events) == 1
+    assert events[0].start_date == "2026-01-15"
