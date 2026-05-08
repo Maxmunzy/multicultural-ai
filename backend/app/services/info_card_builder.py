@@ -127,7 +127,7 @@ def _build_checklist_for_role(value: str, role_hint: RoleHint, target_lang: str)
     out: list[ChecklistItem] = []
     for piece in pieces:
         ko, note = _split_paren_note(piece)
-        if not ko or len(ko) < 2:
+        if not ko:
             continue
         translated = ""
         if target_lang != "ko_easy" and not is_nllb_skip_value(ko, role_hint):

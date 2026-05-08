@@ -94,7 +94,7 @@ def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[Checkli
     out: list[ChecklistItem] = []
     for piece in pieces:
         ko, note = _split_paren_note(piece)
-        if not ko or len(ko) < 2:
+        if not ko:
             continue
         translated = ""
         if target_lang != "ko_easy":
