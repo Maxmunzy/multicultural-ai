@@ -321,7 +321,8 @@ def _classify_sentence(text: str) -> str:
 
 def _extract_template_items(text: str, glossary: list, target_lang: str) -> list[tuple[str, str]]:
     """공급 용어(청중/제출처 제외)를 텍스트에서 추출, 출현 순서대로 반환."""
-    preferred_col = f"preferred_{target_lang}"
+    lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang
+    preferred_col = f"preferred_{lang_key}"
     text_norm = _normalize_glossary_key(text)
     spans: list[tuple[int, int, str, str]] = []
     occupied: list[tuple[int, int]] = []
@@ -386,7 +387,8 @@ def _build_from_template_vi(
 
 def _find_glossary_hits_safe(text: str, glossary: list, target_lang: str) -> list[dict]:
     """Find glossary hits with whitespace normalization and 1-char term guard."""
-    preferred_col = f"preferred_{target_lang}"
+    lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang
+    preferred_col = f"preferred_{lang_key}"
     text_norm = _normalize_glossary_key(text)
     hits: list[dict] = []
     seen: set[str] = set()
@@ -521,9 +523,10 @@ def translate_term(text: str, target_lang: str) -> str:
 
     glossary = _get_glossary()
     term_norm = re.sub(r"\s+", "", text.strip())
+    lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang  # vi_demo → vi
     for row in glossary:
         if re.sub(r"\s+", "", row.get("korean", "")) == term_norm:
-            translated = row.get(f"preferred_{target_lang}", "").strip()
+            translated = row.get(f"preferred_{lang_key}", "").strip()
             if translated:
                 return translated
     return text  # Korean passthrough
@@ -554,15 +557,16 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return _restore_protected_entities(masked, placeholders)
 
     # 2) Template-based (vi only): 문장 유형 분류 → glossary 직접 매핑 → 템플릿 조립
-    if target_lang == "vi":
+    if target_lang in ("vi", "vi_demo"):
+        _vi_lang = "vi"  # vi_demo → vi for glossary/template lookups
         stype = _classify_sentence(text)
         if stype != "info":
             glossary = _get_glossary()
             _build_role_sets(glossary)
-            items = _extract_template_items(text, glossary, target_lang)
+            items = _extract_template_items(text, glossary, _vi_lang)
             if items:
-                audience = _extract_audience(text, target_lang)
-                recipient = _extract_recipient(text, target_lang)
+                audience = _extract_audience(text, _vi_lang)
+                recipient = _extract_recipient(text, _vi_lang)
                 result = _build_from_template_vi(stype, items, audience, recipient)
                 if result:
                     return _restore_protected_entities(result, placeholders)
@@ -631,13 +635,14 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
             continue
 
         # vi 템플릿 분기 — 매칭되면 NLLB 우회
-        if target_lang == "vi":
+        if target_lang in ("vi", "vi_demo"):
+            _vi_lang = "vi"
             stype = _classify_sentence(cleaned)
             if stype != "info":
-                items = _extract_template_items(cleaned, glossary, target_lang)
+                items = _extract_template_items(cleaned, glossary, _vi_lang)
                 if items:
-                    audience = _extract_audience(cleaned, target_lang)
-                    recipient = _extract_recipient(cleaned, target_lang)
+                    audience = _extract_audience(cleaned, _vi_lang)
+                    recipient = _extract_recipient(cleaned, _vi_lang)
                     template_result = _build_from_template_vi(stype, items, audience, recipient)
                     if template_result:
                         results[i] = _restore_protected_entities(template_result, placeholders)
