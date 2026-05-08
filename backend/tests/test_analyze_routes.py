@@ -304,7 +304,11 @@ def test_upload_then_inbox_round_trip(client, teacher_headers, parent_headers, m
 # ─────────────────────────────────────────
 #  DELETE INBOX — 본인만 허용
 # ─────────────────────────────────────────
-def test_delete_inbox_self_only(client, teacher_headers, parent_headers, parent2_headers):
+def test_delete_inbox_self_only(
+    client, teacher_headers, parent_headers, parent2_headers, monkeypatch,
+):
+    # demo 엔드포인트는 ENABLE_DEMO_ENDPOINTS=1 환경에서만 작동 — 테스트는 명시 세팅.
+    monkeypatch.setenv("ENABLE_DEMO_ENDPOINTS", "1")
     notice_id = _seed_notice(client)
     r = client.delete("/notice/inbox/parent_001", headers=parent2_headers)
     assert r.status_code == 403
@@ -314,7 +318,8 @@ def test_delete_inbox_self_only(client, teacher_headers, parent_headers, parent2
     assert any(n["notice_id"] == notice_id for n in r2.json()["data"])
 
 
-def test_delete_inbox_self_succeeds(client, teacher_headers, parent_headers):
+def test_delete_inbox_self_succeeds(client, teacher_headers, parent_headers, monkeypatch):
+    monkeypatch.setenv("ENABLE_DEMO_ENDPOINTS", "1")
     _seed_notice(client)
     _seed_notice(client, text="두 번째 통신문")
 
@@ -326,3 +331,11 @@ def test_delete_inbox_self_succeeds(client, teacher_headers, parent_headers):
 
     r3 = client.get("/notice/inbox/parent_001", headers=parent_headers)
     assert r3.json()["data"] == []
+
+
+def test_delete_inbox_disabled_when_demo_off(client, parent_headers, monkeypatch):
+    """ENABLE_DEMO_ENDPOINTS 미세팅 시 404 — 프로덕션 노출 차단 회귀 방지."""
+    monkeypatch.delenv("ENABLE_DEMO_ENDPOINTS", raising=False)
+    _seed_notice(client)
+    r = client.delete("/notice/inbox/parent_001", headers=parent_headers)
+    assert r.status_code == 404

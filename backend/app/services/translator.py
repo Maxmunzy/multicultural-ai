@@ -12,6 +12,7 @@ URL/전화는 NLLB가 토큰화하면서 깨먹는 패턴이라 placeholder 치�
 """
 import re
 import sys
+from collections import OrderedDict
 from functools import lru_cache
 from pathlib import Path
 
@@ -107,6 +108,91 @@ def _translate(text: str, target_nllb: str = "vie_Latn", max_length: int = 512) 
             repetition_penalty=1.3,
         )
     return tokenizer.batch_decode(out, skip_special_tokens=True)[0]
+
+
+def _translate_batch_raw(
+    texts: list[str],
+    target_nllb: str = "vie_Latn",
+    max_length: int = 384,
+) -> list[str]:
+    """NLLB batch generate — 입력 순서 그대로 번역 결과 list 반환.
+
+    단일 호출(`_translate`) 14회 → batch 1회로 줄여 CPU 오버헤드 감축.
+    tokenizer가 padding=True로 가장 긴 문장에 맞춰 패드 → 한 번의 forward 통과.
+    """
+    if not texts:
+        return []
+    tokenizer, model = _get_translator()
+    target_id = tokenizer.convert_tokens_to_ids(target_nllb)
+    inputs = tokenizer(
+        texts, return_tensors="pt", padding=True, truncation=True, max_length=max_length,
+    )
+    with torch.no_grad():
+        out = model.generate(
+            **inputs,
+            forced_bos_token_id=target_id,
+            max_length=max_length,
+            num_beams=1,
+            no_repeat_ngram_size=3,
+            repetition_penalty=1.3,
+        )
+    return tokenizer.batch_decode(out, skip_special_tokens=True)
+
+
+# 세종님 지적(2026-05-09): batch 경로가 _translate의 lru_cache를 우회 → 같은 헤더
+# 반복 시 캐시 효과 사라짐. 분석 내부 dedup + 모듈 LRU 캐시로 lru_cache 등가 효과 복원.
+# OrderedDict — get 시 move_to_end로 최근 사용 갱신, 초과 시 가장 오래된 1개 제거 (진짜 LRU).
+_BATCH_NLLB_CACHE: "OrderedDict[tuple[str, str], str]" = OrderedDict()
+_BATCH_NLLB_CACHE_MAX = 1024  # _translate의 lru_cache(maxsize=1024)와 일치
+
+
+def _translate_batch_cached(
+    texts: list[str],
+    target_nllb: str = "vie_Latn",
+    max_length: int = 384,
+) -> list[str]:
+    """`_translate_batch_raw`의 dedup + cache 래퍼.
+
+    A. 분석 내부 dedup — 같은 입력이 여러 번 와도 NLLB는 1회만 forward
+    B. 모듈 LRU 캐시 — 분석 간 동일 입력은 NLLB 우회 (단일 _translate의 lru_cache 등가).
+       OrderedDict 기반: 히트 시 move_to_end, 초과 시 가장 오래된 1개 제거.
+    """
+    if not texts:
+        return []
+
+    # 1) Dedup — 보존 순서로 unique 추출
+    unique: list[str] = []
+    pos: dict[str, int] = {}
+    for t in texts:
+        if t not in pos:
+            pos[t] = len(unique)
+            unique.append(t)
+
+    # 2) 캐시 분리 — 미스만 batch. 히트는 LRU 갱신.
+    unique_results: list[str] = [""] * len(unique)
+    misses: list[str] = []
+    miss_indices: list[int] = []
+    for i, t in enumerate(unique):
+        key = (t, target_nllb)
+        if key in _BATCH_NLLB_CACHE:
+            _BATCH_NLLB_CACHE.move_to_end(key)
+            unique_results[i] = _BATCH_NLLB_CACHE[key]
+        else:
+            misses.append(t)
+            miss_indices.append(i)
+
+    # 3) 미스 batch 실행 → 결과 LRU 캐시 (가장 오래된 항목부터 evict)
+    if misses:
+        miss_translations = _translate_batch_raw(misses, target_nllb, max_length)
+        for idx, t, tr in zip(miss_indices, misses, miss_translations):
+            unique_results[idx] = tr
+            _BATCH_NLLB_CACHE[(t, target_nllb)] = tr
+            _BATCH_NLLB_CACHE.move_to_end((t, target_nllb))
+            while len(_BATCH_NLLB_CACHE) > _BATCH_NLLB_CACHE_MAX:
+                _BATCH_NLLB_CACHE.popitem(last=False)
+
+    # 4) 원래 순서로 펼치기
+    return [unique_results[pos[t]] for t in texts]
 
 
 # 한국어 원문 → 베트남어 번역 결과의 명백한 오번역 강제 치환.
@@ -485,6 +571,83 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return ""
 
     return _restore_protected_entities(translated, placeholders)
+
+
+def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[str]:
+    """`translate_short_sentence`의 batch 버전.
+
+    각 텍스트별 mask + vi 템플릿 시도 후, NLLB로 가야 할 것만 한 번에 batch generate.
+    14건 단일 호출(70~75초) → 1회 batch(20~30초) 단축.
+    입력 순서 유지 — `texts[i]` ↔ `result[i]`.
+    """
+    if not texts:
+        return []
+    if target_lang == "ko_easy":
+        return list(texts)
+
+    n = len(texts)
+    results: list[str] = [""] * n
+
+    nllb_indices: list[int] = []
+    nllb_inputs: list[str] = []
+    nllb_placeholders: list[list[str]] = []
+    nllb_originals: list[str] = []
+
+    glossary = _get_glossary()
+    if target_lang == "vi":
+        _build_role_sets(glossary)
+
+    for i, text in enumerate(texts):
+        if not text or not text.strip():
+            continue
+        cleaned = _clean_for_translation(text)[:MAX_TRANSLATE_CHARS]
+        masked, placeholders = _mask_protected_entities(cleaned, target_lang)
+
+        # vi 템플릿 분기 — 매칭되면 NLLB 우회
+        if target_lang == "vi":
+            stype = _classify_sentence(cleaned)
+            if stype != "info":
+                items = _extract_template_items(cleaned, glossary, target_lang)
+                if items:
+                    audience = _extract_audience(cleaned, target_lang)
+                    recipient = _extract_recipient(cleaned, target_lang)
+                    template_result = _build_from_template_vi(stype, items, audience, recipient)
+                    if template_result:
+                        results[i] = _restore_protected_entities(template_result, placeholders)
+                        continue
+
+        # NLLB 행 — glossary 용어를 __SLOT__ 으로 보호 후 batch 입력에 추가
+        hits = _find_glossary_hits_safe(masked, glossary, target_lang)
+        injected = masked
+        for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
+            korean = hit["korean"]
+            preferred = hit["preferred_term"]
+            while korean in injected:
+                slot_idx = len(placeholders)
+                placeholders.append(preferred)
+                injected = injected.replace(korean, f"__SLOT{slot_idx}__", 1)
+
+        nllb_indices.append(i)
+        nllb_inputs.append(injected)
+        nllb_placeholders.append(placeholders)
+        nllb_originals.append(cleaned)
+
+    if nllb_inputs:
+        target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
+        try:
+            translated_batch = _translate_batch_cached(nllb_inputs, target_nllb=target_nllb)
+        except Exception as error:
+            print(f"[translator] translate_short_sentence_batch failed: {error}")
+            translated_batch = ["" for _ in nllb_inputs]
+
+        for idx, translated, ph, original in zip(
+            nllb_indices, translated_batch, nllb_placeholders, nllb_originals,
+        ):
+            if target_lang == "vi":
+                translated = _post_process_vi(original, translated)
+            results[idx] = _restore_protected_entities(translated, ph)
+
+    return results
 
 
 # DEPRECATED: 아래 함수는 단일 blob 번역 구조. 새 API(translate_term / translate_short_sentence)로 전환 후 제거 예정.
