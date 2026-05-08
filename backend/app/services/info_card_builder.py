@@ -11,6 +11,7 @@ from typing import Iterable
 
 from app.models.schemas import ChecklistItem, SlotCard
 from app.services.card_builder import (
+    _merge_orphan_numeric_pieces,
     _split_paren_note,
     _split_with_paren_protection,
 )
@@ -29,6 +30,10 @@ from app.services.translator import translate_short_sentence, translate_term
 # fee/supplies/submit은 챙김·납부·제출 행동. 그 외(target/location/event_datetime/
 # contact/url 등)는 정보 only — 체크박스 미표시.
 _INFO_ACTION_ROLES: frozenset = frozenset({"fee", "supplies", "submit"})
+
+# 콤마/슬래시 split을 적용할 role — 본질이 다중 항목 나열인 카테고리만 (준비물).
+# fee/submit은 단일 액션이라 split 안 함 — card_builder._SPLIT_CHIPS와 일관.
+_INFO_SPLIT_ROLES: frozenset = frozenset({"supplies"})
 
 
 INFO_ROLE_LABELS: dict[RoleHint, str] = {
@@ -114,14 +119,21 @@ def _dedup_info_cards(cards: Iterable[SlotCard]) -> list[SlotCard]:
 
 
 def _build_checklist_for_role(value: str, role_hint: RoleHint, target_lang: str) -> list[ChecklistItem]:
-    """role_hint가 행동성이면 value를 콤마/슬래시 split → ChecklistItem 리스트.
+    """role_hint가 행동성이면 ChecklistItem 리스트 반환.
 
-    LLM 의존 제거 — 시스템이 자체적으로 split. 카테고리(role) 자체가 행동/정보
-    분기 source of truth. 정보성 role은 빈 리스트 반환.
+    role ∈ _INFO_SPLIT_ROLES (supplies): 콤마/슬래시 split → 다중 항목
+    role ∈ _INFO_ACTION_ROLES \\ _INFO_SPLIT_ROLES (fee, submit): 단일 ChecklistItem
+    그 외: 빈 리스트 (체크박스 미표시)
     """
     if role_hint not in _INFO_ACTION_ROLES:
         return []
-    pieces = _split_with_paren_protection(value)
+
+    if role_hint in _INFO_SPLIT_ROLES:
+        pieces = _split_with_paren_protection(value)
+        pieces = _merge_orphan_numeric_pieces(pieces)
+    else:
+        pieces = [value.strip()] if value.strip() else []
+
     if not pieces:
         return []
     out: list[ChecklistItem] = []

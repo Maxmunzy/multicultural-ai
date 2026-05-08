@@ -2,6 +2,7 @@ import json
 import logging
 import mimetypes
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -134,6 +135,38 @@ def _sentence_doc_from_structured(structured: dict | None) -> SentenceListDocume
             error,
         )
         return None
+
+
+def _dedup_info_against_cards(
+    info_cards: list[SlotCard],
+    cards: list[SlotCard],
+) -> list[SlotCard]:
+    """info_cards에서 cards와 동일/substring value_ko를 갖는 카드 제거.
+
+    cards(윤정 todo)와 info_cards(sentence_list)가 같은 헤더-값을 만들어 같은
+    준비물 카드가 양쪽에 부착되는 문제(HWP 학년별 12카드) 방지. cards를 source of
+    truth로 보고 info_cards 중복만 제거.
+
+    공백 정규화 후 비교. info_card.value_ko ⊂ card.value_ko (또는 ⊃)면 중복.
+    """
+    if not cards or not info_cards:
+        return info_cards
+    card_norms = [
+        re.sub(r"\s+", "", c.value_ko)
+        for c in cards
+        if c.value_ko and len(c.value_ko) >= 5
+    ]
+    out: list[SlotCard] = []
+    for ic in info_cards:
+        ic_norm = re.sub(r"\s+", "", ic.value_ko or "")
+        if len(ic_norm) < 5:
+            out.append(ic)
+            continue
+        is_dup = any(ic_norm in cn or cn in ic_norm for cn in card_norms)
+        if is_dup:
+            continue
+        out.append(ic)
+    return out
 
 
 def _apply_checklist_state(
@@ -829,6 +862,11 @@ async def analyze_notice(
     # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
     sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
+
+    # [6.55] info_cards dedup — cards와 동일/substring value_ko 갖는 카드 제거.
+    # cards(윤정 todo)와 info_cards(sentence_list)가 같은 헤더-값을 만들어 학년별
+    # 준비물이 양쪽에 부착되는 문제(HWP 12카드 양쪽) 방지. cards 우선.
+    info_cards = _dedup_info_against_cards(info_cards, cards)
 
     # [6.6] 체크리스트 영속 — 메모리 dict에서 (parent, notice, kind, card_idx, item_idx)
     # 키로 checked 채움. 없으면 False 기본값(체크리스트 빌드 시 이미 False).

@@ -24,13 +24,20 @@ from app.services.translator import (
 )
 
 
-# chip이 행동성(학부모가 챙김/제출/납부/안전수칙 이행)이면 체크리스트 후보.
+# 체크리스트 후보 chip — 학부모가 챙김/제출/납부/안전수칙 이행하는 카테고리.
 # 정보성(일정) + None(분류 불가)은 체크박스 미표시.
 _ACTION_CHIPS: frozenset[str] = frozenset({
     Category.supplies.value,    # "준비물"
     Category.submission.value,  # "제출"
     Category.cost.value,        # "비용"
     Category.health.value,      # "건강·안전"
+})
+
+# 콤마/슬래시 split을 적용할 chip — 본질이 다중 항목 나열인 카테고리만.
+# 제출/비용/건강·안전은 보통 단일 액션이라 split 안 함 ("2,3,5,6학년 학생은..." 같은
+# 학년 나열을 의미 없는 단일 숫자 체크박스로 깨먹는 사고 방지). 세종님 우려 반영.
+_SPLIT_CHIPS: frozenset[str] = frozenset({
+    Category.supplies.value,    # "준비물" — 알림장, 색종이, 연필 ...
 })
 
 
@@ -65,6 +72,33 @@ def _split_with_paren_protection(text: str) -> list[str]:
     return parts
 
 
+# 숫자만으로 된 짧은 토큰 — split 결과로 떨어지면 다음 항목과 머지 (학년 나열 깨짐 방지)
+_NUMERIC_ONLY = re.compile(r"^\s*\d{1,3}\s*$")
+
+
+def _merge_orphan_numeric_pieces(pieces: list[str]) -> list[str]:
+    """split 후 숫자만 토큰을 다음 항목 앞에 머지 — "2,3,5,6학년" 깨짐 방지.
+
+    예: ["2", "3", "5", "6학년 학생은..."] → ["2,3,5,6학년 학생은..."]
+    """
+    out: list[str] = []
+    pending: list[str] = []
+    for p in pieces:
+        if _NUMERIC_ONLY.match(p):
+            pending.append(p.strip())
+        else:
+            if pending:
+                p = ",".join(pending) + "," + p
+                pending = []
+            out.append(p)
+    if pending:
+        if out:
+            out[-1] = out[-1] + "," + ",".join(pending)
+        else:
+            out = [",".join(pending)]
+    return out
+
+
 # 끝부분 괄호 부연 — "샤프식 색연필 12색 (연필식 색연필 불가)" → ("샤프식 색연필 12색", "연필식 색연필 불가")
 _TRAILING_PAREN = re.compile(r"^(.+?)\s*[\(（]\s*([^)）]+?)\s*[\)）]\s*$")
 
@@ -81,14 +115,22 @@ def _split_paren_note(item_text: str) -> tuple[str, str]:
 def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[ChecklistItem]:
     """경이 카테고리(chip) 기반 체크리스트 분리.
 
-    chip이 행동성(준비물/제출/비용/건강·안전)이면 value_ko를 콤마/슬래시 split
-    (괄호 안 콤마 보존) → 각 항목을 ChecklistItem으로. 끝 괄호 부연은 note로.
+    chip ∈ _ACTION_CHIPS면 체크리스트 후보:
+      - chip ∈ _SPLIT_CHIPS (준비물): 콤마/슬래시 split → 다중 항목
+      - 그 외 (제출/비용/건강·안전): 단일 ChecklistItem (sentence 통째)
 
-    chip이 정보성(일정) 또는 None이면 빈 리스트 반환 — 체크박스 미표시.
+    정보성(일정) + None은 빈 리스트 → 체크박스 미표시.
     """
     if card.chip not in _ACTION_CHIPS:
         return []
-    pieces = _split_with_paren_protection(card.value_ko)
+
+    if card.chip in _SPLIT_CHIPS:
+        pieces = _split_with_paren_protection(card.value_ko)
+        pieces = _merge_orphan_numeric_pieces(pieces)
+    else:
+        # 제출/비용/건강·안전은 단일 액션 — 콤마 split 시 사고 발생 (학년 나열 등)
+        pieces = [card.value_ko.strip()] if card.value_ko.strip() else []
+
     if not pieces:
         return []
     out: list[ChecklistItem] = []
