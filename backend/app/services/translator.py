@@ -446,7 +446,15 @@ def _clean_for_translation(text: str) -> str:
 # ⟦…⟧ (U+27E6/27E7) 는 NLLB SentencePiece 어휘에 없어서 tokenize 시 소실됨 → "P0"만 남아 복원 실패.
 # __SLOT0__ 형태(ASCII 대문자 + 언더스코어)는 NLLB가 코드/약어로 인식해 그대로 통과.
 # NLLB가 "SLOT" → "SLO T" 로 쪼개는 경우도 복원할 수 있도록 SLO\s+T 패턴 추가.
-_PROTECT_TOKEN = re.compile(r"__\s*(?:SLOT|SLO\s+T)\s*(\d+)\s*__", re.IGNORECASE)
+_PROTECT_TOKEN = re.compile(
+    r"(?:_{1,2}\s*)?S\s*L\s*O\s*T\s*(\d+)\s*_*",
+    re.IGNORECASE,
+)
+_RESIDUAL_PROTECT_TOKEN = re.compile(
+    r"_{1,2}\s*S\s*L\s*O\s*[A-Z0-9_ ]*_{1,2}\.*"
+    r"|(?<![A-Za-z])S\s*L\s*O\s*T\s*\d+\.*(?![A-Za-z])",
+    re.IGNORECASE,
+)
 
 
 def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple[str, list[str]]:
@@ -475,15 +483,20 @@ def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple
     return masked, placeholders
 
 
-def _restore_protected_entities(text: str, placeholders: list[str]) -> str:
-    if not placeholders:
-        return text
+def _strip_residual_protect_tokens(text: str) -> str:
+    text = _RESIDUAL_PROTECT_TOKEN.sub("", text)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
 
+
+def _restore_protected_entities(text: str, placeholders: list[str]) -> str:
     def restore(match: re.Match) -> str:
         idx = int(match.group(1))
         return placeholders[idx] if idx < len(placeholders) else ""
 
-    return _PROTECT_TOKEN.sub(restore, text)
+    restored = _PROTECT_TOKEN.sub(restore, text)
+    return _strip_residual_protect_tokens(restored)
 
 
 def _is_url_or_phone(text: str) -> bool:
@@ -531,6 +544,14 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
 
     # 1) URL/전화/날짜/시간/금액 placeholder 치환
     masked, placeholders = _mask_protected_entities(text, target_lang)
+
+    # 마스킹 후 한국어·알파벳이 없으면 NLLB에 보낼 내용 없음 → 바로 복원.
+    # 케이스 A: "일시: __SLOT0__ __SLOT1__" → SLOT 제거 후 빈 문자열
+    # 케이스 B: "23.(토) / __SLOT0__ ~ __SLOT1__" → SLOT 제거 후 "/ ~" (구두점만 남음)
+    # 양쪽 모두 NLLB는 "Tôi không biết"를 반환 — 스킵이 맞다.
+    _non_slot = re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE)
+    if not re.search(r"[가-힣a-zA-Z]", _non_slot):
+        return _restore_protected_entities(masked, placeholders)
 
     # 2) Template-based (vi only): 문장 유형 분류 → glossary 직접 매핑 → 템플릿 조립
     if target_lang == "vi":
@@ -602,6 +623,12 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
             continue
         cleaned = _clean_for_translation(text)[:MAX_TRANSLATE_CHARS]
         masked, placeholders = _mask_protected_entities(cleaned, target_lang)
+
+        # 한국어·알파벳 없으면 NLLB 불필요 → 바로 복원 (단일 버전과 동일 처리)
+        _non_slot = re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE)
+        if not re.search(r"[가-힣a-zA-Z]", _non_slot):
+            results[i] = _restore_protected_entities(masked, placeholders)
+            continue
 
         # vi 템플릿 분기 — 매칭되면 NLLB 우회
         if target_lang == "vi":
