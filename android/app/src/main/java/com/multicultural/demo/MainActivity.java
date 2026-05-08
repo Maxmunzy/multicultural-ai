@@ -1259,7 +1259,7 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(0, 0, 0, dp(28));
+        root.setPadding(0, 0, 0, dp(80));  // bottomActionsBar(56dp) + margin(16dp) + 여유
         scroll.addView(root);
 
         // 탑 액션 바: ✕ 닫기  (spacer)  🌐 lang pill
