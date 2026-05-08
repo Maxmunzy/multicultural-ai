@@ -418,7 +418,6 @@ public class ChecklistActivity extends Activity {
                 // F: 비한국어 언어는 번역 라벨 우선, 없으면 ko 폴백
                 String label = (!targetLang.equals("ko_easy") && !translatedLabel.isEmpty())
                         ? translatedLabel : ko;
-                if (label.isEmpty()) label = ko;
                 String note = item.optString("note", "");
                 if (!note.isEmpty() && !"null".equals(note)) {
                     label += "  (" + note + ")";

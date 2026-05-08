@@ -1414,7 +1414,7 @@ public class MainActivity extends Activity {
                     : currentAnalyzedNoticeId;
             NoticeChecklistDialog.show(this, BASE_URL,
                     currentUserId.isEmpty() ? DEFAULT_PARENT_ID : currentUserId,
-                    nid, currentCards, currentInfoCards);
+                    nid, currentCards, currentInfoCards, selectedLanguage);
         });
         thisChecklistBtn.setVisibility(View.GONE);
         thisChecklistBtn.setTag("thisChecklistBtn");

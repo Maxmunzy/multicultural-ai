@@ -81,11 +81,12 @@ public class NoticeChecklistDialog {
             String parentId,
             String noticeId,
             JSONArray cards,
-            JSONArray infoCards
+            JSONArray infoCards,
+            String targetLang
     ) {
         Dialog dialog = new Dialog(context);
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
-        dialog.setContentView(buildLayout(context, dialog, baseUrl, parentId, noticeId, cards, infoCards));
+        dialog.setContentView(buildLayout(context, dialog, baseUrl, parentId, noticeId, cards, infoCards, targetLang));
 
         Window window = dialog.getWindow();
         if (window != null) {
@@ -106,7 +107,8 @@ public class NoticeChecklistDialog {
             String parentId,
             String noticeId,
             JSONArray cards,
-            JSONArray infoCards
+            JSONArray infoCards,
+            String targetLang
     ) {
         LinearLayout root = new LinearLayout(context);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -164,8 +166,8 @@ public class NoticeChecklistDialog {
         scroll.addView(body);
         root.addView(scroll);
 
-        int totalCards = appendCards(context, body, baseUrl, parentId, noticeId, "card", cards)
-                       + appendCards(context, body, baseUrl, parentId, noticeId, "info", infoCards);
+        int totalCards = appendCards(context, body, baseUrl, parentId, noticeId, "card", cards, targetLang)
+                       + appendCards(context, body, baseUrl, parentId, noticeId, "info", infoCards, targetLang);
         if (totalCards == 0) {
             TextView empty = makeText(context, "체크할 항목이 없습니다", 14, COLOR_INK3, false);
             empty.setPadding(0, dp(context, 28), 0, dp(context, 28));
@@ -183,7 +185,8 @@ public class NoticeChecklistDialog {
             String parentId,
             String noticeId,
             String cardKind,
-            JSONArray cards
+            JSONArray cards,
+            String targetLang
     ) {
         if (cards == null) return 0;
         int rendered = 0;
@@ -192,7 +195,7 @@ public class NoticeChecklistDialog {
             if (card == null) continue;
             JSONArray cl = card.optJSONArray("checklist");
             if (cl == null || cl.length() == 0) continue;
-            body.addView(buildCardSection(context, baseUrl, parentId, noticeId, cardKind, card, cl));
+            body.addView(buildCardSection(context, baseUrl, parentId, noticeId, cardKind, card, cl, targetLang));
             rendered++;
         }
         return rendered;
@@ -205,7 +208,8 @@ public class NoticeChecklistDialog {
             String noticeId,
             String cardKind,
             JSONObject card,
-            JSONArray cl
+            JSONArray cl,
+            String targetLang
     ) {
         LinearLayout section = new LinearLayout(context);
         section.setOrientation(LinearLayout.VERTICAL);
@@ -222,8 +226,9 @@ public class NoticeChecklistDialog {
 
         String headerKo = card.optString("header_ko", "");
         String headerTranslated = card.optString("header_translated", "");
-        String displayHeader = headerTranslated.isEmpty() ? headerKo : headerTranslated;
         String cardChip = card.optString("chip", "");
+        boolean useTranslated = !"ko_easy".equals(targetLang) && !headerTranslated.isEmpty();
+        String displayHeader = useTranslated ? headerTranslated : headerKo;
         String dueDate = card.optString("due_date", "");
         TextView head = makeText(context, displayHeader, 15, COLOR_INK, true);
         section.addView(head);
