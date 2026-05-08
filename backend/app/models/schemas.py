@@ -147,6 +147,7 @@ class SlotCard(BaseModel):
     value_translated: str = ""           # NLLB 번역 결과
     chip: str | None = None              # category 값 — None이면 칩 미표시
     importance: float = 0.5              # 정렬용 (높은 순)
+    due_date: str | None = None          # 윤정님 todo.due_date — 통합 체크리스트 마감일 정렬용
     checklist: list[ChecklistItem] = []  # 행동 항목 — 비어있으면 안드 UI 체크박스 영역 미표시
 
 

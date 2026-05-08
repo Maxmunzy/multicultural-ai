@@ -210,6 +210,7 @@ def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
         value_translated="",  # build_cards 끝에서 batch 번역
         chip=chip,
         importance=todo.confidence,
+        due_date=todo.due_date,  # 통합 체크리스트 마감일 정렬용
     )
 
 

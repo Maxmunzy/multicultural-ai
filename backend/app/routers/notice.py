@@ -53,6 +53,12 @@ MAX_CARDS = 16  # 학년별 표(공용+개인 12행) 같은 다중 카드 통신
 #   card_idx, item_idx: analyze 응답 안 위치 (안드가 응답 받은 그대로 인덱싱)
 _checklist_state: dict[tuple[str, str, str, int, int], bool] = {}
 
+# 분석 결과 영속 — analyze 호출 시 cards/info_cards/title 캐시.
+# 통합 체크리스트(/inbox/{parent_id}/checklist) 엔드포인트가 parent의 모든 통신문
+# 분석 결과를 한 번에 모아 반환할 때 사용. 시연용 메모리 dict.
+# key: notice_id, value: {title, cards, info_cards}
+_analyses: dict[str, dict] = {}
+
 NOTICES_DIR = Path("/app/static/notices")
 
 
@@ -393,6 +399,81 @@ async def get_inbox(
         )
     inbox = [n for n in _notices.values() if n.parent_id == parent_id]
     return ApiResponse.success(data=inbox)
+
+
+@router.get("/inbox/{parent_id}/checklist", response_model=ApiResponse)
+async def get_inbox_checklist(
+    parent_id: str,
+    user: UserProfile = Depends(require_user),
+):
+    """부모의 모든 통신문 체크리스트 통합 — chip별 그룹 + 마감일 정렬.
+
+    안드 "이번 주 할 일" 화면용. 학부모가 analyze를 한 번씩 호출한 통신문만
+    포함 (시연 전 일괄 분석 권장). cards/info_cards 양쪽에서 checklist 있는
+    카드만 모아서 chip별로 그룹화 + 마감일순 평면 리스트도 같이 반환.
+
+    응답 형식:
+        {
+          "by_chip": {chip: [entry, ...], ...},
+          "by_due_date": [entry, ...]
+        }
+        entry = {notice_id, notice_title, card_kind, card_idx, header_ko,
+                 value_ko, chip, due_date, checklist}
+    """
+    if user.role != "parent" or user.user_id != parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 수신함만 조회할 수 있습니다",
+        )
+
+    # 이 parent가 받은 통신문만 골라서 분석 캐시 매칭
+    parent_notice_ids = {
+        nid for nid, n in _notices.items() if n.parent_id == parent_id
+    }
+
+    by_chip: dict[str, list[dict]] = {}
+    flat: list[dict] = []
+    for nid, snapshot in _analyses.items():
+        if nid not in parent_notice_ids:
+            continue
+        title = snapshot.get("title", "")
+        for card_kind, lst in (("card", snapshot.get("cards", [])),
+                               ("info", snapshot.get("info_cards", []))):
+            for idx, card in enumerate(lst):
+                if not card.checklist:
+                    continue
+                # checked 상태는 _checklist_state에서 직접 조회 — analyze 이후 토글 반영
+                checklist_with_state = []
+                for item_idx, item in enumerate(card.checklist):
+                    key = (parent_id, nid, card_kind, idx, item_idx)
+                    checked = _checklist_state.get(key, item.checked)
+                    checklist_with_state.append({
+                        "ko": item.ko,
+                        "note": item.note,
+                        "translated": item.translated,
+                        "checked": checked,
+                    })
+                entry = {
+                    "notice_id": nid,
+                    "notice_title": title,
+                    "card_kind": card_kind,
+                    "card_idx": idx,
+                    "header_ko": card.header_ko,
+                    "header_translated": card.header_translated,
+                    "value_ko": card.value_ko,
+                    "value_translated": card.value_translated,
+                    "chip": card.chip,
+                    "due_date": card.due_date,
+                    "checklist": checklist_with_state,
+                }
+                chip_key = card.chip or "기타"
+                by_chip.setdefault(chip_key, []).append(entry)
+                flat.append(entry)
+
+    # 마감일순 평면 리스트 — due_date 있는 것 먼저, 같은 날은 importance 순
+    flat.sort(key=lambda e: (e["due_date"] is None, e["due_date"] or ""))
+
+    return ApiResponse.success(data={"by_chip": by_chip, "by_due_date": flat})
 
 
 @router.delete("/inbox/{parent_id}", response_model=ApiResponse)
@@ -933,6 +1014,16 @@ async def analyze_notice(
         "review_needed": "",
         "ocr_corrections": [c.model_dump() for c in notice.ocr_corrections],
         "has_review_required": any(c.review_required for c in notice.ocr_corrections),
+    }
+
+    # 통합 체크리스트(/inbox/checklist) 엔드포인트가 재사용할 수 있게 cards/info_cards
+    # 캐시. ChecklistUpdateRequest로 토글된 checked는 다음 analyze 호출 시점에
+    # _apply_checklist_state로 다시 채워지므로 이 캐시는 정렬·집계용 source.
+    _analyses[notice_id] = {
+        "title": title_ko,
+        "target_language": target_lang,
+        "cards": cards,
+        "info_cards": info_cards,
     }
     return ApiResponse.success(data=response)
 
