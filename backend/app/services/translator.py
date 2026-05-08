@@ -446,7 +446,15 @@ def _clean_for_translation(text: str) -> str:
 # ⟦…⟧ (U+27E6/27E7) 는 NLLB SentencePiece 어휘에 없어서 tokenize 시 소실됨 → "P0"만 남아 복원 실패.
 # __SLOT0__ 형태(ASCII 대문자 + 언더스코어)는 NLLB가 코드/약어로 인식해 그대로 통과.
 # NLLB가 "SLOT" → "SLO T" 로 쪼개는 경우도 복원할 수 있도록 SLO\s+T 패턴 추가.
-_PROTECT_TOKEN = re.compile(r"__\s*(?:SLOT|SLO\s+T)\s*(\d+)\s*__", re.IGNORECASE)
+_PROTECT_TOKEN = re.compile(
+    r"(?:_{1,2}\s*)?S\s*L\s*O\s*T\s*(\d+)\s*_*",
+    re.IGNORECASE,
+)
+_RESIDUAL_PROTECT_TOKEN = re.compile(
+    r"_{1,2}\s*S\s*L\s*O\s*[A-Z0-9_ ]*_{1,2}\.*"
+    r"|(?<![A-Za-z])S\s*L\s*O\s*T\s*\d+\.*(?![A-Za-z])",
+    re.IGNORECASE,
+)
 
 
 def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple[str, list[str]]:
@@ -475,15 +483,20 @@ def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple
     return masked, placeholders
 
 
-def _restore_protected_entities(text: str, placeholders: list[str]) -> str:
-    if not placeholders:
-        return text
+def _strip_residual_protect_tokens(text: str) -> str:
+    text = _RESIDUAL_PROTECT_TOKEN.sub("", text)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
 
+
+def _restore_protected_entities(text: str, placeholders: list[str]) -> str:
     def restore(match: re.Match) -> str:
         idx = int(match.group(1))
         return placeholders[idx] if idx < len(placeholders) else ""
 
-    return _PROTECT_TOKEN.sub(restore, text)
+    restored = _PROTECT_TOKEN.sub(restore, text)
+    return _strip_residual_protect_tokens(restored)
 
 
 def _is_url_or_phone(text: str) -> bool:

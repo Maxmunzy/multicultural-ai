@@ -28,3 +28,30 @@ def test_restore_removes_unknown_slot_token():
 
     assert "__Slot9__" not in restored
     assert "Ngay 17/3" in restored
+
+
+def test_restore_with_missing_leading_underscore():
+    holders = ["giay ve"]
+
+    restored = _restore_protected_entities("Can chuan bi _SLOT0__.", holders)
+
+    assert restored == "Can chuan bi giay ve."
+    assert "SLOT" not in restored
+
+
+def test_restore_with_bare_slot_token():
+    holders = ["but chi"]
+
+    restored = _restore_protected_entities("Mang theo SLOT 0...", holders)
+
+    assert restored == "Mang theo but chi..."
+    assert "SLOT" not in restored
+
+
+def test_restore_strips_damaged_slot_residue_without_placeholders():
+    restored = _restore_protected_entities("Acrylic, __Slote4__ 3 manh, __Slos3__.", [])
+
+    assert "Slot" not in restored
+    assert "Slo" not in restored
+    assert "Acrylic" in restored
+    assert "3 manh" in restored
