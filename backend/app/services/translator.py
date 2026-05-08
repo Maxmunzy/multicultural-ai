@@ -138,6 +138,64 @@ def _translate_batch_raw(
     return tokenizer.batch_decode(out, skip_special_tokens=True)
 
 
+# 세종님 지적(2026-05-09): batch 경로가 _translate의 lru_cache를 우회 → 같은 헤더
+# 반복 시 캐시 효과 사라짐. 분석 내부 dedup + 모듈 캐시로 lru_cache 등가 효과 복원.
+_BATCH_NLLB_CACHE: dict[tuple[str, str], str] = {}
+_BATCH_NLLB_CACHE_MAX = 1024  # _translate의 lru_cache(maxsize=1024)와 일치
+
+
+def _translate_batch_cached(
+    texts: list[str],
+    target_nllb: str = "vie_Latn",
+    max_length: int = 384,
+) -> list[str]:
+    """`_translate_batch_raw`의 dedup + cache 래퍼.
+
+    A. 분석 내부 dedup — 같은 입력이 여러 번 와도 NLLB는 1회만 forward
+    B. 모듈 캐시 — 분석 간 동일 입력은 NLLB 우회 (단일 _translate의 lru_cache 등가)
+
+    캐시 크기 초과 시 가장 오래된 절반 제거 (단순 FIFO).
+    """
+    if not texts:
+        return []
+
+    # 1) Dedup — 보존 순서로 unique 추출
+    unique: list[str] = []
+    pos: dict[str, int] = {}
+    for t in texts:
+        if t not in pos:
+            pos[t] = len(unique)
+            unique.append(t)
+
+    # 2) 캐시 분리 — 미스만 batch
+    unique_results: list[str] = [""] * len(unique)
+    misses: list[str] = []
+    miss_indices: list[int] = []
+    for i, t in enumerate(unique):
+        key = (t, target_nllb)
+        cached = _BATCH_NLLB_CACHE.get(key)
+        if cached is not None:
+            unique_results[i] = cached
+        else:
+            misses.append(t)
+            miss_indices.append(i)
+
+    # 3) 미스 batch 실행 → 결과 캐시
+    if misses:
+        miss_translations = _translate_batch_raw(misses, target_nllb, max_length)
+        if len(_BATCH_NLLB_CACHE) + len(misses) > _BATCH_NLLB_CACHE_MAX:
+            # 단순 FIFO — 절반 제거. lru_cache 정확도는 아니지만 _translate와 동일 size 유지.
+            keys = list(_BATCH_NLLB_CACHE.keys())
+            for k in keys[: len(keys) // 2]:
+                _BATCH_NLLB_CACHE.pop(k, None)
+        for idx, t, tr in zip(miss_indices, misses, miss_translations):
+            unique_results[idx] = tr
+            _BATCH_NLLB_CACHE[(t, target_nllb)] = tr
+
+    # 4) 원래 순서로 펼치기
+    return [unique_results[pos[t]] for t in texts]
+
+
 # 한국어 원문 → 베트남어 번역 결과의 명백한 오번역 강제 치환.
 # NLLB가 학교 도메인을 못 배워서 발생하는 시각적 결함을 시연 전에 막는 안전망.
 _CURRENCY_PATTERNS = [
@@ -578,7 +636,7 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
     if nllb_inputs:
         target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
         try:
-            translated_batch = _translate_batch_raw(nllb_inputs, target_nllb=target_nllb)
+            translated_batch = _translate_batch_cached(nllb_inputs, target_nllb=target_nllb)
         except Exception as error:
             print(f"[translator] translate_short_sentence_batch failed: {error}")
             translated_batch = ["" for _ in nllb_inputs]
