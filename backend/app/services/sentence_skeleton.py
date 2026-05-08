@@ -150,7 +150,7 @@ GEMINI_SENTENCE_LIST_PROMPT = """\
 
 def build_gemini_sentence_list_prompt(document_text: str) -> str:
     """Return the provider prompt for sentence-list extraction."""
-    return GEMINI_SENTENCE_LIST_PROMPT.format(document_text=document_text.strip())
+    return GEMINI_SENTENCE_LIST_PROMPT.replace("{document_text}", document_text.strip())
 
 
 def normalize_header(header: str) -> str:
