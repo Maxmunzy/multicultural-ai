@@ -201,14 +201,35 @@ public class ChecklistActivity extends Activity {
     }
 
     private String tabLabel(String key) {
+        if (TAB_DUE.equals(key)) return "⌛ " + localizedLabel("마감일순", "Deadline", "Hạn chót", "截止日期", "กำหนดส่ง", "Срок", "Tarikh Akhir", "Хугацаа", "期限");
         switch (key) {
-            case "준비물":    return "📦 준비물";
-            case "제출":      return "📝 제출";
-            case "비용":      return "💰 비용";
-            case "건강·안전": return "🛡 건강";
-            case TAB_DUE:     return "⌛ 마감일순";
+            case "준비물":    return "📦 " + localizedLabel("준비물",  "Supplies", "Đồ dùng",      "学习用品", "อุปกรณ์",    "Принадлежности", "Peralatan",  "Хэрэгсэл",   "持ち物");
+            case "제출":      return "📝 " + localizedLabel("제출",    "Submission", "Nộp tài liệu", "提交材料", "ยื่นเอกสาร", "Документы",      "Penyerahan", "Материал",   "提出物");
+            case "비용":      return "💰 " + localizedLabel("비용",    "Fee",     "Chi phí",      "费用",     "ค่าใช้จ่าย","Расходы",        "Bayaran",    "Зардал",     "費用");
+            case "건강·안전": return "🛡 " + localizedLabel("건강",    "Health",  "Sức khỏe",     "健康安全", "สุขภาพ",    "Здоровье",       "Kesihatan",  "Эрүүл мэнд","健康");
         }
         return key;
+    }
+
+    // 언어 순서: ko_easy/vi_demo, en, vi, zh, th, ru, ms, mn, ja
+    private String localizedLabel(String ko, String en, String vi, String zh,
+                                  String th, String ru, String ms, String mn, String ja) {
+        switch (targetLang) {
+            case "en":  return en;
+            case "vi":  return vi;
+            case "zh":  return zh;
+            case "th":  return th;
+            case "ru":  return ru;
+            case "ms":  return ms;
+            case "mn":  return mn;
+            case "ja":  return ja;
+            default:    return ko;  // ko_easy, vi_demo, 그 외
+        }
+    }
+
+    // ko_easy(한국어 쉬운말) + vi_demo(시연용) 둘 다 한국어 표시
+    private boolean isKoreanMode() {
+        return "ko_easy".equals(targetLang) || "vi_demo".equals(targetLang);
     }
 
     // ── Load + render ───────────────────────────────────────────────────────
@@ -372,7 +393,7 @@ public class ChecklistActivity extends Activity {
             headerKo = entryChip;
         }
         // F: 비한국어 언어 선택 시 번역된 헤더 우선
-        String displayHeader = (!targetLang.equals("ko_easy") && !headerTranslated.isEmpty())
+        String displayHeader = (!isKoreanMode() && !headerTranslated.isEmpty())
                 ? headerTranslated : headerKo;
         TextView header = text(displayHeader, 16, COLOR_INK, true);
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
@@ -416,7 +437,7 @@ public class ChecklistActivity extends Activity {
                 String ko = item.optString("ko", "");
                 String translatedLabel = item.optString("translated", "");
                 // F: 비한국어 언어는 번역 라벨 우선, 없으면 ko 폴백
-                String label = (!targetLang.equals("ko_easy") && !translatedLabel.isEmpty())
+                String label = (!isKoreanMode() && !translatedLabel.isEmpty())
                         ? translatedLabel : ko;
                 String note = item.optString("note", "");
                 if (!note.isEmpty() && !"null".equals(note)) {

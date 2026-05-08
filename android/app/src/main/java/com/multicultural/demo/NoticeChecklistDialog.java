@@ -227,8 +227,8 @@ public class NoticeChecklistDialog {
         String headerKo = card.optString("header_ko", "");
         String headerTranslated = card.optString("header_translated", "");
         String cardChip = card.optString("chip", "");
-        boolean useTranslated = !"ko_easy".equals(targetLang) && !headerTranslated.isEmpty();
-        String displayHeader = useTranslated ? headerTranslated : headerKo;
+        boolean useKorean = "ko_easy".equals(targetLang) || "vi_demo".equals(targetLang);
+        String displayHeader = (!useKorean && !headerTranslated.isEmpty()) ? headerTranslated : headerKo;
         String dueDate = card.optString("due_date", "");
         TextView head = makeText(context, displayHeader, 15, COLOR_INK, true);
         section.addView(head);
@@ -259,9 +259,10 @@ public class NoticeChecklistDialog {
             JSONObject item = cl.optJSONObject(j);
             if (item == null) continue;
             CheckBox cb = new CheckBox(context);
-            String label = item.optString("translated", "");
             String ko = item.optString("ko", "");
-            if (label.isEmpty()) label = ko;
+            String translated = item.optString("translated", "");
+            // vi_demo(시연용)는 한국어 표시
+            String label = (!useKorean && !translated.isEmpty()) ? translated : ko;
             String note = item.optString("note", "");
             if (!note.isEmpty() && !"null".equals(note)) {
                 label += "  (" + note + ")";
