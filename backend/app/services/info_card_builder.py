@@ -14,6 +14,7 @@ from app.services.card_builder import (
     _merge_orphan_numeric_pieces,
     _split_paren_note,
     _split_with_paren_protection,
+    _stable_id,
 )
 from app.services.sentence_skeleton import (
     RoleHint,
@@ -145,6 +146,7 @@ def _build_checklist_for_role(value: str, role_hint: RoleHint, target_lang: str)
         if target_lang != "ko_easy" and not is_nllb_skip_value(ko, role_hint):
             translated = translate_short_sentence(ko, target_lang) or ""
         out.append(ChecklistItem(
+            item_id=_stable_id(f"{ko}|{note}"),
             ko=ko,
             note=note,
             translated=translated,
@@ -170,6 +172,7 @@ def build_info_cards_from_sentence_document(
             continue
 
         cards.append(SlotCard(
+            card_id=_stable_id(f"{label}|{value}"),
             header_ko=label,
             header_translated=translate_term(label, target_lang),
             value_ko=value,

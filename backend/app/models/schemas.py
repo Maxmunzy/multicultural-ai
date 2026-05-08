@@ -125,8 +125,10 @@ class ChecklistItem(BaseModel):
     """행동 항목 — 학부모가 챙김/제출/납부/신청 후 체크할 단위.
 
     SlotCard.checklist에 들어가서 안드 UI 체크박스로 렌더링.
-    영속 상태(checked)는 별도 메모리 dict — 시연용. (parent_id, notice_id, card_idx, item_idx)
+    영속 상태(checked)는 별도 메모리 dict — 시연용.
+    item_id는 (ko + note) stable hash — 같은 통신문 재분석에도 ID 동일 → 체크 상태 유지.
     """
+    item_id: str = ""                    # hash(ko + note) 12자 — 안정 식별자
     ko: str                              # 예: "샤프식 색연필 12색"
     note: str = ""                       # 예: "(연필식 색연필 불가)" — 괄호 부연
     translated: str = ""                 # NLLB 번역 (mode=translated 표시용)
@@ -140,6 +142,7 @@ class SlotCard(BaseModel):
     한 카드 = 한 의미 단위 (운영시간 / 신청기간 / 운영방법 ...).
     todos 헤더 분해 + regex 슬롯 컨텍스트 매칭 둘 다 카드로 통합.
     """
+    card_id: str = ""                    # hash(header_ko + value_ko) 12자 — 재분석 강건 식별자
     header_ko: str                       # 예: "운영시간"
     header_translated: str = ""          # 예: "Thời gian hoạt động"
     value_ko: str                        # 예: "오전 10:00 ~ 12:00 (2시간)"
@@ -213,12 +216,15 @@ class NoticeAnalyzeResponse(BaseModel):
 class ChecklistUpdateRequest(BaseModel):
     """체크박스 토글 — 안드가 카드별 항목 체크/해제 시 호출.
 
-    card_idx, item_idx는 analyze 응답 안 SlotCard 위치 (안드가 받은 그대로 인덱싱).
+    card_id, item_id는 analyze 응답의 SlotCard.card_id / ChecklistItem.item_id를
+    그대로 받음. (header_ko+value_ko) / (ko+note) stable hash라 카드 순서 변경·
+    재분석에도 매칭 강건. 잘못된 ID는 dict miss로 무시 → IndexError 없음.
+
     card_kind는 응답 필드명("cards" | "info_cards")의 단축형.
     """
     card_kind: str   # "card" | "info"
-    card_idx: int
-    item_idx: int
+    card_id: str
+    item_id: str
     checked: bool
 
 

@@ -48,10 +48,11 @@ _notices: dict[str, Notice] = {}
 MAX_CARDS = 16  # 학년별 표(공용+개인 12행) 같은 다중 카드 통신문 누락 방지
 
 # 체크리스트 영속 — 시연용 메모리 dict. 서버 재시작 시 초기화 OK.
-# key: (parent_id, notice_id, card_kind, card_idx, item_idx)
+# key: (parent_id, notice_id, card_kind, card_id, item_id)
 #   card_kind: "card" (action cards) | "info" (info_cards)
-#   card_idx, item_idx: analyze 응답 안 위치 (안드가 응답 받은 그대로 인덱싱)
-_checklist_state: dict[tuple[str, str, str, int, int], bool] = {}
+#   card_id, item_id: SlotCard.card_id / ChecklistItem.item_id stable hash
+#     (header_ko+value_ko / ko+note 해시) — 카드 순서 변경/재분석에 강건
+_checklist_state: dict[tuple[str, str, str, str, str], bool] = {}
 
 # 분석 결과 영속 — analyze 호출 시 cards/info_cards/title 캐시.
 # 통합 체크리스트(/inbox/{parent_id}/checklist) 엔드포인트가 parent의 모든 통신문
@@ -183,12 +184,13 @@ def _apply_checklist_state(
 ) -> None:
     """analyze 응답 빌드 시 _checklist_state에서 checked 채움. in-place 수정.
 
-    card_kind: "card" (action cards) | "info" (info_cards) — 같은 인덱스라도 분리 보관.
+    card_kind: "card" (action cards) | "info" (info_cards) — 같은 ID라도 분리 보관.
+    키는 (parent_id, notice_id, card_kind, card_id, item_id) — stable hash 기반.
     누락 항목은 False 기본값(빌드 시 이미 False) 그대로.
     """
-    for card_idx, card in enumerate(cards_list):
-        for item_idx, item in enumerate(card.checklist):
-            key = (parent_id, notice_id, card_kind, card_idx, item_idx)
+    for card in cards_list:
+        for item in card.checklist:
+            key = (parent_id, notice_id, card_kind, card.card_id, item.item_id)
             if key in _checklist_state:
                 item.checked = _checklist_state[key]
 
@@ -439,15 +441,16 @@ async def get_inbox_checklist(
         title = snapshot.get("title", "")
         for card_kind, lst in (("card", snapshot.get("cards", [])),
                                ("info", snapshot.get("info_cards", []))):
-            for idx, card in enumerate(lst):
+            for card in lst:
                 if not card.checklist:
                     continue
-                # checked 상태는 _checklist_state에서 직접 조회 — analyze 이후 토글 반영
+                # checked 상태는 _checklist_state에서 stable id 기반 조회 — analyze 이후 토글 반영
                 checklist_with_state = []
-                for item_idx, item in enumerate(card.checklist):
-                    key = (parent_id, nid, card_kind, idx, item_idx)
+                for item in card.checklist:
+                    key = (parent_id, nid, card_kind, card.card_id, item.item_id)
                     checked = _checklist_state.get(key, item.checked)
                     checklist_with_state.append({
+                        "item_id": item.item_id,
                         "ko": item.ko,
                         "note": item.note,
                         "translated": item.translated,
@@ -457,7 +460,7 @@ async def get_inbox_checklist(
                     "notice_id": nid,
                     "notice_title": title,
                     "card_kind": card_kind,
-                    "card_idx": idx,
+                    "card_id": card.card_id,
                     "header_ko": card.header_ko,
                     "header_translated": card.header_translated,
                     "value_ko": card.value_ko,
@@ -728,10 +731,11 @@ async def update_checklist(
     req: ChecklistUpdateRequest,
     user: UserProfile = Depends(require_user),
 ):
-    """체크박스 토글 — 시연용 메모리 dict에 (parent, notice, kind, card, item) 저장.
+    """체크박스 토글 — 시연용 메모리 dict에 (parent, notice, kind, card_id, item_id) 저장.
 
     본인 통신문에만 토글 허용. 다음 analyze 호출 시 SlotCard.checklist[].checked로
-    채워져 안드 UI에 반영.
+    채워져 안드 UI에 반영. card_id/item_id는 stable hash라 잘못된 ID는 dict miss로
+    무시 (다음 analyze에서 매칭 실패 → 그냥 False).
     """
     if notice_id not in _notices:
         raise HTTPException(
@@ -749,18 +753,18 @@ async def update_checklist(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="card_kind는 'card' 또는 'info'여야 합니다",
         )
-    if req.card_idx < 0 or req.item_idx < 0:
+    if not req.card_id or not req.item_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="card_idx, item_idx는 0 이상이어야 합니다",
+            detail="card_id, item_id는 빈 문자열일 수 없습니다",
         )
-    key = (notice.parent_id, notice_id, req.card_kind, req.card_idx, req.item_idx)
+    key = (notice.parent_id, notice_id, req.card_kind, req.card_id, req.item_id)
     _checklist_state[key] = req.checked
     return ApiResponse.success(
         data={
             "card_kind": req.card_kind,
-            "card_idx": req.card_idx,
-            "item_idx": req.item_idx,
+            "card_id": req.card_id,
+            "item_id": req.item_id,
             "checked": req.checked,
         },
     )

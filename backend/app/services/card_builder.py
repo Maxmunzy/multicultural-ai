@@ -13,6 +13,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import re
 
 from app.models.schemas import Category, ChecklistItem, SlotCard, YunjeongTodo
@@ -32,6 +33,15 @@ _ACTION_CHIPS: frozenset[str] = frozenset({
     Category.cost.value,        # "비용"
     Category.health.value,      # "건강·안전"
 })
+
+
+def _stable_id(text: str) -> str:
+    """문자열 stable hash 12자 — 카드/항목 식별자.
+
+    같은 통신문 재분석에도 동일 ID — 카드 순서 변경/Claude 비결정성에 강건.
+    sha1 12자 충돌 확률 무시 가능 (한 분석 안 카드/항목 < 100).
+    """
+    return hashlib.sha1((text or "").encode("utf-8")).hexdigest()[:12]
 
 # 콤마/슬래시 split을 적용할 chip — 본질이 다중 항목 나열인 카테고리만.
 # 제출/비용/건강·안전은 보통 단일 액션이라 split 안 함 ("2,3,5,6학년 학생은..." 같은
@@ -141,7 +151,13 @@ def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[Checkli
         translated = ""
         if target_lang != "ko_easy":
             translated = translate_short_sentence(ko, target_lang) or ""
-        out.append(ChecklistItem(ko=ko, note=note, translated=translated, checked=False))
+        out.append(ChecklistItem(
+            item_id=_stable_id(f"{ko}|{note}"),
+            ko=ko,
+            note=note,
+            translated=translated,
+            checked=False,
+        ))
     return out
 
 # 헤더 추정 실패 시 fallback
@@ -203,6 +219,7 @@ def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
     chip = category.value if category != Category.other else None
 
     return SlotCard(
+        card_id=_stable_id(f"{header}|{value}"),
         header_ko=header,
         header_translated="" if header == _FALLBACK_HEADER else translate_term(header, target_lang),
         value_ko=value,
@@ -264,6 +281,7 @@ def _build_cards_from_regex_slots(
         value_translated = value_ko if slot_name in ("urls", "phones") else ""
 
         cards.append(SlotCard(
+            card_id=_stable_id(f"{default_header}|{value_ko}"),
             header_ko=default_header,
             header_translated=translate_term(default_header, target_lang),
             value_ko=value_ko,
