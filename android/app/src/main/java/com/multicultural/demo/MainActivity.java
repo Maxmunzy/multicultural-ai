@@ -1420,14 +1420,13 @@ public class MainActivity extends Activity {
         thisChecklistBtn.setTag("thisChecklistBtn");
         content.addView(thisChecklistBtn);
 
-        Button weeklyChecklistBtn = outlineButton("📅  이번 주 할 일 (전체)", v -> {
-            Intent i = new Intent(this, ChecklistActivity.class);
-            i.putExtra(ChecklistActivity.EXTRA_PARENT_ID,
-                    currentUserId.isEmpty() ? DEFAULT_PARENT_ID : currentUserId);
-            i.putExtra(ChecklistActivity.EXTRA_TARGET_LANG, selectedLanguage);
-            startActivity(i);
-        });
-        content.addView(weeklyChecklistBtn);
+        // QR/신청 링크 — URL 있을 때만 표시. bottomActionsBar와 별도.
+        linkSideTabButton = bottomLinkButton("🔗  신청 · QR", v -> showLinkActionsDialog());
+        linkSideTabButton.setVisibility(View.GONE);
+        LinearLayout.LayoutParams linkContentLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(52));
+        linkContentLp.setMargins(dp(16), dp(4), dp(16), dp(4));
+        content.addView(linkSideTabButton, linkContentLp);
 
         // 닫기
         content.addView(outlineButton("← " + uiText("back_to_notice"), v -> showNoticeDetail(notice)));
@@ -1443,17 +1442,23 @@ public class MainActivity extends Activity {
         bottomActionsBar = new LinearLayout(this);
         bottomActionsBar.setOrientation(LinearLayout.HORIZONTAL);
         bottomActionsBar.setGravity(Gravity.CENTER);
-        bottomActionsBar.setVisibility(View.GONE);
+        bottomActionsBar.setVisibility(View.VISIBLE);  // 이번 주 할 일은 항상 표시
         bottomActionsBar.setPadding(0, 0, 0, 0);
-        linkSideTabButton = bottomLinkButton("🔗  신청 · QR", v -> showLinkActionsDialog());
-        calendarActionButton = bottomLinkButton("📅  미니 달력", v -> showMiniCalendarDialog());
-        linkSideTabButton.setVisibility(View.GONE);
-        calendarActionButton.setVisibility(View.GONE);
-        LinearLayout.LayoutParams linkLp = new LinearLayout.LayoutParams(0, dp(56), 1);
-        linkLp.setMargins(0, 0, dp(6), 0);
+        // 이번 주 할 일 — 항상 표시
+        Button weeklyBtn = bottomLinkButton("📅  이번 주 할 일", v -> {
+            Intent wi = new Intent(this, ChecklistActivity.class);
+            wi.putExtra(ChecklistActivity.EXTRA_PARENT_ID,
+                    currentUserId.isEmpty() ? DEFAULT_PARENT_ID : currentUserId);
+            wi.putExtra(ChecklistActivity.EXTRA_TARGET_LANG, selectedLanguage);
+            startActivity(wi);
+        });
+        calendarActionButton = bottomLinkButton("🗓  미니 달력", v -> showMiniCalendarDialog());
+        calendarActionButton.setVisibility(View.GONE);  // 이벤트 있을 때만 표시
+        LinearLayout.LayoutParams weeklyLp = new LinearLayout.LayoutParams(0, dp(56), 1);
+        weeklyLp.setMargins(0, 0, dp(6), 0);
         LinearLayout.LayoutParams calendarLp = new LinearLayout.LayoutParams(0, dp(56), 1);
         calendarLp.setMargins(dp(6), 0, 0, 0);
-        bottomActionsBar.addView(linkSideTabButton, linkLp);
+        bottomActionsBar.addView(weeklyBtn, weeklyLp);
         bottomActionsBar.addView(calendarActionButton, calendarLp);
         FrameLayout.LayoutParams tabLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, dp(56), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
@@ -1729,9 +1734,8 @@ public class MainActivity extends Activity {
 
     private void updateBottomActionsBarVisibility() {
         if (bottomActionsBar == null) return;
-        boolean hasLink = linkSideTabButton != null && linkSideTabButton.getVisibility() == View.VISIBLE;
-        boolean hasCalendar = calendarActionButton != null && calendarActionButton.getVisibility() == View.VISIBLE;
-        bottomActionsBar.setVisibility((hasLink || hasCalendar) ? View.VISIBLE : View.GONE);
+        // 이번 주 할 일 버튼이 항상 있으므로 bottomActionsBar는 항상 visible
+        bottomActionsBar.setVisibility(View.VISIBLE);
     }
 
     private void collectUrlsFromCards(Set<String> out, JSONArray cards) {
