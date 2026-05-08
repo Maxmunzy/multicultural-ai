@@ -42,6 +42,22 @@ CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-4-5")
 CLAUDE_TIMEOUT_SECONDS = float(os.environ.get("CLAUDE_TIMEOUT_SECONDS", "60"))
 
 
+# 모듈 로드 시 활성 provider의 키 상태를 한 번 출력 — 키 누락 후 분석 요청까지 기다리지 않고
+# 바로 발견할 수 있게. 키 없으면 extract_sentences가 status="skip:no_key"로 우회 fallback —
+# 에러는 안 나지만 LLM 정제 효과 0이라 운영자가 즉시 인지해야 함.
+if LLM_PROVIDER == "claude" and not ANTHROPIC_API_KEY:
+    logger.warning(
+        "[layout_normalizer] LLM_PROVIDER=claude but ANTHROPIC_API_KEY is empty — "
+        "extract_sentences will fallback to skip:no_key (LLM 정제 비활성)."
+    )
+elif LLM_PROVIDER != "claude" and not GEMINI_API_KEY:
+    logger.warning(
+        "[layout_normalizer] LLM_PROVIDER=%s but GEMINI_API_KEY is empty — "
+        "extract_sentences will fallback to skip:no_key (LLM 정제 비활성).",
+        LLM_PROVIDER,
+    )
+
+
 # 모든 모드(Vision/text) 공통 — Gemini systemInstruction.
 # user contents와 분리해서 instruction 강도 ↑ (Gemini API systemInstruction은
 # 지속 규칙으로 더 강하게 적용됨). preview 모델도 강제 따르게 만들기 위함.
@@ -447,8 +463,9 @@ def _call_claude(
 
     payload = json.dumps({
         "model": CLAUDE_MODEL,
-        # sentence_list까지 출력하므로 cleaned_text 단독 대비 ~2배 토큰 필요. 16384 cap.
-        "max_tokens": 16384,
+        # 긴 통신문(특히 HWP 변환 결과 + sentence_list) 절단 방지 — Gemini의 32768과 일치.
+        # 모델 자체 한계 이상은 무시되니 안전. 짧은 통신문은 출력 토큰만큼만 과금.
+        "max_tokens": 32768,
         "system": _SYSTEM_INSTRUCTION + "\n\n출력은 JSON만 (다른 설명·머리말·코드펜스 X).",
         "messages": [{"role": "user", "content": user_content}],
         "temperature": 0.0,

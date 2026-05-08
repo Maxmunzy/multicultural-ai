@@ -343,7 +343,16 @@ async def clear_inbox(
     parent_id: str,
     user: UserProfile = Depends(require_user),
 ):
-    """parent_id 수신함 초기화 (시연용). 본인 ID만 허용."""
+    """parent_id 수신함 초기화 (시연용). 본인 ID만 허용.
+
+    프로덕션 노출 방지 — 환경변수 `ENABLE_DEMO_ENDPOINTS=1`인 환경(시연/dev)에서만 작동.
+    배포 환경(unset 또는 0)에선 404로 응답해 존재 자체를 숨긴다.
+    """
+    if os.environ.get("ENABLE_DEMO_ENDPOINTS", "").strip() not in ("1", "true", "yes"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not Found",
+        )
     if user.role != "parent" or user.user_id != parent_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

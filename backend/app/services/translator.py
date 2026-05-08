@@ -12,6 +12,7 @@ URL/전화는 NLLB가 토큰화하면서 깨먹는 패턴이라 placeholder 치�
 """
 import re
 import sys
+from collections import OrderedDict
 from functools import lru_cache
 from pathlib import Path
 
@@ -139,8 +140,9 @@ def _translate_batch_raw(
 
 
 # 세종님 지적(2026-05-09): batch 경로가 _translate의 lru_cache를 우회 → 같은 헤더
-# 반복 시 캐시 효과 사라짐. 분석 내부 dedup + 모듈 캐시로 lru_cache 등가 효과 복원.
-_BATCH_NLLB_CACHE: dict[tuple[str, str], str] = {}
+# 반복 시 캐시 효과 사라짐. 분석 내부 dedup + 모듈 LRU 캐시로 lru_cache 등가 효과 복원.
+# OrderedDict — get 시 move_to_end로 최근 사용 갱신, 초과 시 가장 오래된 1개 제거 (진짜 LRU).
+_BATCH_NLLB_CACHE: "OrderedDict[tuple[str, str], str]" = OrderedDict()
 _BATCH_NLLB_CACHE_MAX = 1024  # _translate의 lru_cache(maxsize=1024)와 일치
 
 
@@ -152,9 +154,8 @@ def _translate_batch_cached(
     """`_translate_batch_raw`의 dedup + cache 래퍼.
 
     A. 분석 내부 dedup — 같은 입력이 여러 번 와도 NLLB는 1회만 forward
-    B. 모듈 캐시 — 분석 간 동일 입력은 NLLB 우회 (단일 _translate의 lru_cache 등가)
-
-    캐시 크기 초과 시 가장 오래된 절반 제거 (단순 FIFO).
+    B. 모듈 LRU 캐시 — 분석 간 동일 입력은 NLLB 우회 (단일 _translate의 lru_cache 등가).
+       OrderedDict 기반: 히트 시 move_to_end, 초과 시 가장 오래된 1개 제거.
     """
     if not texts:
         return []
@@ -167,30 +168,28 @@ def _translate_batch_cached(
             pos[t] = len(unique)
             unique.append(t)
 
-    # 2) 캐시 분리 — 미스만 batch
+    # 2) 캐시 분리 — 미스만 batch. 히트는 LRU 갱신.
     unique_results: list[str] = [""] * len(unique)
     misses: list[str] = []
     miss_indices: list[int] = []
     for i, t in enumerate(unique):
         key = (t, target_nllb)
-        cached = _BATCH_NLLB_CACHE.get(key)
-        if cached is not None:
-            unique_results[i] = cached
+        if key in _BATCH_NLLB_CACHE:
+            _BATCH_NLLB_CACHE.move_to_end(key)
+            unique_results[i] = _BATCH_NLLB_CACHE[key]
         else:
             misses.append(t)
             miss_indices.append(i)
 
-    # 3) 미스 batch 실행 → 결과 캐시
+    # 3) 미스 batch 실행 → 결과 LRU 캐시 (가장 오래된 항목부터 evict)
     if misses:
         miss_translations = _translate_batch_raw(misses, target_nllb, max_length)
-        if len(_BATCH_NLLB_CACHE) + len(misses) > _BATCH_NLLB_CACHE_MAX:
-            # 단순 FIFO — 절반 제거. lru_cache 정확도는 아니지만 _translate와 동일 size 유지.
-            keys = list(_BATCH_NLLB_CACHE.keys())
-            for k in keys[: len(keys) // 2]:
-                _BATCH_NLLB_CACHE.pop(k, None)
         for idx, t, tr in zip(miss_indices, misses, miss_translations):
             unique_results[idx] = tr
             _BATCH_NLLB_CACHE[(t, target_nllb)] = tr
+            _BATCH_NLLB_CACHE.move_to_end((t, target_nllb))
+            while len(_BATCH_NLLB_CACHE) > _BATCH_NLLB_CACHE_MAX:
+                _BATCH_NLLB_CACHE.popitem(last=False)
 
     # 4) 원래 순서로 펼치기
     return [unique_results[pos[t]] for t in texts]
