@@ -121,6 +121,18 @@ class AnalyzeItem(BaseModel):
     note_translated: str | None = None
 
 
+class ChecklistItem(BaseModel):
+    """행동 항목 — 학부모가 챙김/제출/납부/신청 후 체크할 단위.
+
+    SlotCard.checklist에 들어가서 안드 UI 체크박스로 렌더링.
+    영속 상태(checked)는 별도 메모리 dict — 시연용. (parent_id, notice_id, card_idx, item_idx)
+    """
+    ko: str                              # 예: "샤프식 색연필 12색"
+    note: str = ""                       # 예: "(연필식 색연필 불가)" — 괄호 부연
+    translated: str = ""                 # NLLB 번역 (mode=translated 표시용)
+    checked: bool = False                # 메모리 dict에서 채워줌
+
+
 class SlotCard(BaseModel):
     """슬롯 카드 — 헤더 + 값 + 카테고리 칩.
 
@@ -135,6 +147,7 @@ class SlotCard(BaseModel):
     value_translated: str = ""           # NLLB 번역 결과
     chip: str | None = None              # category 값 — None이면 칩 미표시
     importance: float = 0.5              # 정렬용 (높은 순)
+    checklist: list[ChecklistItem] = []  # 행동 항목 — 비어있으면 안드 UI 체크박스 영역 미표시
 
 
 class HighlightBBox(BaseModel):

@@ -13,6 +13,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.models.schemas import ChecklistItem
+
 
 SectionType = Literal[
     "program",
@@ -54,6 +56,10 @@ class SentenceListItem(BaseModel):
     page: int | None = None
     bbox: dict[str, float] | None = None
     source: str = "normalizer"
+    # 체크리스트 항목 — is_action_candidate=true일 때 LLM이 콤마/번호로 분리해서 채움.
+    # 단일 액션이면 1개, 다중 항목(준비물 등)이면 여러 개. info_card_builder가
+    # SlotCard.checklist로 매핑.
+    items: list[ChecklistItem] = Field(default_factory=list)
 
 
 class SentenceListDocument(BaseModel):

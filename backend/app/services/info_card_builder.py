@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-from app.models.schemas import SlotCard
+from app.models.schemas import ChecklistItem, SlotCard
 from app.services.sentence_skeleton import (
     RoleHint,
     SentenceListDocument,
@@ -103,6 +103,31 @@ def _dedup_info_cards(cards: Iterable[SlotCard]) -> list[SlotCard]:
     return out
 
 
+def _build_checklist(item, target_lang: str) -> list[ChecklistItem]:
+    """sentence.items → SlotCard.checklist 매핑.
+
+    is_action_candidate=true인 sentence만 items 채워짐 (Claude prompt 규칙).
+    각 항목 ko를 NLLB로 번역해서 translated 채움. URL/날짜 형식 값은 skip.
+    """
+    if not item.items:
+        return []
+    out: list[ChecklistItem] = []
+    for entry in item.items:
+        ko = (entry.ko or "").strip()
+        if not ko:
+            continue
+        translated = ""
+        if target_lang != "ko_easy" and not is_nllb_skip_value(ko, item.role_hint):
+            translated = translate_short_sentence(ko, target_lang) or ""
+        out.append(ChecklistItem(
+            ko=ko,
+            note=(entry.note or "").strip(),
+            translated=translated,
+            checked=False,
+        ))
+    return out
+
+
 def build_info_cards_from_sentence_document(
     document: SentenceListDocument,
     target_lang: str,
@@ -130,6 +155,7 @@ def build_info_cards_from_sentence_document(
             ),
             chip=None,
             importance=INFO_ROLE_IMPORTANCE.get(item.role_hint, 0.8),
+            checklist=_build_checklist(item, target_lang),
         ))
 
     cards = _dedup_info_cards(cards)
