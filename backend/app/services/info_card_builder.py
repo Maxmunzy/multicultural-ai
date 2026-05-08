@@ -64,6 +64,7 @@ INFO_ROLE_IMPORTANCE: dict[RoleHint, float] = {
 TRANSLATION_SKIP_ROLES: set[RoleHint] = {
     "application_url",
     "contact",
+    "location",   # 고유명사(행사장/장소명) NLLB 오번역 방지 — ko passthrough
 }
 
 DATE_TIME_FRAGMENT = re.compile(
