@@ -25,15 +25,13 @@ KoELECTRA-small(v3.1)과 KoELECTRA-base를 비교한다.
 
 ## 테스트셋 구성
 
-| | 테스트셋 A |
-| --- | --- |
-| 파일 | `data/draft/v3.1_val_split.jsonl` |
-| 출처 | v3.1_dual_labeled 20% stratified val split |
-| 총 문장 | 5,650개 |
-| True / False | 1,644 / 4,006 |
-| Base 관계 | ⚠️ Base 학습 데이터(v3.1.3)와 일부 겹침 가능 — 단, B그룹 제외로 구성 다름 |
-
-> 공정한 unseen 비교를 위해 추후 galsan 테스트셋(테스트셋 B) 평가 필요.
+| | 테스트셋 A | 테스트셋 B |
+| --- | --- | --- |
+| 파일 | `data/draft/v3.1_val_split.jsonl` | `data/draft/unseen_test_galsan.jsonl` |
+| 출처 | v3.1_dual_labeled 20% stratified val split | 갈산초 — 학습 데이터와 완전 분리된 unseen |
+| 총 문장 | 5,650개 | 5,388개 |
+| True / False | 1,644 / 4,006 | 712 / 4,676 |
+| Base 관계 | ⚠️ Base 학습 데이터(v3.1.3)와 일부 겹침 가능 — 단, B그룹 제외로 구성 다름 | ✅ 완전 unseen |
 
 ---
 
@@ -47,7 +45,7 @@ KoELECTRA-small(v3.1)과 KoELECTRA-base를 비교한다.
 | **Base** | **90.69%** | **0.8387** | **0.8459** | 0.8315 |
 | 변화 | **+1.29%p** | **+0.0164** | **+0.0434** | -0.0116 |
 
-```
+```text
 [v3.1 Small — 테스트셋 A]
               precision    recall  f1-score   support
       노이즈     0.9342    0.9149    0.9245      4006
@@ -60,6 +58,39 @@ KoELECTRA-small(v3.1)과 KoELECTRA-base를 비교한다.
       할 일     0.8459    0.8315    0.8387      1644
     accuracy                         0.9069      5650
 ```
+
+### 테스트셋 B — galsan unseen (5,388개) ✅ 2026-05-08 추가
+
+> ⚠️ **평가 조건**: `evaluate_model.py`가 `pipeline` 기본 threshold(0.5)를 사용.
+> 운영 threshold(Base: 0.40 / Small: 0.55)와 다르므로 절대 수치는 참고용.
+> 모델 간 상대 비교는 동일 조건이므로 유효.
+
+| 모델 | Accuracy | F1 (할 일) | Precision | Recall |
+| --- | --- | --- | --- | --- |
+| v3.1 Small | 68.73% | 0.4168 | 0.2765 | **0.8455** |
+| **Base** | **71.88%** | 0.4157 | **0.2865** | 0.7570 |
+| 변화 | **+3.15%p** | -0.0011 | **+0.0100** | -0.0885 |
+
+```text
+[v3.1 Small — 테스트셋 B]
+              precision    recall  f1-score   support
+      노이즈     0.9657    0.6632    0.7864      4676
+      할 일     0.2765    0.8455    0.4168       712
+    accuracy                         0.6873      5388
+
+[Base — 테스트셋 B]
+              precision    recall  f1-score   support
+      노이즈     0.9507    0.7130    0.8149      4676
+      할 일     0.2865    0.7570    0.4157       712
+    accuracy                         0.7188      5388
+```
+
+**해석:**
+
+- F1은 두 모델이 사실상 동일(0.4157 vs 0.4168, 차이 0.001)
+- Base가 Accuracy +3.15%p, Precision +1.0%p 우세 — 오탐(노이즈→할 일) 더 적음
+- v3.1 Small이 Recall +8.8%p 우세 — 더 공격적으로 분류
+- val split(테스트셋 A) 대비 F1이 크게 하락(0.83 → 0.41)하는 것은 galsan이 진정한 unseen이기 때문 — **두 모델 모두 동일하게 영향받음**
 
 ---
 
