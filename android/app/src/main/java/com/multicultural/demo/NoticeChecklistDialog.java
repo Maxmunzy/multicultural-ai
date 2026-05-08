@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.CheckBox;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -55,6 +56,21 @@ public class NoticeChecklistDialog {
     private static final int COLOR_LEMON_INK   = Color.parseColor("#8A6A14");
 
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    // {keyword, drawable_name, description}
+    // drawable_name: res/drawable/supply_*.png 로 추가하면 자동 표시, 없으면 placeholder
+    private static final String[][] SUPPLIES_DATA = {
+        {"리코더",      "supply_recorder",          "음악 시간에 사용하는 작은 피리 모양 악기입니다. 녹음기가 아닙니다."},
+        {"클리어 화일", "supply_clear_file",         "종이를 넣어 보관하는 투명한 파일입니다."},
+        {"유성매직",    "supply_permanent_marker",   "잘 지워지지 않는 진한 펜입니다. 이름 쓰기나 표시할 때 씁니다."},
+        {"사인펜",      "supply_felt_pen",           "색칠하거나 글씨를 쓸 때 쓰는 색 펜입니다."},
+        {"크레파스",    "supply_crayon",             "색칠할 때 쓰는 색깔 막대입니다."},
+        {"도화지",      "supply_drawing_paper",      "그림을 그릴 때 쓰는 두꺼운 종이입니다."},
+        {"찰흙",        "supply_clay",               "손으로 모양을 만들 수 있는 점토입니다."},
+        {"붓",          "supply_brush",              "물감으로 그림을 그릴 때 쓰는 도구입니다."},
+        {"실내화",      "supply_indoor_shoes",       "교실이나 학교 건물 안에서 신는 신발입니다."},
+        {"물통",        "supply_water_bottle",       "물을 담아 가지고 다니는 개인 물병입니다."},
+    };
 
     private NoticeChecklistDialog() {
     }
@@ -259,6 +275,8 @@ public class NoticeChecklistDialog {
                 toggleItem(context, baseUrl, parentId, noticeId, cardKind, cardId, itemId, isChecked);
             });
             section.addView(cb);
+            View hint = buildSuppliesHint(context, ko);
+            if (hint != null) section.addView(hint);
         }
         updateProgress(progress, cl);
         return section;
@@ -328,6 +346,92 @@ public class NoticeChecklistDialog {
                 if (conn != null) conn.disconnect();
             }
         });
+    }
+
+    private static View buildSuppliesHint(Context context, String itemText) {
+        if (itemText == null || itemText.isEmpty()) return null;
+        String normText = itemText.replaceAll("\\s+", "");
+        LinearLayout box = null;
+        int count = 0;
+        for (String[] s : SUPPLIES_DATA) {
+            if (count >= 3) break;
+            if (!normText.contains(s[0].replaceAll("\\s+", ""))) continue;
+            if (box == null) {
+                box = new LinearLayout(context);
+                box.setOrientation(LinearLayout.VERTICAL);
+                LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                lp.topMargin = dp(context, 6);
+                box.setLayoutParams(lp);
+            }
+            LinearLayout row = new LinearLayout(context);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            GradientDrawable rowBg = new GradientDrawable();
+            rowBg.setColor(Color.parseColor("#F5F0EA"));
+            rowBg.setCornerRadius(dp(context, 10));
+            row.setBackground(rowBg);
+            row.setPadding(dp(context, 10), dp(context, 8), dp(context, 10), dp(context, 8));
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            if (count > 0) rlp.topMargin = dp(context, 4);
+            row.setLayoutParams(rlp);
+
+            // image area (56×56dp): actual drawable or gray placeholder
+            int imgSize = dp(context, 56);
+            int resId = context.getResources().getIdentifier(
+                    s[1], "drawable", context.getPackageName());
+            if (resId != 0) {
+                ImageView img = new ImageView(context);
+                img.setImageResource(resId);
+                img.setScaleType(ImageView.ScaleType.CENTER_CROP);
+                GradientDrawable imgBg = new GradientDrawable();
+                imgBg.setColor(Color.WHITE);
+                imgBg.setCornerRadius(dp(context, 8));
+                img.setBackground(imgBg);
+                LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(imgSize, imgSize);
+                ilp.rightMargin = dp(context, 10);
+                img.setLayoutParams(ilp);
+                row.addView(img);
+            } else {
+                LinearLayout ph = new LinearLayout(context);
+                ph.setOrientation(LinearLayout.VERTICAL);
+                ph.setGravity(Gravity.CENTER);
+                GradientDrawable phBg = new GradientDrawable();
+                phBg.setColor(Color.parseColor("#DDD5CA"));
+                phBg.setCornerRadius(dp(context, 8));
+                ph.setBackground(phBg);
+                LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(imgSize, imgSize);
+                plp.rightMargin = dp(context, 10);
+                ph.setLayoutParams(plp);
+                TextView phTv = makeText(context, "이미지\n준비 중", 9, Color.parseColor("#8A7C70"), false);
+                phTv.setGravity(Gravity.CENTER);
+                ph.addView(phTv);
+                row.addView(ph);
+            }
+
+            // text: name (bold) + description
+            LinearLayout textCol = new LinearLayout(context);
+            textCol.setOrientation(LinearLayout.VERTICAL);
+            textCol.setGravity(Gravity.CENTER_VERTICAL);
+            textCol.setLayoutParams(new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+            TextView nameTv = makeText(context, s[0], 13, COLOR_INK, true);
+            textCol.addView(nameTv);
+
+            TextView descTv = makeText(context, s[2], 12, COLOR_INK3, false);
+            LinearLayout.LayoutParams dtlp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dtlp.topMargin = dp(context, 2);
+            descTv.setLayoutParams(dtlp);
+            textCol.addView(descTv);
+
+            row.addView(textCol);
+            box.addView(row);
+            count++;
+        }
+        return box;
     }
 
     private static TextView makeText(Context context, String s, int sizeSp, int color, boolean bold) {
