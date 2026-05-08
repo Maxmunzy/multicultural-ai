@@ -364,7 +364,17 @@ public class ChecklistActivity extends Activity {
 
         // header_ko (large)
         String headerKo = entry.optString("header_ko", "");
-        TextView header = text(headerKo, 16, COLOR_INK, true);
+        String headerTranslated = entry.optString("header_translated", "");
+        String entryChip = entry.optString("chip", "");
+        boolean isSuppliesCard = "준비물".equals(entryChip);
+        // D: "기타" 헤더는 칩 카테고리 이름으로 대체
+        if ("기타".equals(headerKo) && !entryChip.isEmpty() && !TAB_DUE.equals(entryChip)) {
+            headerKo = entryChip;
+        }
+        // F: 비한국어 언어 선택 시 번역된 헤더 우선
+        String displayHeader = (!targetLang.equals("ko_easy") && !headerTranslated.isEmpty())
+                ? headerTranslated : headerKo;
+        TextView header = text(displayHeader, 16, COLOR_INK, true);
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hlp.topMargin = dp(4);
@@ -404,8 +414,11 @@ public class ChecklistActivity extends Activity {
                 if (item == null) continue;
                 CheckBox cb = new CheckBox(this);
                 String ko = item.optString("ko", "");
-                String label = ko;
-                if (label.isEmpty()) label = item.optString("translated", "");
+                String translatedLabel = item.optString("translated", "");
+                // F: 비한국어 언어는 번역 라벨 우선, 없으면 ko 폴백
+                String label = (!targetLang.equals("ko_easy") && !translatedLabel.isEmpty())
+                        ? translatedLabel : ko;
+                if (label.isEmpty()) label = ko;
                 String note = item.optString("note", "");
                 if (!note.isEmpty() && !"null".equals(note)) {
                     label += "  (" + note + ")";
@@ -427,8 +440,11 @@ public class ChecklistActivity extends Activity {
                     toggleItem(noticeId, cardKind, cardId, itemId, isChecked);
                 });
                 card.addView(cb);
-                View hint = buildSuppliesHint(ko);
-                if (hint != null) card.addView(hint);
+                // C: 준비물 카드에서만 이미지 힌트 표시
+                if (isSuppliesCard) {
+                    View hint = buildSuppliesHint(ko);
+                    if (hint != null) card.addView(hint);
+                }
             }
         }
 

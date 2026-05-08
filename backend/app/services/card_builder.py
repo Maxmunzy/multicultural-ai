@@ -288,7 +288,9 @@ def _build_cards_from_regex_slots(
             value_ko=value_ko,
             value_easy_ko=to_easy_korean(value_ko),
             value_translated=value_translated,
-            chip=None,  # regex 슬롯은 칩 없음 — todo가 아니므로 카테고리 모호
+            # supplies regex 슬롯은 "준비물" 칩 부여 → _build_checklist_from_card 가 comma split
+            # 나머지 regex 슬롯은 카테고리 모호 → chip=None (체크리스트 미생성)
+            chip=Category.supplies.value if slot_name == "supplies" else None,
             importance=0.7,  # todo 평균 confidence보다 살짝 낮음
         ))
 

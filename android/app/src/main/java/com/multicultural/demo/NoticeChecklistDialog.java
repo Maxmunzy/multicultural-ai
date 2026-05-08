@@ -221,8 +221,11 @@ public class NoticeChecklistDialog {
         section.setLayoutParams(slp);
 
         String headerKo = card.optString("header_ko", "");
+        String headerTranslated = card.optString("header_translated", "");
+        String displayHeader = headerTranslated.isEmpty() ? headerKo : headerTranslated;
+        String cardChip = card.optString("chip", "");
         String dueDate = card.optString("due_date", "");
-        TextView head = makeText(context, headerKo, 15, COLOR_INK, true);
+        TextView head = makeText(context, displayHeader, 15, COLOR_INK, true);
         section.addView(head);
 
         if (!dueDate.isEmpty() && !"null".equals(dueDate)) {
@@ -275,8 +278,10 @@ public class NoticeChecklistDialog {
                 toggleItem(context, baseUrl, parentId, noticeId, cardKind, cardId, itemId, isChecked);
             });
             section.addView(cb);
-            View hint = buildSuppliesHint(context, ko);
-            if (hint != null) section.addView(hint);
+            if ("준비물".equals(cardChip)) {
+                View hint = buildSuppliesHint(context, ko);
+                if (hint != null) section.addView(hint);
+            }
         }
         updateProgress(progress, cl);
         return section;

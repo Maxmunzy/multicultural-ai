@@ -1883,22 +1883,63 @@ public class MainActivity extends Activity {
 
     private void showMiniCalendarDialog() {
         if (currentCalendarEvents == null || currentCalendarEvents.length() == 0) return;
-
         Calendar month = Calendar.getInstance();
         Date firstDate = parseIsoDate(safeString(currentCalendarEvents.optJSONObject(0), "start_date"));
         if (firstDate != null) month.setTime(firstDate);
         month.set(Calendar.DAY_OF_MONTH, 1);
+        showMiniCalendarForMonth(month);
+    }
 
+    private void showMiniCalendarForMonth(Calendar month) {
+        AlertDialog[] holder = {null};
+
+        ScrollView scroll = new ScrollView(this);
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.VERTICAL);
         box.setPadding(dp(14), dp(10), dp(14), dp(4));
+        scroll.addView(box);
 
-        TextView title = text(new SimpleDateFormat("yyyy년 M월", Locale.KOREA).format(month.getTime()),
+        // ── 이전/다음 달 내비게이션 ──
+        Calendar prevMonth = (Calendar) month.clone();
+        prevMonth.add(Calendar.MONTH, -1);
+        Calendar nextMonth = (Calendar) month.clone();
+        nextMonth.add(Calendar.MONTH, 1);
+
+        LinearLayout navRow = new LinearLayout(this);
+        navRow.setOrientation(LinearLayout.HORIZONTAL);
+        navRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView prevBtn = text("◀", 16, COLOR_INK2, true);
+        prevBtn.setPadding(dp(10), dp(6), dp(10), dp(6));
+        prevBtn.setOnClickListener(v -> {
+            if (holder[0] != null) holder[0].dismiss();
+            showMiniCalendarForMonth(prevMonth);
+        });
+
+        TextView monthTitle = text(
+                new SimpleDateFormat("yyyy년 M월", Locale.KOREA).format(month.getTime()),
                 17, COLOR_INK, true);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, dp(10));
-        box.addView(title);
+        monthTitle.setGravity(Gravity.CENTER);
+        monthTitle.setLayoutParams(new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
+        TextView nextBtn = text("▶", 16, COLOR_INK2, true);
+        nextBtn.setPadding(dp(10), dp(6), dp(10), dp(6));
+        nextBtn.setOnClickListener(v -> {
+            if (holder[0] != null) holder[0].dismiss();
+            showMiniCalendarForMonth(nextMonth);
+        });
+
+        navRow.addView(prevBtn);
+        navRow.addView(monthTitle);
+        navRow.addView(nextBtn);
+        LinearLayout.LayoutParams navLp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        navLp.bottomMargin = dp(6);
+        navRow.setLayoutParams(navLp);
+        box.addView(navRow);
+
+        // ── 범례 ──
         LinearLayout legend = new LinearLayout(this);
         legend.setOrientation(LinearLayout.HORIZONTAL);
         legend.setGravity(Gravity.CENTER);
@@ -1908,6 +1949,7 @@ public class MainActivity extends Activity {
         legend.addView(calendarLegend("휴업/기념일", calendarColor("red")));
         box.addView(legend);
 
+        // ── 요일 헤더 ──
         LinearLayout weekHeader = new LinearLayout(this);
         weekHeader.setOrientation(LinearLayout.HORIZONTAL);
         String[] days = {"일", "월", "화", "수", "목", "금", "토"};
@@ -1918,9 +1960,9 @@ public class MainActivity extends Activity {
         }
         box.addView(weekHeader);
 
-        Calendar cursor = (Calendar) month.clone();
-        int firstDow = cursor.get(Calendar.DAY_OF_WEEK) - 1;
-        int maxDay = cursor.getActualMaximum(Calendar.DAY_OF_MONTH);
+        // ── 날짜 그리드 ──
+        int firstDow = month.get(Calendar.DAY_OF_WEEK) - 1;
+        int maxDay = month.getActualMaximum(Calendar.DAY_OF_MONTH);
         int dayNum = 1;
         for (int row = 0; row < 6; row++) {
             LinearLayout week = new LinearLayout(this);
@@ -1952,15 +1994,16 @@ public class MainActivity extends Activity {
             if (dayNum > maxDay) break;
         }
 
+        // ── 안내 텍스트 ──
         TextView guide = text("기간은 작대기, 하루 일정은 점으로 표시됩니다. 날짜를 누르면 원문 카드로 확인할 수 있어요.",
                 12, COLOR_INK3, false);
         guide.setLineSpacing(0, 1.25f);
         guide.setPadding(0, dp(10), 0, 0);
         box.addView(guide);
 
-        new AlertDialog.Builder(this)
+        holder[0] = new AlertDialog.Builder(this)
                 .setTitle("미니 달력")
-                .setView(box)
+                .setView(scroll)
                 .setNegativeButton("닫기", null)
                 .show();
     }
