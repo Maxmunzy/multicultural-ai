@@ -17,17 +17,15 @@ OCR은 A단계 이전에 처리되므로 이 스크립트는 항상 순수 str �
 ─────────────────────────────────────────
 파이프라인
 ─────────────────────────────────────────
-OCR 추출 텍스트 (str)
+layout_normalizer(Claude API)가 정제한 텍스트 (str, \n 줄 단위)
     ↓
 [0] extract_title()         원본 줄에서 제목 감지 (heuristic)
                             → split_sentences() 이전에 실행해야 함
-                              (_HEADER_ONLY 필터가 제목 줄을 걸러내므로)
     ↓
 [1] split_sentences()       줄글 → 문장 리스트
                             (OCR 아티팩트 줄 조기 차단 포함)
     ↓
-[2] is_likely_todo()        ① 정규식 빠른 제외
-                            ② KoELECTRA 이진 분류
+[2] is_likely_todo()        KoELECTRA 이진 분류
                                0: 노이즈  1: 할 일·중요 일정
     ↓
 [3] extract_due_date()      정규식: 날짜·마감 추출
@@ -118,7 +116,6 @@ def extract_title(notice_text: str) -> Optional[str]:
     - koelectra-title 체크포인트가 있으면 ML 모델로 전체 줄 스코어링 → 최고점 반환
     - 없으면 heuristic(is_title_heuristic) fallback → 첫 번째 통과 줄 반환
 
-    split_sentences()의 _HEADER_ONLY 필터가 제목 줄을 차단하므로
     반드시 predict() 와 별도로, 원문에 대해 호출할 것.
 
     사용 예:
@@ -261,10 +258,6 @@ def _clean_symbols(sentence: str) -> str:
 # ─────────────────────────────────────────
 # 3. 문장 분리
 # ─────────────────────────────────────────
-_HEADER_ONLY = re.compile(
-    r"^[^.,!?~]{2,40}(안내|공지|알림|공개수업|상담|학습|행사|일정)\s*$"
-)
-
 # OCR 출력에서 줄 단위로 나타나는 노이즈 패턴 (문장이 될 수 없는 줄)
 # 모든 패턴은 줄 시작(^) anchor — URL·전화·시간이 본문 안에 섞인 줄은 통과시킴
 _OCR_LINE_NOISE = re.compile(
@@ -282,16 +275,14 @@ def split_sentences(text: str) -> list[str]:
 
     sentences: list[str] = []
     for line in lines:
-        if _HEADER_ONLY.match(line) or _OCR_LINE_NOISE.search(line):
-            continue  # 제목성 줄·OCR 아티팩트 줄 조기 차단
+        if _OCR_LINE_NOISE.search(line):
+            continue  # OCR 아티팩트 줄 조기 차단
         parts = re.split(
             r"(?<=[.!?])\s+|"
             r"(?<=다\.)\s+|(?<=요\.)\s+|(?<=니다\.)\s+|"
             r"(?<=까\?)\s+|(?<=요\?)\s+|"
             r"\s+(?=\d+[.)]\s)|\s+(?=[가-힣]\.\s)|"
-            r"\s+(?=[❏○◆●▪◎□■])|"                          # 리스트 마커 앞 분리
-            r"\s+(?=운영시간|운영방법|신청방법|신청기간|"
-            r"준비물|제출|기타\s*안내|접수방법|참가방법)",   # 반복 레이블 앞 분리
+            r"\s+(?=[❏○◆●▪◎□■])",                          # 리스트 마커 앞 분리
             line,
         )
         sentences.extend(parts)
@@ -300,41 +291,12 @@ def split_sentences(text: str) -> list[str]:
 
 
 # ─────────────────────────────────────────
-# 3. 이진 분류 필터 (정규식 1차 → KoELECTRA 2차)
+# 3. 이진 분류 필터 (KoELECTRA)
 # ─────────────────────────────────────────
-_NON_TODO_PATTERNS: list[str] = [
-    r"^학부모님\s*안녕하십니까",
-    r"^안녕하십니까",
-    r"^학부모님\s*안녕하세요",        # Bug 1 수정
-    r"^안녕하세요",                    # Bug 1 수정
-    r"^.*님\s*안녕하(세요|십니까)",   # Bug 1 수정 (일반화)
-    r"^학부모님께\s*안내드립니다",
-    r"^학부모님께\s*드립니다",
-    r"안내드립니다\s*\.?\s*$",
-    r"드립니다\s*\.?\s*$",
-    r"^[^.,!?]{1,30}\s*안내\s*$",
-    r"서울갈산초등학교장$",
-    r"교장$",
-    r"^\d{4}\.\s*\d{1,2}\.\s*\d{1,2}\.?\s*$",
-    r"담당\s*[:：]",
-    r"^\(.\s*\d{4}-\d{4}",
-    r"^08\d{3}\s*서울특별시",
-    r"공익제보센터",
-    r"자살예방상담",
-    r"청소년상담",
-]
-
-
 def _classify(sentence: str) -> Optional[float]:
-    """
-    ① 정규식으로 명백한 노이즈 제외 → None 반환.
-    ② 통과 시 KoELECTRA label-1(할 일) 확률 반환 (0.0~1.0).
-    """
+    """KoELECTRA label-1(할 일) 확률 반환 (0.0~1.0). 너무 짧으면 None."""
     if len(sentence) < 7:
         return None
-    for pat in _NON_TODO_PATTERNS:
-        if re.search(pat, sentence):
-            return None
 
     _load_model()
     inputs = _tokenizer(
