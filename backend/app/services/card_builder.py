@@ -19,7 +19,9 @@ from app.models.schemas import Category, SlotCard, YunjeongTodo
 from app.services.classifier import classify_category
 from app.services.easy_korean import to_easy_korean
 from app.services.header_split import split_header_value
-from app.services.translator import translate_short_sentence, translate_term
+from app.services.translator import (
+    translate_short_sentence_batch, translate_term,
+)
 
 # 헤더 추정 실패 시 fallback
 _FALLBACK_HEADER = "기타"
@@ -29,7 +31,9 @@ _FALLBACK_MAX_TRANSLATED_LEN = 120
 
 # 정상 헤더(명시) 카드도 value 과도하게 길면 trim — 신청방법 등이 전체 안내문 흡수하는 문제 방지
 # translated는 translate_short_sentence 내부 MAX_TRANSLATE_CHARS=100으로 이미 제한됨
-_NAMED_MAX_KO_LEN = 150
+# 250 (이전 150)으로 상향 — Claude가 학년 prefix를 sentence 끝 괄호 ("(1학년 공용)")로
+# 보존하는데 긴 학년별 준비물 sentence가 150자에서 잘려 끝의 학년 정보 잃는 문제 방지.
+_NAMED_MAX_KO_LEN = 250
 
 # regex 슬롯별 기본 헤더 (todo에서 못 잡은 정보 보강용 카드)
 # todo로 헤더가 추정된 경우엔 이 카드를 만들지 않음 (중복 방지).
@@ -65,7 +69,7 @@ def _normalize_header(h: str) -> str:
 
 
 def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
-    """YunjeongTodo → SlotCard."""
+    """YunjeongTodo → SlotCard. value_translated 는 build_cards 마지막에 batch 번역."""
     header, value = split_header_value(todo.text)
     if header is None:
         header = _FALLBACK_HEADER
@@ -82,7 +86,7 @@ def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
         header_translated="" if header == _FALLBACK_HEADER else translate_term(header, target_lang),
         value_ko=value,
         value_easy_ko=to_easy_korean(value),
-        value_translated=translate_short_sentence(value, target_lang) or value,
+        value_translated="",  # build_cards 끝에서 batch 번역
         chip=chip,
         importance=todo.confidence,
     )
@@ -105,7 +109,12 @@ def _build_cards_from_regex_slots(
     target_lang: str,
     todo_headers: set[str],
 ) -> list[SlotCard]:
-    """regex 슬롯 → 보강 SlotCard. todo 헤더가 이미 커버한 슬롯은 스킵."""
+    """regex 슬롯 → 보강 SlotCard. todo 헤더가 이미 커버한 슬롯은 스킵.
+
+    value_translated 는 urls/phones만 ko 그대로 사용(NLLB 거치면 placeholder
+    잔재로 "Không, không" 같이 깨짐). 그 외 슬롯은 빈 문자열로 두고 build_cards
+    끝의 batch 번역 단계가 채움.
+    """
     cards: list[SlotCard] = []
 
     todo_headers_norm = {_normalize_header(h) for h in todo_headers}
@@ -121,37 +130,23 @@ def _build_cards_from_regex_slots(
 
         # 슬롯당 한 카드 — 여러 값 결합
         values_ko = [_slot_entry_ko(e) for e in entries if _slot_entry_ko(e)]
-        values_translated = []
-        for e in entries:
-            ko = _slot_entry_ko(e)
-            if not ko:
-                continue
-            tr = _slot_entry_translated(e)
-            # URL/Phone 은 어떤 언어든 ko 그대로 — NLLB 거치면 placeholder
-            # 잔재로 "Không, không" 같이 깨짐. 학부모도 전화번호/URL 은 원본 필요.
-            if slot_name in ("urls", "phones"):
-                values_translated.append(tr or ko)
-                continue
-            # translated가 ko와 같거나 비면 (placeholder), NLLB 번역 호출
-            if not tr or tr == ko:
-                tr = translate_short_sentence(ko, target_lang) or ko
-            values_translated.append(tr)
         # times: 2개면 시작-끝으로 보고 ~ 로 연결 (가독성). 그 외는 콤마.
         if slot_name == "times" and len(values_ko) == 2:
             value_ko = " ~ ".join(values_ko)
-            value_translated = " ~ ".join(v or k for v, k in zip(values_translated, values_ko))
         else:
             value_ko = ", ".join(values_ko)
-            value_translated = ", ".join(v or k for v, k in zip(values_translated, values_ko))
         if not value_ko:
             continue
+
+        # urls/phones는 NLLB 우회 — ko 그대로 (placeholder 잔재 방지)
+        value_translated = value_ko if slot_name in ("urls", "phones") else ""
 
         cards.append(SlotCard(
             header_ko=default_header,
             header_translated=translate_term(default_header, target_lang),
             value_ko=value_ko,
             value_easy_ko=to_easy_korean(value_ko),
-            value_translated=value_translated or value_ko,
+            value_translated=value_translated,
             chip=None,  # regex 슬롯은 칩 없음 — todo가 아니므로 카테고리 모호
             importance=0.7,  # todo 평균 confidence보다 살짝 낮음
         ))
@@ -341,7 +336,11 @@ def build_cards(
     regex_slots: dict[str, list[dict]],
     target_lang: str,
 ) -> list[SlotCard]:
-    """todos + regex_slots → list[SlotCard]. dedup + importance 내림차순 정렬."""
+    """todos + regex_slots → list[SlotCard]. dedup + importance 내림차순 정렬.
+
+    번역은 dedup/sort/limit 후 살아남은 카드만 한 번에 batch — NLLB CPU 14회 호출
+    오버헤드를 1회 batch로 줄임 (2026-05-07).
+    """
     cards = [_build_card_from_todo(t, target_lang) for t in todos]
 
     todo_headers = {c.header_ko for c in cards}
@@ -356,4 +355,16 @@ def build_cards(
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
     cards = _limit_fallback_cards(cards)
+
+    # 살아남은 카드 value 만 batch 번역 — value_translated 가 빈 카드만 대상
+    # (urls/phones 는 _build_cards_from_regex_slots 에서 ko 로 이미 채워둠)
+    pending_idx = [i for i, c in enumerate(cards) if not c.value_translated]
+    if pending_idx:
+        pending_texts = [cards[i].value_ko for i in pending_idx]
+        translated = translate_short_sentence_batch(pending_texts, target_lang)
+        for i, tr in zip(pending_idx, translated):
+            cards[i] = cards[i].model_copy(
+                update={"value_translated": tr or cards[i].value_ko},
+            )
+
     return cards

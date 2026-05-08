@@ -2,6 +2,7 @@ import json
 import logging
 import mimetypes
 import os
+import time
 import uuid
 from pathlib import Path
 
@@ -22,8 +23,19 @@ from app.services.slot_extractor import (
     split_supply_tokens, strip_markers,
 )
 from app.services.card_builder import build_cards
+from app.services.info_card_builder import build_info_cards_from_sentence_document
 from app.services.highlight_mapper import build_highlights_from_cards
+from app.services.layout_normalizer import (
+    normalize_text as llm_normalize_text,
+    extract_sentences,
+    VISION_SUPPORTED_MIMES,
+)
 from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
+from app.services.sentence_skeleton import (
+    SentenceListDocument,
+    parse_sentence_list_payload,
+    raw_text_to_sentence_list,
+)
 from app.models.schemas import OcrCorrectionEntry
 from app.services.mock import MOCK_TODOS
 
@@ -32,7 +44,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 _notices: dict[str, Notice] = {}
-MAX_CARDS = 8
+MAX_CARDS = 16  # 학년별 표(공용+개인 12행) 같은 다중 카드 통신문 누락 방지
 
 NOTICES_DIR = Path("/app/static/notices")
 
@@ -81,6 +93,41 @@ def _save_original(notice_id: str, raw_bytes: bytes, filename: str) -> tuple[str
     (NOTICES_DIR / safe_name).write_bytes(raw_bytes)
     mime_type, _ = mimetypes.guess_type(safe_name)
     return f"/static/notices/{safe_name}", mime_type
+
+
+def _parse_layout_json_field(layout_json: str | None):
+    if not layout_json:
+        return None
+    try:
+        return json.loads(layout_json)
+    except Exception:
+        logger.warning("[upload] invalid layout_json ignored")
+        return None
+
+
+def _sentence_doc_from_structured(structured: dict | None) -> SentenceListDocument | None:
+    """LLM 응답의 sentence_list를 SentenceListDocument로 변환. 실패 시 None.
+
+    None 반환 시 호출부에서 raw_text_to_sentence_list(룰 기반) fallback.
+    잘못된 role_hint(13가지 외)나 누락 필드는 pydantic validation에서 걸러짐.
+    """
+    if not structured:
+        return None
+    sentence_list_raw = structured.get("sentence_list") or []
+    if not sentence_list_raw:
+        return None
+    payload = {
+        "document_title": structured.get("document_title", "") or "",
+        "sentence_list": sentence_list_raw,
+    }
+    try:
+        return parse_sentence_list_payload(payload)
+    except Exception as error:
+        logger.warning(
+            "[analyze] LLM sentence_list validation failed (%s) — fallback to rule-based",
+            error,
+        )
+        return None
 
 
 @router.post("/send", response_model=ApiResponse)
@@ -161,6 +208,7 @@ async def extract_text(
 async def upload_notice(
     teacher_id: str = Form(...),
     parent_id: str = Form(...),
+    layout_json: str | None = Form(None),
     file: UploadFile = File(...),
     user: UserProfile = Depends(require_teacher),
 ):
@@ -205,6 +253,7 @@ async def upload_notice(
         original_filename=file.filename,
         mime_type=mime_type,
         ocr_corrections=ocr_entries,
+        layout_json=_parse_layout_json_field(layout_json),
     )
     _notices[notice_id] = notice
     return ApiResponse.success(
@@ -216,7 +265,9 @@ async def upload_notice(
 @router.post("/upload-self", response_model=ApiResponse)
 async def upload_notice_self(
     parent_id: str = Form(...),
+    layout_json: str | None = Form(None),
     file: UploadFile = File(...),
+    original_file: UploadFile | None = File(None),
     user: UserProfile = Depends(require_user),
 ):
     """학부모가 종이 통신문 사진/파일을 직접 업로드 → 수신함에 self-send 형태로 저장.
@@ -231,6 +282,8 @@ async def upload_notice_self(
         )
 
     raw_bytes = await file.read()
+    original_bytes = await original_file.read() if original_file is not None else None
+    original_filename = original_file.filename if original_file is not None else None
     try:
         text = parse_bytes_to_text(raw_bytes, file.filename or "")
     except ParserError as error:
@@ -247,7 +300,11 @@ async def upload_notice_self(
     ocr_entries = [OcrCorrectionEntry(**{k: v for k, v in c.items() if k in OcrCorrectionEntry.model_fields}) for c in raw_corrections]
 
     notice_id = str(uuid.uuid4())
-    original_url, mime_type = _save_original(notice_id, raw_bytes, file.filename or "")
+    original_url, mime_type = _save_original(
+        notice_id,
+        original_bytes or raw_bytes,
+        original_filename or file.filename or "",
+    )
     _notices[notice_id] = Notice(
         notice_id=notice_id,
         teacher_id=parent_id,
@@ -255,9 +312,10 @@ async def upload_notice_self(
         text=text,
         todos=[],
         original_file_url=original_url,
-        original_filename=file.filename,
+        original_filename=original_filename or file.filename,
         mime_type=mime_type,
         ocr_corrections=ocr_entries,
+        layout_json=_parse_layout_json_field(layout_json),
     )
     return ApiResponse.success(
         data={"notice_id": notice_id, "char_count": len(text), "text": text},
@@ -285,7 +343,16 @@ async def clear_inbox(
     parent_id: str,
     user: UserProfile = Depends(require_user),
 ):
-    """parent_id 수신함 초기화 (시연용). 본인 ID만 허용."""
+    """parent_id 수신함 초기화 (시연용). 본인 ID만 허용.
+
+    프로덕션 노출 방지 — 환경변수 `ENABLE_DEMO_ENDPOINTS=1`인 환경(시연/dev)에서만 작동.
+    배포 환경(unset 또는 0)에선 404로 응답해 존재 자체를 숨긴다.
+    """
+    if os.environ.get("ENABLE_DEMO_ENDPOINTS", "").strip() not in ("1", "true", "yes"):
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Not Found",
+        )
     if user.role != "parent" or user.user_id != parent_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -444,6 +511,11 @@ def _build_item(todo: YunjeongTodo, target_lang: str) -> AnalyzeItem:
     - when : 자유텍스트의 일시 표현은 정규식으로 추가 추출
     - what : 준비물 카테고리일 때만 토큰 분해
     - 마크업(■)은 보존, TTS 빌더에서만 strip.
+
+    NOTE — title_translated NLLB 호출 제거 (2026-05-07 시간 단축):
+    items 응답 필드는 deprecated (안드 미사용, _build_summary는 category/what/deadline
+    만 사용, _build_tts_text는 호출처 없는 dead code). NLLB 14번 호출이 분석 시간
+    89초 차지하던 것 제거. value_ko/title_ko는 그대로 — 응답 schema 호환.
     """
     text = todo.text
     category = classify_category(text)
@@ -454,13 +526,11 @@ def _build_item(todo: YunjeongTodo, target_lang: str) -> AnalyzeItem:
     if category == Category.supplies:
         what = split_supply_tokens(text)
 
-    title_translated = translate_short_sentence(text, target_lang) or text
-
     return AnalyzeItem(
         category=category,
         action_hint=todo.action_hint,
         title_ko=text,
-        title_translated=title_translated,
+        title_translated="",  # NLLB skip — items deprecated, 사용처 없음
         when=when,
         where=None,
         what=what,
@@ -546,21 +616,127 @@ async def analyze_notice(
         )
     target_lang = req.target_language
 
-    # layout_json 있으면 bbox 기반 구조화 텍스트로 슬롯 추출 품질 향상.
-    # 없으면 업로드 시 저장된 notice.text 그대로 사용.
-    analysis_text = _reconstruct_text_from_layout(req.layout_json) or notice.text
+    # 단계별 시간 측정 — 어디서 시간 잡아먹는지 진단용. 발표 후 logger.info로 낮출 것.
+    _t_start = time.time()
+    _t_marks: dict[str, float] = {}
+
+    # [2.5a] bbox 기반 구조 재구성 — layout_json 있으면 좌표 기반 행/열 정리
+    # (세종님 PR #133). req.layout_json 없으면 업로드 시 저장된 notice.layout_json 사용 (PR #139).
+    analysis_layout = req.layout_json if req.layout_json is not None else notice.layout_json
+    analysis_text = _reconstruct_text_from_layout(analysis_layout) or notice.text
+    # title 추출은 Vision sentence_list로 덮어씌워지기 전 원본 텍스트에서 — Gemini가
+    # sentence_list로 분해해버리면 첫 줄이 메타정보(날짜/담당) 라 윤정 heuristic이 제목 못 잡음.
+    original_text = analysis_text
+    _t_marks["bbox_recon"] = time.time() - _t_start
+
+    # [2.5b] LLM normalizer — Claude/Gemini로 정제된 텍스트 추출.
+    # Vision 우선 (PDF/이미지 disk 파일 → inlineData 전송) → 표/자간 자연 처리.
+    # Vision 미지원 mime(HWP 변환 실패 케이스) 또는 호출 실패 시 text fallback.
+    llm_status = "off"
+    llm_elapsed = 0.0
+    # LLM이 명시 추출한 document_title (Vision 성공 시) — extract_title 휴리스틱보다 우선.
+    gemini_title_override = ""
+    # LLM이 sentence_list 포함해서 출력하면 info_cards 빌드에 그대로 사용 (룰 fallback 회피).
+    structured: dict | None = None
+    if req.use_llm_normalizer:
+        # Vision path 시도 — disk에 저장된 원본 파일이 있고 mime이 Vision 지원이면
+        if (
+            notice.original_file_url
+            and notice.mime_type
+            and notice.mime_type in VISION_SUPPORTED_MIMES
+        ):
+            file_name = Path(notice.original_file_url).name
+            file_path = NOTICES_DIR / file_name
+            if file_path.exists():
+                try:
+                    raw_bytes = file_path.read_bytes()
+                    structured, llm_status, llm_elapsed = extract_sentences(
+                        inline_data=(raw_bytes, notice.mime_type),
+                    )
+                    logger.warning(
+                        "[analyze] llm_normalizer Vision: status=%s elapsed=%.2fs "
+                        "file=%s mime=%s bytes=%d sentences=%d",
+                        llm_status, llm_elapsed, file_name, notice.mime_type,
+                        len(raw_bytes),
+                        len(structured.get("sentence_list", [])),
+                    )
+                except Exception as error:
+                    logger.warning(
+                        "[analyze] Vision file read failed (%s), text fallback",
+                        error,
+                    )
+                    structured = None
+
+        # Vision 성공 → cleaned_text(paragraph) 그대로 윤정 input.
+        # 2026-05-07: sentence_list 분해 → cleaned_text 전환. 윤정 KoELECTRA가
+        # paragraph 흐름에 학습됐기에 자체 휴리스틱 시점 형태와 동등한 paragraph
+        # 그대로 입력하는 것이 친화적. sentence_list 분해 + 재조합 형태에선 윤정
+        # split 휴리스틱이 잔재 (잘린 카드, 헤더 잃음) 발생.
+        if structured is not None and llm_status == "ok":
+            gemini_title_override = (structured.get("document_title") or "").strip()
+            cleaned_text = (structured.get("cleaned_text") or "").strip()
+            if cleaned_text:
+                analysis_text = cleaned_text
+
+        # Vision 미시도/실패 → text 기반 extract_sentences로 fallback
+        if structured is None or llm_status != "ok":
+            normalized, llm_status, llm_elapsed = llm_normalize_text(analysis_text)
+            in_len = len(analysis_text)
+            out_len = len(normalized)
+            head = normalized[:200].replace("\n", " / ")
+            tail = normalized[-200:].replace("\n", " / ") if out_len > 200 else ""
+            logger.warning(
+                "[analyze] llm_normalizer text-fallback: status=%s elapsed=%.2fs "
+                "in=%d out=%d head=%r tail=%r",
+                llm_status, llm_elapsed, in_len, out_len, head, tail,
+            )
+            if llm_status == "ok":
+                analysis_text = normalized
+
+    _t_marks["llm_normalizer"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
+    # \n 단위 sentence 분리 후 한 줄씩 윤정에 개별 호출.
+    # 원칙: API는 윤정 input quality 개선 도구. 후처리 X — Gemini가 윤정 친화 형태로
+    # 출력하면 윤정 결과가 그대로 학부모 카드에 들어감.
     try:
-        todos = extract_todos(analysis_text)
+        sentences = [s.strip() for s in analysis_text.split("\n") if s.strip()]
+        all_todos: list = []
+        for sent in sentences:
+            try:
+                sent_todos = extract_todos(sent)
+                all_todos.extend(sent_todos)
+            except Exception as error:
+                logger.warning("[analyze] extractor failed for sentence %r: %s", sent[:50], error)
+        todos = all_todos
         if not todos:
             todos = MOCK_TODOS
     except Exception as error:
         logger.warning("[analyze] extractor failed: %s", error)
         todos = MOCK_TODOS
+    _t_marks["yunjeong_extract"] = time.time() - _t_start - sum(_t_marks.values())
 
-    # [3'] 제목 추출 (윤정님 PR #90 heuristic) — split_sentences 이전, 원문 직접 스캔
-    title_ko = extract_title(analysis_text) or ""
+    # DEBUG (임시): 윤정 모델이 어느 sentence를 todo로 잡았는지 dump.
+    # Gemini sentence_list 어떤 형식이 todo로 인식되는지 진단용. 튜닝 후 제거.
+    yunjeong_dump = [
+        {
+            "text": (t.text or "")[:120],
+            "action": t.action_hint,
+            "due": t.due_date,
+            "amount": t.amount,
+            "conf": round(t.confidence, 3),
+        }
+        for t in todos[:30]
+    ]
+    logger.warning(
+        "[analyze] DEBUG yunjeong todos (%d):\n%s",
+        len(todos), json.dumps(yunjeong_dump, ensure_ascii=False, indent=2),
+    )
+
+    # [3'] 제목 추출 — Gemini document_title 우선, 없으면 원본 텍스트(Vision 적용 전)에서
+    # 윤정님 PR #90 heuristic. analysis_text는 sentence_list로 덮어씌워졌을 수 있어
+    # 첫 줄이 메타정보(날짜/담당) — 휴리스틱이 본문 한 줄을 제목으로 잘못 잡음.
+    title_ko = gemini_title_override or extract_title(original_text) or ""
     title_translated = (
         translate_short_sentence(title_ko, target_lang) if title_ko else ""
     )
@@ -570,6 +746,7 @@ async def analyze_notice(
 
     # [4]+[6] items: 각 todo에 경이님 카테고리 + 슬롯 결합 (deprecated, 다음 PR 폐기)
     items = [_build_item(t, target_lang) for t in todos]
+    _t_marks["title_items_classify"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [6] summary 집계: 정규식 + items 모델 슬롯 통합 (deprecated, 다음 PR 폐기)
     summary = _build_summary(regex_slots, items, target_lang)
@@ -578,14 +755,23 @@ async def analyze_notice(
     top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
     cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
 
+    # [6.5] info_cards: slot preservation (세종님 PR #139) — 윤정/경이가 todo 분류 안 한
+    # 정보(날짜/시간/URL/연락처/대상/장소/비용 등) 별도 보존. cards와 분리해서 응답.
+    # LLM(Claude/Gemini)이 sentence_list 채워서 주면 그대로 SentenceListDocument로 변환,
+    # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
+    sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
+    info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
+    _t_marks["card_build_nllb"] = time.time() - _t_start - sum(_t_marks.values())
+
     # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.
+    # 기존 action cards뿐 아니라 slot preservation info_cards도 원본 대조 대상이다.
     # layout_json은 안드 ML Kit OCR JSON 또는 backend pdfplumber probe JSON.
     try:
-        highlights = build_highlights_from_cards(cards, req.layout_json)
+        highlights = build_highlights_from_cards(cards + info_cards, analysis_layout)
     except Exception as error:
         logger.warning("[analyze] highlight mapping failed: %s", error)
         highlights = []
-    page_count = _page_count_from_layout(req.layout_json)
+    page_count = _page_count_from_layout(analysis_layout)
 
     # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
     tts_text_translated = _build_tts_text_from_cards(cards, "translated")
@@ -600,6 +786,20 @@ async def analyze_notice(
     except Exception as error:
         logger.warning("[analyze] TTS (easy_ko) failed: %s", error)
         tts_url_easy_ko = ""
+    _t_marks["tts"] = time.time() - _t_start - sum(_t_marks.values())
+
+    _t_total = time.time() - _t_start
+    logger.warning(
+        "[timing] cards=%d total=%.2fs | bbox=%.2fs llm=%.2fs yunjeong=%.2fs "
+        "title_items=%.2fs cards_nllb=%.2fs tts=%.2fs",
+        len(cards), _t_total,
+        _t_marks.get("bbox_recon", 0),
+        _t_marks.get("llm_normalizer", 0),
+        _t_marks.get("yunjeong_extract", 0),
+        _t_marks.get("title_items_classify", 0),
+        _t_marks.get("card_build_nllb", 0),
+        _t_marks.get("tts", 0),
+    )
 
     response = {
         "notice_id": notice_id,
@@ -610,6 +810,7 @@ async def analyze_notice(
         "title_translated": title_translated,
         "highlights": highlights,
         "cards": [c.model_dump() for c in cards],
+        "info_cards": [c.model_dump() for c in info_cards],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
         "tts_text": tts_text_translated,

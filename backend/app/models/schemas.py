@@ -59,6 +59,7 @@ class Notice(BaseModel):
     mime_type: str | None = None               # 예: "application/pdf"
     # OCR slot 보정 이력 — 업로드 시 적용, analyze 응답에 포함
     ocr_corrections: list[OcrCorrectionEntry] = []
+    layout_json: Any | None = None
 
 
 class NoticeSendRequest(BaseModel):
@@ -73,6 +74,11 @@ class NoticeAnalyzeRequest(BaseModel):
     # 있으면 highlight_mapper가 카드 ↔ bbox 매칭해 highlights[]를 채운다.
     # 없으면 highlights는 빈 리스트로 남고 안드는 텍스트 카드만 표시.
     layout_json: Any | None = None
+    # LLM(Ollama) preprocessor — 윤정 모델 입력 전 텍스트 정리.
+    # 표 행 분리, 자간 정상화, 헤더 추출, "표" 같은 노이즈 제거.
+    # 실패/타임아웃 시 휴리스틱(parser.py 학년 행 분리)으로 fallback.
+    # 기본 true — 일반 통신문 처리에 유리, 휴리스틱은 fallback 안전망.
+    use_llm_normalizer: bool = True
 
 
 # ── 슬롯 기반 응답 (강사 처방 1·3 대응) ──────────────────────────
@@ -173,6 +179,10 @@ class NoticeAnalyzeResponse(BaseModel):
     highlights: list[NoticeHighlight] = []
     # 신규 — 안드 슬롯 카드 UI 대상 (단계적 마이그레이션, 본 필드가 메인)
     cards: list[SlotCard] = []
+    # Must-check information from slot preservation.  This stays separate from
+    # action cards so dates, event times, URLs, contacts, and targets survive
+    # even when model A does not classify them as todos.
+    info_cards: list[SlotCard] = []
     # deprecated — 안드 마이그레이션 완료 후 다음 PR에서 폐기 예정
     summary: SummarySlots
     items: list[AnalyzeItem] = []
