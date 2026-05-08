@@ -124,39 +124,33 @@ _SYSTEM_INSTRUCTION = """한국 학교 가정통신문을 자체 PDF 파서가 �
   * "etc" — 그 외 (인사말, 결어, 일반 안내)
 - source_order: 1부터 시작하는 출현 순서 정수
 - is_action_candidate: 학부모 직접 행동(신청/제출/준비/납부/참석/확인)해야 하면 true
-- items: 학부모 체크리스트용 항목 배열 (is_action_candidate=true일 때만 채움)
-  * 콤마/슬래시/번호로 분리 가능하면 다중 항목 (예: "준비물: 알림장, 색종이, 연필" → 3개)
-  * 분리 불가능한 단일 액션은 1개 (예: "동의서 5/7까지 제출" → 1개로 sentence 통째)
-  * 각 항목: {"ko": str, "note": str} — note는 괄호 부연 설명("연필식 색연필 불가")
-  * is_action_candidate=false면 빈 배열 []
 
 **규칙**:
 - sentence_list[].text 합치면 cleaned_text와 의미상 동일해야 함 (정보 누락 X)
 - role_hint는 위 13개 외 값 X. 애매하면 "etc"
 - 인사말/서명/결어도 sentence_list에 포함하되 role_hint="etc"
-- items의 ko는 학부모가 챙기거나 행동할 단위 — 헤더("준비물:") 빼고 항목만 남김
 
 **예시 — 학부모 공개수업 + 상담주간 (가상 합성)**:
 {
   "document_title": "2026 학부모 공개수업 및 상담주간 안내",
   "cleaned_text": "학부모님, 안녕하십니까?\\n학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.\\n\\n■ 공개수업\\n일시: 2026년 5월 9일(금) 10:00~11:40\\n장소: 각 학년 교실\\n대상: 1-6학년 전교생 학부모\\n\\n■ 상담주간\\n기간: 2026년 5월 12일(월) ~ 5월 16일(금)\\n신청방법: 학교 홈페이지에서 온라인 신청 (선착순)\\n준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)\\n비용: 무료\\n\\n■ 참가 동의서\\n참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.\\n\\n※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.\\n\\n문의: 02-1234-5678\\n2026. 5. 1. 서울갈산초등학교장",
   "sentence_list": [
-    {"sentence_id": "s001", "text": "학부모님, 안녕하십니까?", "role_hint": "etc", "source_order": 1, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s002", "text": "학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.", "role_hint": "content", "source_order": 2, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s003", "text": "■ 공개수업", "role_hint": "program_title", "source_order": 3, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s004", "text": "일시: 2026년 5월 9일(금) 10:00~11:40", "role_hint": "event_datetime", "source_order": 4, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s005", "text": "장소: 각 학년 교실", "role_hint": "location", "source_order": 5, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s006", "text": "대상: 1-6학년 전교생 학부모", "role_hint": "target", "source_order": 6, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s007", "text": "■ 상담주간", "role_hint": "program_title", "source_order": 7, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s008", "text": "기간: 2026년 5월 12일(월) ~ 5월 16일(금)", "role_hint": "application_period", "source_order": 8, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s009", "text": "신청방법: 학교 홈페이지에서 온라인 신청 (선착순)", "role_hint": "application_period", "source_order": 9, "is_action_candidate": true, "items": [{"ko": "학교 홈페이지에서 온라인 신청", "note": "선착순"}]},
-    {"sentence_id": "s010", "text": "준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)", "role_hint": "supplies", "source_order": 10, "is_action_candidate": true, "items": [{"ko": "간편한 복장", "note": ""}, {"ko": "물", "note": ""}, {"ko": "기타 개인 용품", "note": "1-3학년 학부모"}]},
-    {"sentence_id": "s011", "text": "비용: 무료", "role_hint": "fee", "source_order": 11, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s012", "text": "■ 참가 동의서", "role_hint": "program_title", "source_order": 12, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s013", "text": "참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.", "role_hint": "submit", "source_order": 13, "is_action_candidate": true, "items": [{"ko": "참가 동의서 제출", "note": "5월 7일(수)까지 담임선생님께"}]},
-    {"sentence_id": "s014", "text": "※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.", "role_hint": "etc", "source_order": 14, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s015", "text": "문의: 02-1234-5678", "role_hint": "contact", "source_order": 15, "is_action_candidate": false, "items": []},
-    {"sentence_id": "s016", "text": "2026. 5. 1. 서울갈산초등학교장", "role_hint": "etc", "source_order": 16, "is_action_candidate": false, "items": []}
+    {"sentence_id": "s001", "text": "학부모님, 안녕하십니까?", "role_hint": "etc", "source_order": 1, "is_action_candidate": false},
+    {"sentence_id": "s002", "text": "학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.", "role_hint": "content", "source_order": 2, "is_action_candidate": false},
+    {"sentence_id": "s003", "text": "■ 공개수업", "role_hint": "program_title", "source_order": 3, "is_action_candidate": false},
+    {"sentence_id": "s004", "text": "일시: 2026년 5월 9일(금) 10:00~11:40", "role_hint": "event_datetime", "source_order": 4, "is_action_candidate": false},
+    {"sentence_id": "s005", "text": "장소: 각 학년 교실", "role_hint": "location", "source_order": 5, "is_action_candidate": false},
+    {"sentence_id": "s006", "text": "대상: 1-6학년 전교생 학부모", "role_hint": "target", "source_order": 6, "is_action_candidate": false},
+    {"sentence_id": "s007", "text": "■ 상담주간", "role_hint": "program_title", "source_order": 7, "is_action_candidate": false},
+    {"sentence_id": "s008", "text": "기간: 2026년 5월 12일(월) ~ 5월 16일(금)", "role_hint": "application_period", "source_order": 8, "is_action_candidate": false},
+    {"sentence_id": "s009", "text": "신청방법: 학교 홈페이지에서 온라인 신청 (선착순)", "role_hint": "application_period", "source_order": 9, "is_action_candidate": true},
+    {"sentence_id": "s010", "text": "준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)", "role_hint": "supplies", "source_order": 10, "is_action_candidate": true},
+    {"sentence_id": "s011", "text": "비용: 무료", "role_hint": "fee", "source_order": 11, "is_action_candidate": false},
+    {"sentence_id": "s012", "text": "■ 참가 동의서", "role_hint": "program_title", "source_order": 12, "is_action_candidate": false},
+    {"sentence_id": "s013", "text": "참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.", "role_hint": "submit", "source_order": 13, "is_action_candidate": true},
+    {"sentence_id": "s014", "text": "※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.", "role_hint": "etc", "source_order": 14, "is_action_candidate": false},
+    {"sentence_id": "s015", "text": "문의: 02-1234-5678", "role_hint": "contact", "source_order": 15, "is_action_candidate": false},
+    {"sentence_id": "s016", "text": "2026. 5. 1. 서울갈산초등학교장", "role_hint": "etc", "source_order": 16, "is_action_candidate": false}
   ]
 }
 
@@ -198,17 +192,6 @@ _SENTENCE_LIST_ITEM_SCHEMA = {
         "role_hint": {"type": "string"},
         "source_order": {"type": "integer"},
         "is_action_candidate": {"type": "boolean"},
-        "items": {
-            "type": "array",
-            "items": {
-                "type": "object",
-                "properties": {
-                    "ko": {"type": "string"},
-                    "note": {"type": "string"},
-                },
-                "required": ["ko"],
-            },
-        },
     },
     "required": ["sentence_id", "text", "role_hint", "source_order"],
 }

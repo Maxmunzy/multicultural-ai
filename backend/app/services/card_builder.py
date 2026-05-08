@@ -15,13 +15,92 @@ from __future__ import annotations
 
 import re
 
-from app.models.schemas import Category, SlotCard, YunjeongTodo
+from app.models.schemas import Category, ChecklistItem, SlotCard, YunjeongTodo
 from app.services.classifier import classify_category
 from app.services.easy_korean import to_easy_korean
 from app.services.header_split import split_header_value
 from app.services.translator import (
-    translate_short_sentence_batch, translate_term,
+    translate_short_sentence, translate_short_sentence_batch, translate_term,
 )
+
+
+# chip이 행동성(학부모가 챙김/제출/납부/안전수칙 이행)이면 체크리스트 후보.
+# 정보성(일정) + None(분류 불가)은 체크박스 미표시.
+_ACTION_CHIPS: frozenset[str] = frozenset({
+    Category.supplies.value,    # "준비물"
+    Category.submission.value,  # "제출"
+    Category.cost.value,        # "비용"
+    Category.health.value,      # "건강·안전"
+})
+
+
+def _split_with_paren_protection(text: str) -> list[str]:
+    """콤마/슬래시 split — 괄호 안 콤마는 보존.
+
+    예: "필통 (깎은 연필 3자루, 지우개, 딱풀), 가위, 풀"
+        → ["필통 (깎은 연필 3자루, 지우개, 딱풀)", "가위", "풀"]
+    """
+    if not text:
+        return []
+    parts: list[str] = []
+    cur: list[str] = []
+    depth = 0
+    for ch in text:
+        if ch in "([{":
+            depth += 1
+            cur.append(ch)
+        elif ch in ")]}":
+            depth = max(0, depth - 1)
+            cur.append(ch)
+        elif ch in ",/" and depth == 0:
+            piece = "".join(cur).strip()
+            if piece:
+                parts.append(piece)
+            cur = []
+        else:
+            cur.append(ch)
+    tail = "".join(cur).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+# 끝부분 괄호 부연 — "샤프식 색연필 12색 (연필식 색연필 불가)" → ("샤프식 색연필 12색", "연필식 색연필 불가")
+_TRAILING_PAREN = re.compile(r"^(.+?)\s*[\(（]\s*([^)）]+?)\s*[\)）]\s*$")
+
+
+def _split_paren_note(item_text: str) -> tuple[str, str]:
+    """항목 끝 괄호 부연을 (ko, note)로 분리. 괄호 없으면 (item_text, '')."""
+    s = item_text.strip()
+    m = _TRAILING_PAREN.match(s)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return s, ""
+
+
+def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[ChecklistItem]:
+    """경이 카테고리(chip) 기반 체크리스트 분리.
+
+    chip이 행동성(준비물/제출/비용/건강·안전)이면 value_ko를 콤마/슬래시 split
+    (괄호 안 콤마 보존) → 각 항목을 ChecklistItem으로. 끝 괄호 부연은 note로.
+
+    chip이 정보성(일정) 또는 None이면 빈 리스트 반환 — 체크박스 미표시.
+    """
+    if card.chip not in _ACTION_CHIPS:
+        return []
+    pieces = _split_with_paren_protection(card.value_ko)
+    if not pieces:
+        return []
+    out: list[ChecklistItem] = []
+    for piece in pieces:
+        ko, note = _split_paren_note(piece)
+        if not ko or len(ko) < 2:
+            continue
+        translated = ""
+        if target_lang != "ko_easy":
+            translated = translate_short_sentence(ko, target_lang) or ""
+        out.append(ChecklistItem(ko=ko, note=note, translated=translated, checked=False))
+    return out
 
 # 헤더 추정 실패 시 fallback
 _FALLBACK_HEADER = "기타"
@@ -366,5 +445,12 @@ def build_cards(
             cards[i] = cards[i].model_copy(
                 update={"value_translated": tr or cards[i].value_ko},
             )
+
+    # 체크리스트 — 경이 카테고리(chip)가 행동성이면 value_ko 콤마/슬래시 split.
+    # 정보성(일정) + None은 빈 리스트 → 안드 UI 체크박스 영역 미표시.
+    for i, c in enumerate(cards):
+        cl = _build_checklist_from_card(c, target_lang)
+        if cl:
+            cards[i] = c.model_copy(update={"checklist": cl})
 
     return cards

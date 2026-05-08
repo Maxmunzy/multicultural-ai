@@ -10,6 +10,10 @@ import re
 from typing import Iterable
 
 from app.models.schemas import ChecklistItem, SlotCard
+from app.services.card_builder import (
+    _split_paren_note,
+    _split_with_paren_protection,
+)
 from app.services.sentence_skeleton import (
     RoleHint,
     SentenceListDocument,
@@ -19,6 +23,12 @@ from app.services.sentence_skeleton import (
     split_header_value,
 )
 from app.services.translator import translate_short_sentence, translate_term
+
+
+# info_cards 중 학부모가 행동해야 할 role — 체크리스트 후보.
+# fee/supplies/submit은 챙김·납부·제출 행동. 그 외(target/location/event_datetime/
+# contact/url 등)는 정보 only — 체크박스 미표시.
+_INFO_ACTION_ROLES: frozenset = frozenset({"fee", "supplies", "submit"})
 
 
 INFO_ROLE_LABELS: dict[RoleHint, str] = {
@@ -103,62 +113,28 @@ def _dedup_info_cards(cards: Iterable[SlotCard]) -> list[SlotCard]:
     return out
 
 
-def attach_checklist_to_action_cards(
-    cards: list[SlotCard],
-    document: SentenceListDocument,
-    target_lang: str,
-) -> None:
-    """윤정 todo 기반 action cards에 sentence_list items 매칭으로 checklist 부착.
+def _build_checklist_for_role(value: str, role_hint: RoleHint, target_lang: str) -> list[ChecklistItem]:
+    """role_hint가 행동성이면 value를 콤마/슬래시 split → ChecklistItem 리스트.
 
-    info_cards는 sentence_list로 직접 빌드되어 items가 자동 매핑되지만, cards는
-    윤정 todo → header/value 분해라 별도 매칭 필요. card.value_ko가 sentence.text의
-    substring(공백 제거 후)이면 매칭으로 보고 그 sentence.items를 checklist로 부착.
-
-    in-place 수정 — 이미 checklist 있는 카드는 skip.
+    LLM 의존 제거 — 시스템이 자체적으로 split. 카테고리(role) 자체가 행동/정보
+    분기 source of truth. 정보성 role은 빈 리스트 반환.
     """
-    action_sentences = [s for s in document.sentence_list if s.items]
-    if not action_sentences:
-        return
-    for card in cards:
-        if card.checklist:
-            continue
-        value_norm = re.sub(r"\s+", "", card.value_ko or "")
-        if len(value_norm) < 5:
-            continue
-        # 가장 긴 매칭 sentence 채택 — substring 방향 양쪽 시도
-        best = None
-        best_len = 0
-        for s in action_sentences:
-            sent_norm = re.sub(r"\s+", "", s.text)
-            if not sent_norm:
-                continue
-            if value_norm in sent_norm or sent_norm in value_norm:
-                if len(sent_norm) > best_len:
-                    best = s
-                    best_len = len(sent_norm)
-        if best is not None:
-            card.checklist = _build_checklist(best, target_lang)
-
-
-def _build_checklist(item, target_lang: str) -> list[ChecklistItem]:
-    """sentence.items → SlotCard.checklist 매핑.
-
-    is_action_candidate=true인 sentence만 items 채워짐 (Claude prompt 규칙).
-    각 항목 ko를 NLLB로 번역해서 translated 채움. URL/날짜 형식 값은 skip.
-    """
-    if not item.items:
+    if role_hint not in _INFO_ACTION_ROLES:
+        return []
+    pieces = _split_with_paren_protection(value)
+    if not pieces:
         return []
     out: list[ChecklistItem] = []
-    for entry in item.items:
-        ko = (entry.ko or "").strip()
-        if not ko:
+    for piece in pieces:
+        ko, note = _split_paren_note(piece)
+        if not ko or len(ko) < 2:
             continue
         translated = ""
-        if target_lang != "ko_easy" and not is_nllb_skip_value(ko, item.role_hint):
+        if target_lang != "ko_easy" and not is_nllb_skip_value(ko, role_hint):
             translated = translate_short_sentence(ko, target_lang) or ""
         out.append(ChecklistItem(
             ko=ko,
-            note=(entry.note or "").strip(),
+            note=note,
             translated=translated,
             checked=False,
         ))
@@ -192,7 +168,7 @@ def build_info_cards_from_sentence_document(
             ),
             chip=None,
             importance=INFO_ROLE_IMPORTANCE.get(item.role_hint, 0.8),
-            checklist=_build_checklist(item, target_lang),
+            checklist=_build_checklist_for_role(value, item.role_hint, target_lang),
         ))
 
     cards = _dedup_info_cards(cards)
