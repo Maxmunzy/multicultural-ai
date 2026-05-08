@@ -47,7 +47,7 @@ router = APIRouter()
 
 _notices: dict[str, Notice] = {}
 MAX_CARDS = 16  # 학년별 표(공용+개인 12행) 같은 다중 카드 통신문 누락 방지
-TTS_MAX_CHARS = 1200
+TTS_MAX_CHARS = 2000
 
 # 체크리스트 영속 — 시연용 메모리 dict. 서버 재시작 시 초기화 OK.
 # key: (parent_id, notice_id, card_kind, card_id, item_id)
