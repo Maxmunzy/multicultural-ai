@@ -9,7 +9,13 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-from app.models.schemas import SlotCard
+from app.models.schemas import ChecklistItem, SlotCard
+from app.services.card_builder import (
+    _merge_orphan_numeric_pieces,
+    _split_paren_note,
+    _split_with_paren_protection,
+    _stable_id,
+)
 from app.services.sentence_skeleton import (
     RoleHint,
     SentenceListDocument,
@@ -19,6 +25,16 @@ from app.services.sentence_skeleton import (
     split_header_value,
 )
 from app.services.translator import translate_short_sentence, translate_term
+
+
+# info_cards 중 학부모가 행동해야 할 role — 체크리스트 후보.
+# fee/supplies/submit은 챙김·납부·제출 행동. 그 외(target/location/event_datetime/
+# contact/url 등)는 정보 only — 체크박스 미표시.
+_INFO_ACTION_ROLES: frozenset = frozenset({"fee", "supplies", "submit"})
+
+# 콤마/슬래시 split을 적용할 role — 본질이 다중 항목 나열인 카테고리만 (준비물).
+# fee/submit은 단일 액션이라 split 안 함 — card_builder._SPLIT_CHIPS와 일관.
+_INFO_SPLIT_ROLES: frozenset = frozenset({"supplies"})
 
 
 INFO_ROLE_LABELS: dict[RoleHint, str] = {
@@ -103,6 +119,42 @@ def _dedup_info_cards(cards: Iterable[SlotCard]) -> list[SlotCard]:
     return out
 
 
+def _build_checklist_for_role(value: str, role_hint: RoleHint, target_lang: str) -> list[ChecklistItem]:
+    """role_hint가 행동성이면 ChecklistItem 리스트 반환.
+
+    role ∈ _INFO_SPLIT_ROLES (supplies): 콤마/슬래시 split → 다중 항목
+    role ∈ _INFO_ACTION_ROLES \\ _INFO_SPLIT_ROLES (fee, submit): 단일 ChecklistItem
+    그 외: 빈 리스트 (체크박스 미표시)
+    """
+    if role_hint not in _INFO_ACTION_ROLES:
+        return []
+
+    if role_hint in _INFO_SPLIT_ROLES:
+        pieces = _split_with_paren_protection(value)
+        pieces = _merge_orphan_numeric_pieces(pieces)
+    else:
+        pieces = [value.strip()] if value.strip() else []
+
+    if not pieces:
+        return []
+    out: list[ChecklistItem] = []
+    for piece in pieces:
+        ko, note = _split_paren_note(piece)
+        if not ko:
+            continue
+        translated = ""
+        if target_lang != "ko_easy" and not is_nllb_skip_value(ko, role_hint):
+            translated = translate_short_sentence(ko, target_lang) or ""
+        out.append(ChecklistItem(
+            item_id=_stable_id(f"{ko}|{note}"),
+            ko=ko,
+            note=note,
+            translated=translated,
+            checked=False,
+        ))
+    return out
+
+
 def build_info_cards_from_sentence_document(
     document: SentenceListDocument,
     target_lang: str,
@@ -120,6 +172,7 @@ def build_info_cards_from_sentence_document(
             continue
 
         cards.append(SlotCard(
+            card_id=_stable_id(f"{label}|{value}"),
             header_ko=label,
             header_translated=translate_term(label, target_lang),
             value_ko=value,
@@ -130,6 +183,7 @@ def build_info_cards_from_sentence_document(
             ),
             chip=None,
             importance=INFO_ROLE_IMPORTANCE.get(item.role_hint, 0.8),
+            checklist=_build_checklist_for_role(value, item.role_hint, target_lang),
         ))
 
     cards = _dedup_info_cards(cards)

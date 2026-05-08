@@ -61,45 +61,48 @@ elif LLM_PROVIDER != "claude" and not GEMINI_API_KEY:
 # 모든 모드(Vision/text) 공통 — Gemini systemInstruction.
 # user contents와 분리해서 instruction 강도 ↑ (Gemini API systemInstruction은
 # 지속 규칙으로 더 강하게 적용됨). preview 모델도 강제 따르게 만들기 위함.
-_SYSTEM_INSTRUCTION = """한국 학교 가정통신문을 자체 PDF 파서가 만들 raw 텍스트 형태로 정제. 후속 윤정 KoELECTRA 모델이 paragraph 안에서 todo 추출.
+_SYSTEM_INSTRUCTION = """**최우선 원칙: 원문 텍스트에 등장하는 어구만 사용한다. 한 단어라도 원문에 없으면 출력하지 마라.**
+
+당신은 paraphraser가 아니다. **복사기 + 띄어쓰기/기호 정상화기**.
+한국 학교 가정통신문을 자체 PDF 파서가 만들 raw 텍스트 형태로 정제. 후속 윤정 KoELECTRA 모델이 paragraph 안에서 todo 추출.
 
 **규칙** (모든 가정통신문 공통 — 특정 통신문 패턴 학습 X):
-1. **한 줄 = 한 sentence** — 한 문장을 두 줄에 걸치지 말 것. 줄바꿈은 sentence 사이에만
-2. **헤더-값은 콜론(:) 형식** — 조사("은/는") 사용 X
-   ❌ "신청방법은 ..." / "비용은 ..." → ✅ "신청방법: ..." / "비용: ..."
-3. **헤더 키워드 표준 통일** — 변형은 표준으로 정규화:
-   - "준비/지참물/지참/준비사항" → **"준비물:"**
-   - "시간/날짜" → **"일시:"**
-   - "위치/주소" → **"장소:"**
-   - "회비/참가비/수강료/급식비" → **"비용:"**
-   - "연락처/문의처" → **"문의:"**
-4. **헤더 키워드와 값에 같은 단어 등장 X** (윤정 split 트리거 회피):
-   같은 sentence에 같은 키워드 두 번 나오면 값의 단어를 동의어로 교체
-   ❌ "준비물: 간편한 복장, 물, 기타 개인 준비물 등" — "준비물" 두 번
-   ✅ "준비물: 간편한 복장, 물, 기타 개인 용품 등" — 값의 "준비물" → "용품"
-   동의어 가이드:
-   - 준비물 → 용품/물품/물건
-   - 일시 → 때/시각
-   - 대상 → 사람/인원
-   - 비용 → 금액/요금
+
+1. **원문 보존 절대 원칙** — 다른 모든 규칙보다 우선:
+   - cleaned_text와 sentence_list[].text의 모든 어구는 원문 텍스트에 그대로 등장해야 함
+   - **동의어/유의어/의역 금지** — 원문 단어를 다른 단어로 바꾸지 마라
+   - **요약·축약·재구성 금지** — 어색해도 원문 그대로
+   - **부연 추가 금지** — 원문 "8명"을 "8명 모집"으로 늘리지 마라
+   - 학습된 표현(자주 쓰는 학교 통신문 어휘)으로 자동 교체하지 마라. 원문이 비표준이어도 그대로.
+   - 자주 발견되는 위반 사례 (실제 측정에서 발생함, 절대 하지 마라):
+     ❌ 원문 "준비물" → 출력 "용품" (학교 통신문 표현으로 교체)
+     ❌ 원문 "지참" → 출력 "준비물" (동의어 변환)
+     ❌ 원문 "8명" → 출력 "8명 모집" (단어 추가)
+     ❌ 원문 "참여 바람" → 출력 "참석 부탁드립니다" (의역)
+     ❌ 원문 "○,✕" → 출력 "예/아니오" (의미 변환)
+     ❌ 원문 "기타 개인 준비물" → 출력 "기타 개인 용품" (단어 1개도 변경 X)
+   - **출력 직전 self-check**: cleaned_text의 모든 어구가 원문에 있는지 단어 단위로 확인. 원문에 없는 어구는 제거하고 원문 어구로 교체.
+
+2. **허용되는 변환은 셋뿐**:
+   (a) 띄어쓰기 정상화 — "학 년 도" → "학년도", 자간 공백만 합치기
+   (b) 특수기호 → ASCII (윤정 모델 _clean_symbols 호환):
+       ○ → O, ✕ → X, □ → [], ✓ → V, ☑ → [V]
+       (마크업 ■, ※, ▶ 등은 그대로 보존)
+   (c) 단독 기호 줄(■■■, 가로줄) 제거 — 텍스트가 있는 줄은 마크업 포함 그대로
+
+3. **한 줄 = 한 sentence** — 한 문장을 두 줄에 걸치지 말 것. 줄바꿈은 sentence 사이에만
+
+4. **헤더-값은 원문 형식 그대로** — 원문이 "신청방법은 ..."이면 그대로,
+   원문이 "신청방법: ..."이면 그대로. 콜론을 강제로 추가/제거하지 마라.
+
 5. **표 행은 한 줄 sentence** — 분류·구분 정보는 sentence 끝 괄호로 **완전히** 보존:
    - 학년 + 분류(공용/개인/가정/학교) 둘 다 있으면 **둘 다 명시**:
      ✅ "준비물: 알림장, 클리어 화일 (1학년 공용)"  ← 공용 명시
      ✅ "준비물: 줄 없는 종합장 1권 (1학년 가정)"  ← 가정 명시
-     ❌ "준비물: 알림장 (1학년)"  ← 공용/가정 빠뜨리지 말 것
-   - 다른 분류 정보(대상/구간 등)도 동일:
-     ✅ "운영시간: 오전 10시 (1-3학년)"
-     ✅ "비용: 35,000원 (4학년 학부모)"
-   - prefix 시작 금지: ❌ "1학년 공용 준비물: ..."
-6. **특수기호 → 알파벳 변환** (윤정 모델 _clean_symbols 호환):
-   ○ → O, ✕ → X, □ → [], ✓ → V, ☑ → [V]
-   (마크업 ■, ※, ▶ 등은 그대로 보존)
-7. **자간 공백만 정상화** ("학 년 도" → "학년도"), 다른 글자 변경 X
-8. **종결어미 강제 X** — 원문 그대로
-9. **요약·축약 금지** — 의미 보존 (단 규칙 4 동의어 변환은 허용)
-10. **날짜·시간·금액·URL·전화번호·고유명사·학교명·지명 원문 그대로**
-11. **단독 기호 줄(■■■, 가로줄)만 제거** — 텍스트와 같이 있는 마크업은 보존
-12. **원문에 없는 정보 추측·추가 금지**
+     ❌ "준비물: 알림장 (1학년)"  ← 공용/가정 원문에 있으면 빠뜨리지 말 것
+   - prefix 시작 금지: ❌ "1학년 공용 준비물: ..." (원문 형식 따라)
+
+6. **종결어미·날짜·시간·금액·URL·전화번호·고유명사·학교명·지명 원문 그대로**
 
 **출력 JSON**: {"document_title": "...", "cleaned_text": "...", "sentence_list": [...]}
 
@@ -130,31 +133,26 @@ _SYSTEM_INSTRUCTION = """한국 학교 가정통신문을 자체 PDF 파서가 �
 - role_hint는 위 13개 외 값 X. 애매하면 "etc"
 - 인사말/서명/결어도 sentence_list에 포함하되 role_hint="etc"
 
-**예시 — 학부모 공개수업 + 상담주간 (가상 합성)**:
+**예시는 형식·구조 참고용**. 예시의 단어를 다른 통신문에 복붙하지 마라 — 원문에 그 단어가 없으면 사용 X.
+
+**예시 (가상 합성)** — 형식·role_hint 분류 참고용:
 {
-  "document_title": "2026 학부모 공개수업 및 상담주간 안내",
-  "cleaned_text": "학부모님, 안녕하십니까?\\n학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.\\n\\n■ 공개수업\\n일시: 2026년 5월 9일(금) 10:00~11:40\\n장소: 각 학년 교실\\n대상: 1-6학년 전교생 학부모\\n\\n■ 상담주간\\n기간: 2026년 5월 12일(월) ~ 5월 16일(금)\\n신청방법: 학교 홈페이지에서 온라인 신청 (선착순)\\n준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)\\n비용: 무료\\n\\n■ 참가 동의서\\n참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.\\n\\n※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.\\n\\n문의: 02-1234-5678\\n2026. 5. 1. 서울갈산초등학교장",
+  "document_title": "2026 학년도 4월 현장체험학습 안내",
+  "cleaned_text": "학부모님께\\n5월 학년별 현장체험학습 일정을 안내드립니다.\\n\\n일시: 2026년 5월 23일(금) 09:00~15:00\\n장소: 국립중앙박물관\\n대상: 4학년 전체\\n준비물: 개인 도시락, 물병, 필기도구\\n비용: 1인 12,000원 (CMS 자동이체)\\n\\n참가 동의서를 5월 16일(금)까지 담임선생님께 제출해 주시기 바랍니다.\\n\\n문의: 02-987-6543",
   "sentence_list": [
-    {"sentence_id": "s001", "text": "학부모님, 안녕하십니까?", "role_hint": "etc", "source_order": 1, "is_action_candidate": false},
-    {"sentence_id": "s002", "text": "학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.", "role_hint": "content", "source_order": 2, "is_action_candidate": false},
-    {"sentence_id": "s003", "text": "■ 공개수업", "role_hint": "program_title", "source_order": 3, "is_action_candidate": false},
-    {"sentence_id": "s004", "text": "일시: 2026년 5월 9일(금) 10:00~11:40", "role_hint": "event_datetime", "source_order": 4, "is_action_candidate": false},
-    {"sentence_id": "s005", "text": "장소: 각 학년 교실", "role_hint": "location", "source_order": 5, "is_action_candidate": false},
-    {"sentence_id": "s006", "text": "대상: 1-6학년 전교생 학부모", "role_hint": "target", "source_order": 6, "is_action_candidate": false},
-    {"sentence_id": "s007", "text": "■ 상담주간", "role_hint": "program_title", "source_order": 7, "is_action_candidate": false},
-    {"sentence_id": "s008", "text": "기간: 2026년 5월 12일(월) ~ 5월 16일(금)", "role_hint": "application_period", "source_order": 8, "is_action_candidate": false},
-    {"sentence_id": "s009", "text": "신청방법: 학교 홈페이지에서 온라인 신청 (선착순)", "role_hint": "application_period", "source_order": 9, "is_action_candidate": true},
-    {"sentence_id": "s010", "text": "준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)", "role_hint": "supplies", "source_order": 10, "is_action_candidate": true},
-    {"sentence_id": "s011", "text": "비용: 무료", "role_hint": "fee", "source_order": 11, "is_action_candidate": false},
-    {"sentence_id": "s012", "text": "■ 참가 동의서", "role_hint": "program_title", "source_order": 12, "is_action_candidate": false},
-    {"sentence_id": "s013", "text": "참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.", "role_hint": "submit", "source_order": 13, "is_action_candidate": true},
-    {"sentence_id": "s014", "text": "※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.", "role_hint": "etc", "source_order": 14, "is_action_candidate": false},
-    {"sentence_id": "s015", "text": "문의: 02-1234-5678", "role_hint": "contact", "source_order": 15, "is_action_candidate": false},
-    {"sentence_id": "s016", "text": "2026. 5. 1. 서울갈산초등학교장", "role_hint": "etc", "source_order": 16, "is_action_candidate": false}
+    {"sentence_id": "s001", "text": "학부모님께", "role_hint": "etc", "source_order": 1, "is_action_candidate": false},
+    {"sentence_id": "s002", "text": "5월 학년별 현장체험학습 일정을 안내드립니다.", "role_hint": "content", "source_order": 2, "is_action_candidate": false},
+    {"sentence_id": "s003", "text": "일시: 2026년 5월 23일(금) 09:00~15:00", "role_hint": "event_datetime", "source_order": 3, "is_action_candidate": false},
+    {"sentence_id": "s004", "text": "장소: 국립중앙박물관", "role_hint": "location", "source_order": 4, "is_action_candidate": false},
+    {"sentence_id": "s005", "text": "대상: 4학년 전체", "role_hint": "target", "source_order": 5, "is_action_candidate": false},
+    {"sentence_id": "s006", "text": "준비물: 개인 도시락, 물병, 필기도구", "role_hint": "supplies", "source_order": 6, "is_action_candidate": true},
+    {"sentence_id": "s007", "text": "비용: 1인 12,000원 (CMS 자동이체)", "role_hint": "fee", "source_order": 7, "is_action_candidate": true},
+    {"sentence_id": "s008", "text": "참가 동의서를 5월 16일(금)까지 담임선생님께 제출해 주시기 바랍니다.", "role_hint": "submit", "source_order": 8, "is_action_candidate": true},
+    {"sentence_id": "s009", "text": "문의: 02-987-6543", "role_hint": "contact", "source_order": 9, "is_action_candidate": false}
   ]
 }
 
-원본의 "준비: 간편한 복장, 물, 기타 개인 준비물 등" 같은 케이스 → 헤더 통일("준비물:") + 값의 "준비물" → "용품"으로 변환해서 cleaned_text와 sentence_list에 동일하게 출력.
+**다시 강조 — 출력하기 전에 모든 어구가 원문에 있는지 확인하라. 없는 어구는 만들지 마라.**
 """
 
 
