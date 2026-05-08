@@ -71,7 +71,7 @@ def test_calendar_event_january_after_december_notice_uses_next_year():
             SentenceListItem(
                 sentence_id="s0",
                 text="발송일: 2025. 12. 20.",
-                role_hint="info",
+                role_hint="etc",
                 source_order=0,
                 contains_slots=[],
             ),
