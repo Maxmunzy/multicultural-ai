@@ -11,8 +11,8 @@ A단계: 가정통신문 → 할 일 및 중요 일정 후보 문장 추출기
 ─────────────────────────────────────────
 입력
 ─────────────────────────────────────────
-OCR 모듈(pdfplumber / pymupdf 등)이 추출한 가정통신문 텍스트 (str).
-OCR은 A단계 이전에 처리되므로 이 스크립트는 항상 순수 str 을 입력받습니다.
+백엔드 layout_normalizer(Claude API)가 정제한 가정통신문 텍스트 (str, \n 줄 단위).
+PDF/HWP 추출 및 텍스트 정제는 layout_normalizer가 담당하므로 이 스크립트는 항상 순수 str 을 입력받습니다.
 
 ─────────────────────────────────────────
 파이프라인
@@ -150,8 +150,7 @@ def extract_title(notice_text: str) -> Optional[str]:
 # ─────────────────────────────────────────
 # 1. 모델 로드 (lazy, 최초 1회)
 # ─────────────────────────────────────────
-# CPU 시연 환경을 위해 small 변형 사용
-_BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub 파인튜닝 모델
+_BASE_MODEL_ID = "yunjeong116/koelectra-extractor"   # HF Hub — koelectra-base v4_merged 재학습 모델
 # HF Hub repo 내 모델 파일이 koelectra-extractor/ 서브폴더에 위치
 _HF_SUBFOLDER = "koelectra-extractor"
 _LOCAL_CHECKPOINT_DIR = os.path.join(
@@ -180,7 +179,7 @@ def _load_model() -> None:
             _BASE_MODEL_ID, num_labels=2, subfolder=_HF_SUBFOLDER
         )
     except Exception:
-        # 오프라인 fallback: checkpoints/koelectra-binary-v3.1/
+        # 오프라인 fallback: checkpoints/koelectra-binary-base/
         _local_ready = (
             any(
                 os.path.exists(os.path.join(_LOCAL_CHECKPOINT_DIR, fname))
