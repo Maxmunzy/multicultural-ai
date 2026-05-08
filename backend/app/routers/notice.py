@@ -26,6 +26,7 @@ from app.services.slot_extractor import (
 )
 from app.services.card_builder import build_cards
 from app.services.info_card_builder import build_info_cards_from_sentence_document
+from app.services.calendar_event_builder import build_calendar_events_from_sentence_document
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.layout_normalizer import (
     normalize_text as llm_normalize_text,
@@ -949,6 +950,11 @@ async def analyze_notice(
     # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
     sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
+    calendar_events = build_calendar_events_from_sentence_document(
+        sentence_doc,
+        notice_id=notice_id,
+        title=title_ko,
+    )
 
     # [6.55] info_cards dedup — cards와 동일/substring value_ko 갖는 카드 제거.
     # cards(윤정 todo)와 info_cards(sentence_list)가 같은 헤더-값을 만들어 학년별
@@ -1006,6 +1012,7 @@ async def analyze_notice(
         "highlights": highlights,
         "cards": [c.model_dump() for c in cards],
         "info_cards": [c.model_dump() for c in info_cards],
+        "calendar_events": [event.model_dump() for event in calendar_events],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
         "tts_text": tts_text_translated,

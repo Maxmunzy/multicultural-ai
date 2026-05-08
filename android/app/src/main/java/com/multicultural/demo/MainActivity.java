@@ -54,8 +54,12 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -135,7 +139,9 @@ public class MainActivity extends Activity {
     private TextView translationText;
     private LinearLayout glossaryChipsBox;
     private LinearLayout linkActionsBox;
+    private LinearLayout bottomActionsBar;
     private Button linkSideTabButton;
+    private Button calendarActionButton;
     private Button playButton;
     private Button easyKoPlayButton;
     private Button langPillBtn;
@@ -146,6 +152,7 @@ public class MainActivity extends Activity {
     // payload에 layout_json으로 실어보내 backend highlight_mapper가 카드 ↔ bbox 매칭.
     private final Map<String, String> ocrLayoutByNoticeId = new LinkedHashMap<>();
     private final List<String> currentActionUrls = new ArrayList<>();
+    private JSONArray currentCalendarEvents = null;
     private static final Pattern URL_PATTERN = Pattern.compile(
             "https?://[^\\s\\])}>,]+|www\\.[^\\s\\])}>,]+",
             Pattern.CASE_INSENSITIVE);
@@ -1433,12 +1440,25 @@ public class MainActivity extends Activity {
         statusCard.setTag("statusCard");
 
         outer.addView(scroll);
-        linkSideTabButton = bottomLinkButton("🔗  신청 바로가기 · QR", v -> showLinkActionsDialog());
+        bottomActionsBar = new LinearLayout(this);
+        bottomActionsBar.setOrientation(LinearLayout.HORIZONTAL);
+        bottomActionsBar.setGravity(Gravity.CENTER);
+        bottomActionsBar.setVisibility(View.GONE);
+        bottomActionsBar.setPadding(0, 0, 0, 0);
+        linkSideTabButton = bottomLinkButton("🔗  신청 · QR", v -> showLinkActionsDialog());
+        calendarActionButton = bottomLinkButton("📅  미니 달력", v -> showMiniCalendarDialog());
         linkSideTabButton.setVisibility(View.GONE);
+        calendarActionButton.setVisibility(View.GONE);
+        LinearLayout.LayoutParams linkLp = new LinearLayout.LayoutParams(0, dp(56), 1);
+        linkLp.setMargins(0, 0, dp(6), 0);
+        LinearLayout.LayoutParams calendarLp = new LinearLayout.LayoutParams(0, dp(56), 1);
+        calendarLp.setMargins(dp(6), 0, 0, 0);
+        bottomActionsBar.addView(linkSideTabButton, linkLp);
+        bottomActionsBar.addView(calendarActionButton, calendarLp);
         FrameLayout.LayoutParams tabLp = new FrameLayout.LayoutParams(
                 FrameLayout.LayoutParams.MATCH_PARENT, dp(56), Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL);
         tabLp.setMargins(dp(20), 0, dp(20), dp(16));
-        outer.addView(linkSideTabButton, tabLp);
+        outer.addView(bottomActionsBar, tabLp);
         setContentView(outer);
 
         analyzeSelectedNotice();
@@ -1575,6 +1595,7 @@ public class MainActivity extends Activity {
             renderSummarySlots(data.optJSONObject("summary"));
         }
         renderLinkActions(data, cards);
+        renderCalendarActions(data);
 
         // === TTS ===
         currentTtsUrl = optStringDeep(data, "tts_url", "tts_path", "audio_url");
@@ -1685,6 +1706,7 @@ public class MainActivity extends Activity {
 
         if (urls.isEmpty()) {
             if (linkSideTabButton != null) linkSideTabButton.setVisibility(View.GONE);
+            updateBottomActionsBarVisibility();
             return;
         }
 
@@ -1693,6 +1715,23 @@ public class MainActivity extends Activity {
             currentActionUrls.add(url);
         }
         if (linkSideTabButton != null) linkSideTabButton.setVisibility(View.VISIBLE);
+        updateBottomActionsBarVisibility();
+    }
+
+    private void renderCalendarActions(JSONObject data) {
+        currentCalendarEvents = data.optJSONArray("calendar_events");
+        boolean hasEvents = currentCalendarEvents != null && currentCalendarEvents.length() > 0;
+        if (calendarActionButton != null) {
+            calendarActionButton.setVisibility(hasEvents ? View.VISIBLE : View.GONE);
+        }
+        updateBottomActionsBarVisibility();
+    }
+
+    private void updateBottomActionsBarVisibility() {
+        if (bottomActionsBar == null) return;
+        boolean hasLink = linkSideTabButton != null && linkSideTabButton.getVisibility() == View.VISIBLE;
+        boolean hasCalendar = calendarActionButton != null && calendarActionButton.getVisibility() == View.VISIBLE;
+        bottomActionsBar.setVisibility((hasLink || hasCalendar) ? View.VISIBLE : View.GONE);
     }
 
     private void collectUrlsFromCards(Set<String> out, JSONArray cards) {
@@ -1836,6 +1875,229 @@ public class MainActivity extends Activity {
                 .setView(box)
                 .setNegativeButton("닫기", null)
                 .show();
+    }
+
+    private void showMiniCalendarDialog() {
+        if (currentCalendarEvents == null || currentCalendarEvents.length() == 0) return;
+
+        Calendar month = Calendar.getInstance();
+        Date firstDate = parseIsoDate(safeString(currentCalendarEvents.optJSONObject(0), "start_date"));
+        if (firstDate != null) month.setTime(firstDate);
+        month.set(Calendar.DAY_OF_MONTH, 1);
+
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(14), dp(10), dp(14), dp(4));
+
+        TextView title = text(new SimpleDateFormat("yyyy년 M월", Locale.KOREA).format(month.getTime()),
+                17, COLOR_INK, true);
+        title.setGravity(Gravity.CENTER);
+        title.setPadding(0, 0, 0, dp(10));
+        box.addView(title);
+
+        LinearLayout legend = new LinearLayout(this);
+        legend.setOrientation(LinearLayout.HORIZONTAL);
+        legend.setGravity(Gravity.CENTER);
+        legend.addView(calendarLegend("신청", calendarColor("blue")));
+        legend.addView(calendarLegend("행사", calendarColor("green")));
+        legend.addView(calendarLegend("제출", calendarColor("orange")));
+        legend.addView(calendarLegend("휴업/기념일", calendarColor("red")));
+        box.addView(legend);
+
+        LinearLayout weekHeader = new LinearLayout(this);
+        weekHeader.setOrientation(LinearLayout.HORIZONTAL);
+        String[] days = {"일", "월", "화", "수", "목", "금", "토"};
+        for (String d : days) {
+            TextView day = text(d, 11, "일".equals(d) ? calendarColor("red") : COLOR_INK3, true);
+            day.setGravity(Gravity.CENTER);
+            weekHeader.addView(day, new LinearLayout.LayoutParams(0, dp(24), 1));
+        }
+        box.addView(weekHeader);
+
+        Calendar cursor = (Calendar) month.clone();
+        int firstDow = cursor.get(Calendar.DAY_OF_WEEK) - 1;
+        int maxDay = cursor.getActualMaximum(Calendar.DAY_OF_MONTH);
+        int dayNum = 1;
+        for (int row = 0; row < 6; row++) {
+            LinearLayout week = new LinearLayout(this);
+            week.setOrientation(LinearLayout.HORIZONTAL);
+            for (int col = 0; col < 7; col++) {
+                LinearLayout cell = calendarDayCell();
+                if (!(row == 0 && col < firstDow) && dayNum <= maxDay) {
+                    Calendar dayCal = (Calendar) month.clone();
+                    dayCal.set(Calendar.DAY_OF_MONTH, dayNum);
+                    String iso = new SimpleDateFormat("yyyy-MM-dd", Locale.US).format(dayCal.getTime());
+                    JSONArray dayEvents = eventsForDate(iso);
+                    TextView num = text(String.valueOf(dayNum),
+                            12,
+                            hasRedCalendarEvent(dayEvents) || col == 0 ? calendarColor("red") : COLOR_INK,
+                            true);
+                    num.setGravity(Gravity.CENTER);
+                    cell.addView(num);
+                    addCalendarMarkers(cell, dayEvents);
+                    final String selectedIso = iso;
+                    final JSONArray selectedEvents = dayEvents;
+                    if (dayEvents.length() > 0) {
+                        cell.setOnClickListener(v -> showCalendarDayDialog(selectedIso, selectedEvents));
+                    }
+                    dayNum++;
+                }
+                week.addView(cell, new LinearLayout.LayoutParams(0, dp(58), 1));
+            }
+            box.addView(week);
+            if (dayNum > maxDay) break;
+        }
+
+        TextView guide = text("기간은 작대기, 하루 일정은 점으로 표시됩니다. 날짜를 누르면 원문 카드로 확인할 수 있어요.",
+                12, COLOR_INK3, false);
+        guide.setLineSpacing(0, 1.25f);
+        guide.setPadding(0, dp(10), 0, 0);
+        box.addView(guide);
+
+        new AlertDialog.Builder(this)
+                .setTitle("미니 달력")
+                .setView(box)
+                .setNegativeButton("닫기", null)
+                .show();
+    }
+
+    private LinearLayout calendarDayCell() {
+        LinearLayout cell = new LinearLayout(this);
+        cell.setOrientation(LinearLayout.VERTICAL);
+        cell.setGravity(Gravity.TOP | Gravity.CENTER_HORIZONTAL);
+        cell.setPadding(dp(2), dp(4), dp(2), dp(2));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(8));
+        bg.setStroke(dp(1), Color.parseColor("#F1E4D4"));
+        cell.setBackground(bg);
+        return cell;
+    }
+
+    private TextView calendarLegend(String label, int color) {
+        TextView view = text("● " + label + "  ", 10, color, true);
+        view.setSingleLine(true);
+        return view;
+    }
+
+    private void addCalendarMarkers(LinearLayout cell, JSONArray events) {
+        int added = 0;
+        for (int i = 0; i < events.length() && added < 3; i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event == null) continue;
+            boolean period = isPeriodEvent(event);
+            TextView marker = text(period ? "━━━━" : "●", period ? 9 : 12,
+                    calendarColor(safeString(event, "color")), true);
+            marker.setGravity(Gravity.CENTER);
+            marker.setSingleLine(true);
+            cell.addView(marker);
+            added++;
+        }
+    }
+
+    private JSONArray eventsForDate(String isoDate) {
+        JSONArray out = new JSONArray();
+        if (currentCalendarEvents == null) return out;
+        Date day = parseIsoDate(isoDate);
+        if (day == null) return out;
+        for (int i = 0; i < currentCalendarEvents.length(); i++) {
+            JSONObject event = currentCalendarEvents.optJSONObject(i);
+            if (event == null) continue;
+            Date start = parseIsoDate(safeString(event, "start_date"));
+            Date end = parseIsoDate(firstNonBlank(safeString(event, "end_date"), safeString(event, "start_date")));
+            if (start == null || end == null) continue;
+            if (!day.before(start) && !day.after(end)) out.put(event);
+        }
+        return out;
+    }
+
+    private void showCalendarDayDialog(String isoDate, JSONArray events) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(16), dp(10), dp(16), dp(4));
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event == null) continue;
+            box.addView(calendarEventBlock(event));
+        }
+        new AlertDialog.Builder(this)
+                .setTitle(isoDate + " 일정")
+                .setView(box)
+                .setNegativeButton("닫기", null)
+                .show();
+    }
+
+    private LinearLayout calendarEventBlock(JSONObject event) {
+        LinearLayout block = new LinearLayout(this);
+        block.setOrientation(LinearLayout.VERTICAL);
+        block.setPadding(0, 0, 0, dp(12));
+        TextView label = text("● " + firstNonBlank(safeString(event, "label"), safeString(event, "type")),
+                13, calendarColor(safeString(event, "color")), true);
+        TextView body = text(firstNonBlank(safeString(event, "display_text"), safeString(event, "source_text")),
+                13, COLOR_INK, false);
+        body.setLineSpacing(0, 1.35f);
+        block.addView(label);
+        block.addView(body);
+
+        JSONArray actions = event.optJSONArray("actions");
+        String url = firstUrlAction(actions);
+        if (!url.isEmpty()) {
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            Button open = outlineButton("바로가기", v -> openExternalUrl(url));
+            Button qr = outlineButton("QR 보기", v -> showQrDialog(url));
+            row.addView(open, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            row.addView(qr, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            block.addView(row);
+        }
+        return block;
+    }
+
+    private String firstUrlAction(JSONArray actions) {
+        if (actions == null) return "";
+        for (int i = 0; i < actions.length(); i++) {
+            JSONObject action = actions.optJSONObject(i);
+            if (action == null) continue;
+            String type = safeString(action, "type");
+            if ("open_url".equals(type) || "show_qr".equals(type)) {
+                return normalizeUrl(safeString(action, "value"));
+            }
+        }
+        return "";
+    }
+
+    private boolean isPeriodEvent(JSONObject event) {
+        String start = safeString(event, "start_date");
+        String end = safeString(event, "end_date");
+        return !end.isEmpty() && !end.equals(start);
+    }
+
+    private boolean hasRedCalendarEvent(JSONArray events) {
+        for (int i = 0; i < events.length(); i++) {
+            JSONObject event = events.optJSONObject(i);
+            if (event != null && "red".equals(safeString(event, "color"))) return true;
+        }
+        return false;
+    }
+
+    private Date parseIsoDate(String iso) {
+        if (iso == null || iso.trim().isEmpty()) return null;
+        try {
+            return new SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(iso.trim());
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private int calendarColor(String color) {
+        switch ((color == null ? "" : color).toLowerCase(Locale.ROOT)) {
+            case "blue": return Color.parseColor("#2F80ED");
+            case "green": return Color.parseColor("#2F9E6D");
+            case "orange": return Color.parseColor("#F2994A");
+            case "red": return Color.parseColor("#D64545");
+            case "purple": return Color.parseColor("#7B61D1");
+            default: return COLOR_INK3;
+        }
     }
 
     private void loadQrImage(String url, ImageView image) {

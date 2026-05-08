@@ -154,6 +154,30 @@ class SlotCard(BaseModel):
     checklist: list[ChecklistItem] = []  # 행동 항목 — 비어있으면 안드 UI 체크박스 영역 미표시
 
 
+class CalendarAction(BaseModel):
+    type: str                            # open_url (show_qr/set_reminder are follow-up actions)
+    label: str
+    value: str
+
+
+class CalendarEvent(BaseModel):
+    """App-internal mini calendar event derived from preserved slots."""
+
+    event_id: str = ""
+    notice_id: str = ""
+    title: str = ""
+    type: str                            # application_period | event_datetime | holiday | ...
+    label: str
+    start_date: str                      # YYYY-MM-DD
+    end_date: str | None = None          # YYYY-MM-DD, same as start_date when one-day
+    time: str | None = None              # HH:MM or HH:MM~HH:MM when present
+    display_text: str = ""
+    color: str = "gray"                  # blue | green | orange | red | purple | gray
+    source_text: str = ""
+    translated: str = ""
+    actions: list[CalendarAction] = []
+
+
 class HighlightBBox(BaseModel):
     x: float
     y: float
@@ -200,6 +224,9 @@ class NoticeAnalyzeResponse(BaseModel):
     # action cards so dates, event times, URLs, contacts, and targets survive
     # even when model A does not classify them as todos.
     info_cards: list[SlotCard] = []
+    # App-internal mini calendar events. Period events are rendered as bars;
+    # one-day events are rendered as dots/badges in Android.
+    calendar_events: list[CalendarEvent] = []
     # deprecated — 안드 마이그레이션 완료 후 다음 PR에서 폐기 예정
     summary: SummarySlots
     items: list[AnalyzeItem] = []
