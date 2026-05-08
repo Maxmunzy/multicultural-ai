@@ -545,9 +545,12 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
     # 1) URL/전화/날짜/시간/금액 placeholder 치환
     masked, placeholders = _mask_protected_entities(text, target_lang)
 
-    # 마스킹 후 SLOT 토큰만 남으면 번역할 한국어 없음 → NLLB 스킵, 바로 복원.
-    # "일시: 2026년 5월 6일(목) 8:50~14:40" → "__SLOT0__ __SLOT1__" → Tôi không biết 방지.
-    if not re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE).strip():
+    # 마스킹 후 한국어·알파벳이 없으면 NLLB에 보낼 내용 없음 → 바로 복원.
+    # 케이스 A: "일시: __SLOT0__ __SLOT1__" → SLOT 제거 후 빈 문자열
+    # 케이스 B: "23.(토) / __SLOT0__ ~ __SLOT1__" → SLOT 제거 후 "/ ~" (구두점만 남음)
+    # 양쪽 모두 NLLB는 "Tôi không biết"를 반환 — 스킵이 맞다.
+    _non_slot = re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE)
+    if not re.search(r"[가-힣a-zA-Z]", _non_slot):
         return _restore_protected_entities(masked, placeholders)
 
     # 2) Template-based (vi only): 문장 유형 분류 → glossary 직접 매핑 → 템플릿 조립
@@ -621,8 +624,9 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
         cleaned = _clean_for_translation(text)[:MAX_TRANSLATE_CHARS]
         masked, placeholders = _mask_protected_entities(cleaned, target_lang)
 
-        # SLOT 토큰만 남은 경우 NLLB 불필요 → 바로 복원 (단일 버전과 동일 처리)
-        if not re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE).strip():
+        # 한국어·알파벳 없으면 NLLB 불필요 → 바로 복원 (단일 버전과 동일 처리)
+        _non_slot = re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE)
+        if not re.search(r"[가-힣a-zA-Z]", _non_slot):
             results[i] = _restore_protected_entities(masked, placeholders)
             continue
 
