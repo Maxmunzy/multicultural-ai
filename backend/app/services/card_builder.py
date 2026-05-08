@@ -277,8 +277,9 @@ def _build_cards_from_regex_slots(
         if not value_ko:
             continue
 
-        # urls/phones는 NLLB 우회 — ko 그대로 (placeholder 잔재 방지)
-        value_translated = value_ko if slot_name in ("urls", "phones") else ""
+        # urls/phones/places는 NLLB 우회 — ko 그대로.
+        # places는 "해조류박람회 및 빙그레 시네마" 같은 고유명사라 NLLB 오번역 심각.
+        value_translated = value_ko if slot_name in ("urls", "phones", "places") else ""
 
         cards.append(SlotCard(
             card_id=_stable_id(f"{default_header}|{value_ko}"),

@@ -387,9 +387,9 @@ public class ChecklistActivity extends Activity {
                 JSONObject item = cl.optJSONObject(i);
                 if (item == null) continue;
                 CheckBox cb = new CheckBox(this);
-                String label = item.optString("translated", "");
                 String ko = item.optString("ko", "");
-                if (label.isEmpty()) label = ko;
+                String label = ko;
+                if (label.isEmpty()) label = item.optString("translated", "");
                 String note = item.optString("note", "");
                 if (!note.isEmpty() && !"null".equals(note)) {
                     label += "  (" + note + ")";
