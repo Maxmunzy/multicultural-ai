@@ -103,6 +103,43 @@ def _dedup_info_cards(cards: Iterable[SlotCard]) -> list[SlotCard]:
     return out
 
 
+def attach_checklist_to_action_cards(
+    cards: list[SlotCard],
+    document: SentenceListDocument,
+    target_lang: str,
+) -> None:
+    """윤정 todo 기반 action cards에 sentence_list items 매칭으로 checklist 부착.
+
+    info_cards는 sentence_list로 직접 빌드되어 items가 자동 매핑되지만, cards는
+    윤정 todo → header/value 분해라 별도 매칭 필요. card.value_ko가 sentence.text의
+    substring(공백 제거 후)이면 매칭으로 보고 그 sentence.items를 checklist로 부착.
+
+    in-place 수정 — 이미 checklist 있는 카드는 skip.
+    """
+    action_sentences = [s for s in document.sentence_list if s.items]
+    if not action_sentences:
+        return
+    for card in cards:
+        if card.checklist:
+            continue
+        value_norm = re.sub(r"\s+", "", card.value_ko or "")
+        if len(value_norm) < 5:
+            continue
+        # 가장 긴 매칭 sentence 채택 — substring 방향 양쪽 시도
+        best = None
+        best_len = 0
+        for s in action_sentences:
+            sent_norm = re.sub(r"\s+", "", s.text)
+            if not sent_norm:
+                continue
+            if value_norm in sent_norm or sent_norm in value_norm:
+                if len(sent_norm) > best_len:
+                    best = s
+                    best_len = len(sent_norm)
+        if best is not None:
+            card.checklist = _build_checklist(best, target_lang)
+
+
 def _build_checklist(item, target_lang: str) -> list[ChecklistItem]:
     """sentence.items → SlotCard.checklist 매핑.
 

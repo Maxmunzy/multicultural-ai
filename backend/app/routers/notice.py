@@ -23,7 +23,10 @@ from app.services.slot_extractor import (
     split_supply_tokens, strip_markers,
 )
 from app.services.card_builder import build_cards
-from app.services.info_card_builder import build_info_cards_from_sentence_document
+from app.services.info_card_builder import (
+    attach_checklist_to_action_cards,
+    build_info_cards_from_sentence_document,
+)
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.layout_normalizer import (
     normalize_text as llm_normalize_text,
@@ -829,6 +832,10 @@ async def analyze_notice(
     # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
     sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
+
+    # [6.55] 윤정 todo 기반 action cards에도 sentence_list items 매칭으로 checklist 부착.
+    # info_cards는 sentence_list로 직접 빌드돼 items 자동 매핑됐지만 cards는 별도 매칭 필요.
+    attach_checklist_to_action_cards(cards, sentence_doc, target_lang)
 
     # [6.6] 체크리스트 영속 — 메모리 dict에서 (parent, notice, kind, card_idx, item_idx)
     # 키로 checked 채움. 없으면 False 기본값(체크리스트 빌드 시 이미 False).
