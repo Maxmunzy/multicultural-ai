@@ -1,3 +1,4 @@
+import asyncio
 import json
 import logging
 import mimetypes
@@ -23,6 +24,7 @@ from app.services.slot_extractor import (
 )
 from app.services.card_builder import build_cards
 from app.services.info_card_builder import build_info_cards_from_sentence_document
+from app.services.calendar_event_builder import build_calendar_events_from_sentence_document
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
 from app.services.sentence_skeleton import raw_text_to_sentence_list
@@ -35,6 +37,7 @@ router = APIRouter()
 
 _notices: dict[str, Notice] = {}
 MAX_CARDS = 8
+TTS_MAX_CHARS = 1200
 
 NOTICES_DIR = Path("/app/static/notices")
 
@@ -603,6 +606,11 @@ async def analyze_notice(
     cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
     sentence_doc = raw_text_to_sentence_list(analysis_text)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
+    calendar_events = build_calendar_events_from_sentence_document(
+        sentence_doc,
+        notice_id=notice_id,
+        title=title_ko,
+    )
 
     # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.
     # 기존 action cards뿐 아니라 slot preservation info_cards도 원본 대조 대상이다.
@@ -617,16 +625,11 @@ async def analyze_notice(
     # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
     tts_text_translated = _build_tts_text_from_cards(cards, "translated")
     tts_text_easy_ko = _build_tts_text_from_cards(cards, "easy_ko")
-    try:
-        tts_url = await generate_tts_file(tts_text_translated, target_lang=target_lang) if tts_text_translated else ""
-    except Exception as error:
-        logger.warning("[analyze] TTS (translated) failed: %s", error)
-        tts_url = ""
-    try:
-        tts_url_easy_ko = await generate_tts_file(tts_text_easy_ko, target_lang="ko_easy") if tts_text_easy_ko else ""
-    except Exception as error:
-        logger.warning("[analyze] TTS (easy_ko) failed: %s", error)
-        tts_url_easy_ko = ""
+    tts_url, tts_url_easy_ko = await _generate_tts_pair(
+        tts_text_translated,
+        tts_text_easy_ko,
+        target_lang,
+    )
 
     response = {
         "notice_id": notice_id,
@@ -638,6 +641,7 @@ async def analyze_notice(
         "highlights": highlights,
         "cards": [c.model_dump() for c in cards],
         "info_cards": [c.model_dump() for c in info_cards],
+        "calendar_events": [event.model_dump() for event in calendar_events],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
         "tts_text": tts_text_translated,
@@ -651,7 +655,37 @@ async def analyze_notice(
     return ApiResponse.success(data=response)
 
 
-def _build_tts_text_from_cards(cards: list[SlotCard], mode: str) -> str:
+async def _generate_tts_pair(
+    tts_text_translated: str,
+    tts_text_easy_ko: str,
+    target_lang: str,
+) -> tuple[str, str]:
+    """Generate translated and easy-Korean TTS concurrently."""
+    jobs = []
+    if tts_text_translated:
+        jobs.append(("translated", "tts_url", generate_tts_file(tts_text_translated, target_lang=target_lang)))
+    if tts_text_easy_ko:
+        jobs.append(("easy_ko", "tts_url_easy_ko", generate_tts_file(tts_text_easy_ko, target_lang="ko_easy")))
+    if not jobs:
+        return "", ""
+
+    results = await asyncio.gather(*(job for _, _, job in jobs), return_exceptions=True)
+    tts_url = ""
+    tts_url_easy_ko = ""
+    for (label, field, _), result in zip(jobs, results):
+        if isinstance(result, Exception):
+            logger.warning("[analyze] TTS (%s) failed: %s", label, result)
+            value = ""
+        else:
+            value = result or ""
+        if field == "tts_url":
+            tts_url = value
+        else:
+            tts_url_easy_ko = value
+    return tts_url, tts_url_easy_ko
+
+
+def _build_tts_text_from_cards(cards: list[SlotCard], mode: str, max_chars: int = TTS_MAX_CHARS) -> str:
     """슬롯 카드 → TTS 텍스트 (헤더 + 값 한 줄씩 합본).
 
     mode="translated": 대상 언어 TTS용 — value_translated + header_translated
@@ -672,7 +706,52 @@ def _build_tts_text_from_cards(cards: list[SlotCard], mode: str) -> str:
         value = strip_markers(value)
         line = f"{header}. {value}" if header else value
         lines.append(line)
-    return "\n".join(lines)
+    return _limit_tts_text("\n".join(lines), max_chars=max_chars, mode=mode)
+
+
+def _limit_tts_text(text: str, *, max_chars: int, mode: str) -> str:
+    """Limit TTS text without cutting in the middle of a useful phrase."""
+    text = (text or "").strip()
+    if not text or len(text) <= max_chars:
+        return text
+
+    original_length = len(text)
+    kept: list[str] = []
+    current = 0
+    for line in [line.strip() for line in text.splitlines() if line.strip()]:
+        extra = len(line) + (1 if kept else 0)
+        if current + extra <= max_chars:
+            kept.append(line)
+            current += extra
+            continue
+        remaining = max_chars - current - (1 if kept else 0)
+        if remaining > 80:
+            piece = _soft_cut(line, remaining)
+            if piece:
+                kept.append(piece)
+        break
+
+    truncated = "\n".join(kept).strip()
+    if not truncated:
+        truncated = _soft_cut(text, max_chars)
+    logger.info(
+        "[analyze] TTS text truncated mode=%s original_length=%s truncated_length=%s max_chars=%s",
+        mode,
+        original_length,
+        len(truncated),
+        max_chars,
+    )
+    return truncated
+
+
+def _soft_cut(text: str, max_chars: int) -> str:
+    """Cut near a sentence/word boundary when possible."""
+    candidate = text[:max_chars].rstrip()
+    for sep in ("\n", ".", "。", "!", "?", "다.", "요.", " ", ","):
+        idx = candidate.rfind(sep)
+        if idx >= max(40, int(max_chars * 0.65)):
+            return candidate[:idx + len(sep)].strip()
+    return candidate.strip()
 
 
 def _build_tts_text(
