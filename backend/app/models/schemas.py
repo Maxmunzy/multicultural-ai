@@ -59,6 +59,7 @@ class Notice(BaseModel):
     mime_type: str | None = None               # 예: "application/pdf"
     # OCR slot 보정 이력 — 업로드 시 적용, analyze 응답에 포함
     ocr_corrections: list[OcrCorrectionEntry] = []
+    layout_json: Any | None = None
 
 
 class NoticeSendRequest(BaseModel):
@@ -173,6 +174,10 @@ class NoticeAnalyzeResponse(BaseModel):
     highlights: list[NoticeHighlight] = []
     # 신규 — 안드 슬롯 카드 UI 대상 (단계적 마이그레이션, 본 필드가 메인)
     cards: list[SlotCard] = []
+    # Must-check information from slot preservation.  This stays separate from
+    # action cards so dates, event times, URLs, contacts, and targets survive
+    # even when model A does not classify them as todos.
+    info_cards: list[SlotCard] = []
     # deprecated — 안드 마이그레이션 완료 후 다음 PR에서 폐기 예정
     summary: SummarySlots
     items: list[AnalyzeItem] = []
