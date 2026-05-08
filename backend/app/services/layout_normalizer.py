@@ -85,24 +85,69 @@ _SYSTEM_INSTRUCTION = """한국 학교 가정통신문을 자체 PDF 파서가 �
 11. **단독 기호 줄(■■■, 가로줄)만 제거** — 텍스트와 같이 있는 마크업은 보존
 12. **원문에 없는 정보 추측·추가 금지**
 
-**출력**: {"document_title": "...", "cleaned_text": "..."} (paragraph 사이 \\n\\n, 같은 paragraph 내부 \\n)
+**출력 JSON**: {"document_title": "...", "cleaned_text": "...", "sentence_list": [...]}
 
-**보편 형식 예시 — 학부모 공개수업 + 상담주간 (가상 합성)**:
+**cleaned_text** — paragraph 사이 \\n\\n, 같은 paragraph 내부 \\n. 윤정 KoELECTRA가 paragraph 흐름에서 todo 추출.
+
+**sentence_list** — info_cards 빌드용 sentence 단위 분해. 각 항목:
+- sentence_id: "s001", "s002", ... (3자리 숫자, 1부터)
+- text: 한 sentence 또는 한 줄(헤더+값). cleaned_text 안의 줄을 단위로 쪼개되 원문 정보 보존
+- role_hint: 다음 13가지 중 정확히 하나
+  * "target" — 대상 (전교생, 1-3학년, 신청자 등)
+  * "content" — 행사 내용 / 운영 내용 본문
+  * "application_period" — 신청기간 (특정 날짜 범위 + "신청")
+  * "event_datetime" — 운영일시 / 행사 일시 (날짜+시간)
+  * "application_url" — URL 포함 줄
+  * "contact" — 문의/연락처/전화번호
+  * "result_announcement" — 결과 발표 안내
+  * "location" — 장소/위치
+  * "fee" — 비용/회비/금액
+  * "supplies" — 준비물
+  * "submit" — 제출/회신/동의서
+  * "program_title" — 프로그램 명 / 헤더
+  * "etc" — 그 외 (인사말, 결어, 일반 안내)
+- source_order: 1부터 시작하는 출현 순서 정수
+- is_action_candidate: 학부모 직접 행동(신청/제출/준비/납부/참석/확인)해야 하면 true
+
+**규칙**:
+- sentence_list[].text 합치면 cleaned_text와 의미상 동일해야 함 (정보 누락 X)
+- role_hint는 위 13개 외 값 X. 애매하면 "etc"
+- 인사말/서명/결어도 sentence_list에 포함하되 role_hint="etc"
+
+**예시 — 학부모 공개수업 + 상담주간 (가상 합성)**:
 {
   "document_title": "2026 학부모 공개수업 및 상담주간 안내",
-  "cleaned_text": "학부모님, 안녕하십니까?\\n학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.\\n\\n■ 공개수업\\n일시: 2026년 5월 9일(금) 10:00~11:40\\n장소: 각 학년 교실\\n대상: 1-6학년 전교생 학부모\\n\\n■ 상담주간\\n기간: 2026년 5월 12일(월) ~ 5월 16일(금)\\n신청방법: 학교 홈페이지에서 온라인 신청 (선착순)\\n준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)\\n비용: 무료\\n\\n■ 참가 동의서\\n참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.\\n\\n※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.\\n\\n문의: 02-1234-5678\\n2026. 5. 1. 서울갈산초등학교장"
+  "cleaned_text": "학부모님, 안녕하십니까?\\n학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.\\n\\n■ 공개수업\\n일시: 2026년 5월 9일(금) 10:00~11:40\\n장소: 각 학년 교실\\n대상: 1-6학년 전교생 학부모\\n\\n■ 상담주간\\n기간: 2026년 5월 12일(월) ~ 5월 16일(금)\\n신청방법: 학교 홈페이지에서 온라인 신청 (선착순)\\n준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)\\n비용: 무료\\n\\n■ 참가 동의서\\n참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.\\n\\n※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.\\n\\n문의: 02-1234-5678\\n2026. 5. 1. 서울갈산초등학교장",
+  "sentence_list": [
+    {"sentence_id": "s001", "text": "학부모님, 안녕하십니까?", "role_hint": "etc", "source_order": 1, "is_action_candidate": false},
+    {"sentence_id": "s002", "text": "학교 교육에 대한 학부모님의 이해를 돕고자 다음과 같이 학부모 공개수업 및 상담주간을 운영합니다.", "role_hint": "content", "source_order": 2, "is_action_candidate": false},
+    {"sentence_id": "s003", "text": "■ 공개수업", "role_hint": "program_title", "source_order": 3, "is_action_candidate": false},
+    {"sentence_id": "s004", "text": "일시: 2026년 5월 9일(금) 10:00~11:40", "role_hint": "event_datetime", "source_order": 4, "is_action_candidate": false},
+    {"sentence_id": "s005", "text": "장소: 각 학년 교실", "role_hint": "location", "source_order": 5, "is_action_candidate": false},
+    {"sentence_id": "s006", "text": "대상: 1-6학년 전교생 학부모", "role_hint": "target", "source_order": 6, "is_action_candidate": false},
+    {"sentence_id": "s007", "text": "■ 상담주간", "role_hint": "program_title", "source_order": 7, "is_action_candidate": false},
+    {"sentence_id": "s008", "text": "기간: 2026년 5월 12일(월) ~ 5월 16일(금)", "role_hint": "application_period", "source_order": 8, "is_action_candidate": false},
+    {"sentence_id": "s009", "text": "신청방법: 학교 홈페이지에서 온라인 신청 (선착순)", "role_hint": "application_period", "source_order": 9, "is_action_candidate": true},
+    {"sentence_id": "s010", "text": "준비물: 간편한 복장, 물, 기타 개인 용품 (1-3학년 학부모)", "role_hint": "supplies", "source_order": 10, "is_action_candidate": true},
+    {"sentence_id": "s011", "text": "비용: 무료", "role_hint": "fee", "source_order": 11, "is_action_candidate": false},
+    {"sentence_id": "s012", "text": "■ 참가 동의서", "role_hint": "program_title", "source_order": 12, "is_action_candidate": false},
+    {"sentence_id": "s013", "text": "참가 여부를 O,X로 표시하여 5월 7일(수)까지 담임선생님께 제출 바랍니다.", "role_hint": "submit", "source_order": 13, "is_action_candidate": true},
+    {"sentence_id": "s014", "text": "※ 우천 시 일정 변경 안내는 학교 홈페이지 공지사항을 참고해 주십시오.", "role_hint": "etc", "source_order": 14, "is_action_candidate": false},
+    {"sentence_id": "s015", "text": "문의: 02-1234-5678", "role_hint": "contact", "source_order": 15, "is_action_candidate": false},
+    {"sentence_id": "s016", "text": "2026. 5. 1. 서울갈산초등학교장", "role_hint": "etc", "source_order": 16, "is_action_candidate": false}
+  ]
 }
 
-원본의 "준비: 간편한 복장, 물, 기타 개인 준비물 등" 같은 케이스 → 헤더 통일("준비물:") + 값의 "준비물" → "용품"으로 변환해서 출력.
+원본의 "준비: 간편한 복장, 물, 기타 개인 준비물 등" 같은 케이스 → 헤더 통일("준비물:") + 값의 "준비물" → "용품"으로 변환해서 cleaned_text와 sentence_list에 동일하게 출력.
 """
 
 
 # Vision mode user prompt — 짧게. 모든 규칙은 systemInstruction에 있음.
-_USER_PROMPT_VISION = "첨부된 한국 학교 가정통신문(PDF/이미지)을 systemInstruction의 형식·규칙·예시대로 분석해서 JSON 두 필드(document_title, cleaned_text)로 출력하세요."
+_USER_PROMPT_VISION = "첨부된 한국 학교 가정통신문(PDF/이미지)을 systemInstruction의 형식·규칙·예시대로 분석해서 JSON 세 필드(document_title, cleaned_text, sentence_list)로 출력하세요."
 
 
 # Text mode user prompt — 짧게. 본문은 [입력] 안에.
-_USER_PROMPT_TEXT = """다음 가정통신문 텍스트를 systemInstruction의 형식·규칙·예시대로 정제해서 JSON 두 필드(document_title, cleaned_text)로 출력하세요.
+_USER_PROMPT_TEXT = """다음 가정통신문 텍스트를 systemInstruction의 형식·규칙·예시대로 정제해서 JSON 세 필드(document_title, cleaned_text, sentence_list)로 출력하세요.
 
 [입력]
 {text}"""
@@ -122,18 +167,35 @@ VISION_SUPPORTED_MIMES = frozenset({
 
 
 # Gemini가 JSON 강제 출력하도록 schema 정의 (responseSchema).
+# sentence_list는 옵션(추가 정보) — 없어도 cleaned_text 기반 fallback이 동작.
+_SENTENCE_LIST_ITEM_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "sentence_id": {"type": "string"},
+        "text": {"type": "string"},
+        "role_hint": {"type": "string"},
+        "source_order": {"type": "integer"},
+        "is_action_candidate": {"type": "boolean"},
+    },
+    "required": ["sentence_id", "text", "role_hint", "source_order"],
+}
+
 _RESPONSE_SCHEMA = {
     "type": "object",
     "properties": {
         "document_title": {"type": "string"},
         "cleaned_text": {"type": "string"},
+        "sentence_list": {
+            "type": "array",
+            "items": _SENTENCE_LIST_ITEM_SCHEMA,
+        },
     },
     "required": ["document_title", "cleaned_text"],
 }
 
 
 def _empty_structured() -> dict:
-    return {"document_title": "", "cleaned_text": ""}
+    return {"document_title": "", "cleaned_text": "", "sentence_list": []}
 
 
 def extract_sentences(
@@ -322,18 +384,25 @@ def extract_sentences(
         return _empty_structured(), "skip:empty_text", elapsed
 
     document_title = parsed.get("document_title", "") or ""
+    sentence_list_raw = parsed.get("sentence_list") or []
+    if not isinstance(sentence_list_raw, list):
+        sentence_list_raw = []
 
     # DEBUG (임시): Gemini가 만든 cleaned_text head/tail docker logs에 dump.
     # paragraph 정제 결과 확인용. 튜닝 끝나면 제거.
     head = cleaned_text[:300].replace("\n", " / ")
     tail = cleaned_text[-200:].replace("\n", " / ") if len(cleaned_text) > 300 else ""
     logger.warning(
-        "extract_sentences DEBUG cleaned_text len=%d title=%r head=%r tail=%r",
-        len(cleaned_text), document_title[:60], head, tail,
+        "extract_sentences DEBUG cleaned_text len=%d sentences=%d title=%r head=%r tail=%r",
+        len(cleaned_text), len(sentence_list_raw), document_title[:60], head, tail,
     )
 
     return (
-        {"document_title": document_title, "cleaned_text": cleaned_text},
+        {
+            "document_title": document_title,
+            "cleaned_text": cleaned_text,
+            "sentence_list": sentence_list_raw,
+        },
         "ok",
         elapsed,
     )
@@ -378,7 +447,8 @@ def _call_claude(
 
     payload = json.dumps({
         "model": CLAUDE_MODEL,
-        "max_tokens": 8192,
+        # sentence_list까지 출력하므로 cleaned_text 단독 대비 ~2배 토큰 필요. 16384 cap.
+        "max_tokens": 16384,
         "system": _SYSTEM_INSTRUCTION + "\n\n출력은 JSON만 (다른 설명·머리말·코드펜스 X).",
         "messages": [{"role": "user", "content": user_content}],
         "temperature": 0.0,
@@ -493,16 +563,23 @@ def _call_claude(
         return _empty_structured(), "skip:empty_text", elapsed
 
     document_title = parsed.get("document_title", "") or ""
+    sentence_list_raw = parsed.get("sentence_list") or []
+    if not isinstance(sentence_list_raw, list):
+        sentence_list_raw = []
 
     head = cleaned_text[:300].replace("\n", " / ")
     tail = cleaned_text[-200:].replace("\n", " / ") if len(cleaned_text) > 300 else ""
     logger.warning(
-        "extract_sentences[claude] DEBUG cleaned_text len=%d title=%r head=%r tail=%r",
-        len(cleaned_text), document_title[:60], head, tail,
+        "extract_sentences[claude] DEBUG cleaned_text len=%d sentences=%d title=%r head=%r tail=%r",
+        len(cleaned_text), len(sentence_list_raw), document_title[:60], head, tail,
     )
 
     return (
-        {"document_title": document_title, "cleaned_text": cleaned_text},
+        {
+            "document_title": document_title,
+            "cleaned_text": cleaned_text,
+            "sentence_list": sentence_list_raw,
+        },
         "ok",
         elapsed,
     )

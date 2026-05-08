@@ -31,7 +31,11 @@ from app.services.layout_normalizer import (
     VISION_SUPPORTED_MIMES,
 )
 from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
-from app.services.sentence_skeleton import raw_text_to_sentence_list
+from app.services.sentence_skeleton import (
+    SentenceListDocument,
+    parse_sentence_list_payload,
+    raw_text_to_sentence_list,
+)
 from app.models.schemas import OcrCorrectionEntry
 from app.services.mock import MOCK_TODOS
 
@@ -98,6 +102,31 @@ def _parse_layout_json_field(layout_json: str | None):
         return json.loads(layout_json)
     except Exception:
         logger.warning("[upload] invalid layout_json ignored")
+        return None
+
+
+def _sentence_doc_from_structured(structured: dict | None) -> SentenceListDocument | None:
+    """LLM 응답의 sentence_list를 SentenceListDocument로 변환. 실패 시 None.
+
+    None 반환 시 호출부에서 raw_text_to_sentence_list(룰 기반) fallback.
+    잘못된 role_hint(13가지 외)나 누락 필드는 pydantic validation에서 걸러짐.
+    """
+    if not structured:
+        return None
+    sentence_list_raw = structured.get("sentence_list") or []
+    if not sentence_list_raw:
+        return None
+    payload = {
+        "document_title": structured.get("document_title", "") or "",
+        "sentence_list": sentence_list_raw,
+    }
+    try:
+        return parse_sentence_list_payload(payload)
+    except Exception as error:
+        logger.warning(
+            "[analyze] LLM sentence_list validation failed (%s) — fallback to rule-based",
+            error,
+        )
         return None
 
 
@@ -598,8 +627,9 @@ async def analyze_notice(
     llm_elapsed = 0.0
     # LLM이 명시 추출한 document_title (Vision 성공 시) — extract_title 휴리스틱보다 우선.
     gemini_title_override = ""
+    # LLM이 sentence_list 포함해서 출력하면 info_cards 빌드에 그대로 사용 (룰 fallback 회피).
+    structured: dict | None = None
     if req.use_llm_normalizer:
-        structured = None
         # Vision path 시도 — disk에 저장된 원본 파일이 있고 mime이 Vision 지원이면
         if (
             notice.original_file_url
@@ -718,7 +748,9 @@ async def analyze_notice(
 
     # [6.5] info_cards: slot preservation (세종님 PR #139) — 윤정/경이가 todo 분류 안 한
     # 정보(날짜/시간/URL/연락처/대상/장소/비용 등) 별도 보존. cards와 분리해서 응답.
-    sentence_doc = raw_text_to_sentence_list(analysis_text)
+    # LLM(Claude/Gemini)이 sentence_list 채워서 주면 그대로 SentenceListDocument로 변환,
+    # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
+    sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
     _t_marks["card_build_nllb"] = time.time() - _t_start - sum(_t_marks.values())
 
