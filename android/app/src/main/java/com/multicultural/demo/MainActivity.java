@@ -164,6 +164,8 @@ public class MainActivity extends Activity {
 
     // STT / 음성 질문
     private JSONArray currentCards = null;
+    private JSONArray currentInfoCards = null;
+    private String currentAnalyzedNoticeId = "";
     private JSONArray currentAnalysisItems = null;
     private String currentNoticeTitle = "";
     private String currentNoticeTitleTranslated = "";
@@ -1392,6 +1394,34 @@ public class MainActivity extends Activity {
         sttSection.setTag("sttSection");
         content.addView(sttSection);
 
+        // 체크리스트 진입 — 분석 결과 화면에서 진입 (Step 2: C+D 동시)
+        // (a) 이 통신문만: BottomSheet 모달로 즉시 체크 (NoticeChecklistDialog)
+        // (b) 통합 화면: 이번 주 할 일 (ChecklistActivity, 모든 통신문)
+        Button thisChecklistBtn = bigPrimaryButton("📋  이 통신문 체크리스트", v -> {
+            if (currentCards == null && currentInfoCards == null) {
+                Toast.makeText(this, "분석이 끝난 후 사용할 수 있습니다", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            String nid = currentAnalyzedNoticeId.isEmpty()
+                    ? (selectedNotice != null ? selectedNotice.noticeId : "")
+                    : currentAnalyzedNoticeId;
+            NoticeChecklistDialog.show(this, BASE_URL,
+                    currentUserId.isEmpty() ? DEFAULT_PARENT_ID : currentUserId,
+                    nid, currentCards, currentInfoCards);
+        });
+        thisChecklistBtn.setVisibility(View.GONE);
+        thisChecklistBtn.setTag("thisChecklistBtn");
+        content.addView(thisChecklistBtn);
+
+        Button weeklyChecklistBtn = outlineButton("📅  이번 주 할 일 (전체)", v -> {
+            Intent i = new Intent(this, ChecklistActivity.class);
+            i.putExtra(ChecklistActivity.EXTRA_PARENT_ID,
+                    currentUserId.isEmpty() ? DEFAULT_PARENT_ID : currentUserId);
+            i.putExtra(ChecklistActivity.EXTRA_TARGET_LANG, selectedLanguage);
+            startActivity(i);
+        });
+        content.addView(weeklyChecklistBtn);
+
         // 닫기
         content.addView(outlineButton("← " + uiText("back_to_notice"), v -> showNoticeDetail(notice)));
 
@@ -1470,6 +1500,8 @@ public class MainActivity extends Activity {
 
         JSONArray cards = data.optJSONArray("cards");
         currentCards = cards;
+        currentInfoCards = data.optJSONArray("info_cards");
+        currentAnalyzedNoticeId = data.optString("notice_id", "");
         currentAnalysisItems = sortItemsByImportance(data.optJSONArray("items"));
         if (selectedNotice != null && !selectedNotice.text.isEmpty()) {
             String[] lines = selectedNotice.text.split("\n");
@@ -1925,7 +1957,8 @@ public class MainActivity extends Activity {
             if (tag == null) continue;
             String s = tag.toString();
             if (s.equals("easyKoCard") || s.equals("transCard")
-                    || s.equals("checklistCard") || s.equals("glossaryWrap")) {
+                    || s.equals("checklistCard") || s.equals("glossaryWrap")
+                    || s.equals("thisChecklistBtn")) {
                 v.setVisibility(show ? View.VISIBLE : View.GONE);
             }
         }
