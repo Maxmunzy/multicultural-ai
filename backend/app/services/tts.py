@@ -1,4 +1,5 @@
-import uuid
+import hashlib
+import re
 from pathlib import Path
 
 import edge_tts
@@ -28,11 +29,20 @@ async def generate_tts_file(text: str, target_lang: str = "vi") -> str:
     if not voice:
         print(f"[tts] no voice for lang={target_lang}")
         return ""
-    filename = f"{uuid.uuid4()}.mp3"
+    cache_key = hashlib.sha256(f"{target_lang}\n{voice}\n{text.strip()}".encode("utf-8")).hexdigest()[:24]
+    safe_lang = re.sub(r"[^a-zA-Z0-9_-]", "_", target_lang)
+    filename = f"{safe_lang}-{cache_key}.mp3"
     out_path = STATIC_DIR / filename
+    if out_path.exists() and out_path.stat().st_size > 0:
+        return f"/static/tts/{filename}"
     try:
         await edge_tts.Communicate(text=text, voice=voice).save(str(out_path))
     except Exception as error:
         print(f"[tts] generation failed for lang={target_lang}: {error}")
+        try:
+            if out_path.exists() and out_path.stat().st_size == 0:
+                out_path.unlink()
+        except Exception:
+            pass
         return ""
     return f"/static/tts/{filename}"
