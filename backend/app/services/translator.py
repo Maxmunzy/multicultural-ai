@@ -545,6 +545,11 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
     # 1) URL/전화/날짜/시간/금액 placeholder 치환
     masked, placeholders = _mask_protected_entities(text, target_lang)
 
+    # 마스킹 후 SLOT 토큰만 남으면 번역할 한국어 없음 → NLLB 스킵, 바로 복원.
+    # "일시: 2026년 5월 6일(목) 8:50~14:40" → "__SLOT0__ __SLOT1__" → Tôi không biết 방지.
+    if not re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE).strip():
+        return _restore_protected_entities(masked, placeholders)
+
     # 2) Template-based (vi only): 문장 유형 분류 → glossary 직접 매핑 → 템플릿 조립
     if target_lang == "vi":
         stype = _classify_sentence(text)
@@ -615,6 +620,11 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
             continue
         cleaned = _clean_for_translation(text)[:MAX_TRANSLATE_CHARS]
         masked, placeholders = _mask_protected_entities(cleaned, target_lang)
+
+        # SLOT 토큰만 남은 경우 NLLB 불필요 → 바로 복원 (단일 버전과 동일 처리)
+        if not re.sub(r"(?:_{0,2})\s*SLOT\s*\d+\s*_*", "", masked, flags=re.IGNORECASE).strip():
+            results[i] = _restore_protected_entities(masked, placeholders)
+            continue
 
         # vi 템플릿 분기 — 매칭되면 NLLB 우회
         if target_lang == "vi":
