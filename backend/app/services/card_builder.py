@@ -497,6 +497,15 @@ def build_cards(
     cards.sort(key=lambda c: -c.importance)
     cards = _limit_fallback_cards(cards)
 
+    # 장소 헤더 카드 — 고유명사라 NLLB 오번역 심각 (해조류박람회 → 한 남자의 작품).
+    # ko 그대로 미리 채워서 batch 번역에서 제외.
+    _LOCATION_HEADERS = frozenset({"장소", "위치", "행사장", "개최장소", "집합장소"})
+    for i, c in enumerate(cards):
+        if not c.value_translated:
+            h_norm = re.sub(r"\s+", "", c.header_ko or "")
+            if h_norm in _LOCATION_HEADERS:
+                cards[i] = c.model_copy(update={"value_translated": c.value_ko})
+
     # 살아남은 카드 value 만 batch 번역 — value_translated 가 빈 카드만 대상
     # (urls/phones 는 _build_cards_from_regex_slots 에서 ko 로 이미 채워둠)
     pending_idx = [i for i, c in enumerate(cards) if not c.value_translated]
