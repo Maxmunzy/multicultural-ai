@@ -9,9 +9,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
-    AnalyzeItem, ApiResponse, Category, Notice, NoticeAnalyzeRequest,
-    NoticeSendRequest, SlotCard, SlotEntry, SummarySlots, UserProfile,
-    YunjeongTodo,
+    AnalyzeItem, ApiResponse, Category, ChecklistUpdateRequest, Notice,
+    NoticeAnalyzeRequest, NoticeSendRequest, SlotCard, SlotEntry,
+    SummarySlots, UserProfile, YunjeongTodo,
 )
 from app.services.extractor import extract_todos, extract_title
 from app.services.parser import ParserError, parse_bytes_to_text
@@ -45,6 +45,12 @@ router = APIRouter()
 
 _notices: dict[str, Notice] = {}
 MAX_CARDS = 16  # 학년별 표(공용+개인 12행) 같은 다중 카드 통신문 누락 방지
+
+# 체크리스트 영속 — 시연용 메모리 dict. 서버 재시작 시 초기화 OK.
+# key: (parent_id, notice_id, card_kind, card_idx, item_idx)
+#   card_kind: "card" (action cards) | "info" (info_cards)
+#   card_idx, item_idx: analyze 응답 안 위치 (안드가 응답 받은 그대로 인덱싱)
+_checklist_state: dict[tuple[str, str, str, int, int], bool] = {}
 
 NOTICES_DIR = Path("/app/static/notices")
 
@@ -128,6 +134,24 @@ def _sentence_doc_from_structured(structured: dict | None) -> SentenceListDocume
             error,
         )
         return None
+
+
+def _apply_checklist_state(
+    cards_list: list[SlotCard],
+    card_kind: str,
+    parent_id: str,
+    notice_id: str,
+) -> None:
+    """analyze 응답 빌드 시 _checklist_state에서 checked 채움. in-place 수정.
+
+    card_kind: "card" (action cards) | "info" (info_cards) — 같은 인덱스라도 분리 보관.
+    누락 항목은 False 기본값(빌드 시 이미 False) 그대로.
+    """
+    for card_idx, card in enumerate(cards_list):
+        for item_idx, item in enumerate(card.checklist):
+            key = (parent_id, notice_id, card_kind, card_idx, item_idx)
+            if key in _checklist_state:
+                item.checked = _checklist_state[key]
 
 
 @router.post("/send", response_model=ApiResponse)
@@ -584,6 +608,50 @@ def _build_summary(
     return summary
 
 
+@router.post("/checklist/{notice_id}", response_model=ApiResponse)
+async def update_checklist(
+    notice_id: str,
+    req: ChecklistUpdateRequest,
+    user: UserProfile = Depends(require_user),
+):
+    """체크박스 토글 — 시연용 메모리 dict에 (parent, notice, kind, card, item) 저장.
+
+    본인 통신문에만 토글 허용. 다음 analyze 호출 시 SlotCard.checklist[].checked로
+    채워져 안드 UI에 반영.
+    """
+    if notice_id not in _notices:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="가정통신문을 찾을 수 없습니다",
+        )
+    notice = _notices[notice_id]
+    if user.role != "parent" or user.user_id != notice.parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 가정통신문의 체크리스트만 수정할 수 있습니다",
+        )
+    if req.card_kind not in ("card", "info"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="card_kind는 'card' 또는 'info'여야 합니다",
+        )
+    if req.card_idx < 0 or req.item_idx < 0:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="card_idx, item_idx는 0 이상이어야 합니다",
+        )
+    key = (notice.parent_id, notice_id, req.card_kind, req.card_idx, req.item_idx)
+    _checklist_state[key] = req.checked
+    return ApiResponse.success(
+        data={
+            "card_kind": req.card_kind,
+            "card_idx": req.card_idx,
+            "item_idx": req.item_idx,
+            "checked": req.checked,
+        },
+    )
+
+
 @router.post("/analyze/{notice_id}", response_model=ApiResponse)
 async def analyze_notice(
     notice_id: str,
@@ -761,6 +829,11 @@ async def analyze_notice(
     # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
     sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
+
+    # [6.6] 체크리스트 영속 — 메모리 dict에서 (parent, notice, kind, card_idx, item_idx)
+    # 키로 checked 채움. 없으면 False 기본값(체크리스트 빌드 시 이미 False).
+    _apply_checklist_state(cards, "card", notice.parent_id, notice_id)
+    _apply_checklist_state(info_cards, "info", notice.parent_id, notice_id)
     _t_marks["card_build_nllb"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.

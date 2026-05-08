@@ -209,6 +209,18 @@ class NoticeAnalyzeResponse(BaseModel):
     has_review_required: bool = False
 
 
+class ChecklistUpdateRequest(BaseModel):
+    """체크박스 토글 — 안드가 카드별 항목 체크/해제 시 호출.
+
+    card_idx, item_idx는 analyze 응답 안 SlotCard 위치 (안드가 받은 그대로 인덱싱).
+    card_kind는 응답 필드명("cards" | "info_cards")의 단축형.
+    """
+    card_kind: str   # "card" | "info"
+    card_idx: int
+    item_idx: int
+    checked: bool
+
+
 class TTSRequest(BaseModel):
     user_id: str
     todo_items: list[TodoItem]
