@@ -1,7 +1,9 @@
+import asyncio
 import json
 import logging
 import mimetypes
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -9,9 +11,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
-    AnalyzeItem, ApiResponse, Category, Notice, NoticeAnalyzeRequest,
-    NoticeSendRequest, SlotCard, SlotEntry, SummarySlots, UserProfile,
-    YunjeongTodo,
+    AnalyzeItem, ApiResponse, Category, ChecklistUpdateRequest, Notice,
+    NoticeAnalyzeRequest, NoticeSendRequest, SlotCard, SlotEntry,
+    SummarySlots, UserProfile, YunjeongTodo,
 )
 from app.services.extractor import extract_todos, extract_title
 from app.services.parser import ParserError, parse_bytes_to_text
@@ -24,6 +26,7 @@ from app.services.slot_extractor import (
 )
 from app.services.card_builder import build_cards
 from app.services.info_card_builder import build_info_cards_from_sentence_document
+from app.services.calendar_event_builder import build_calendar_events_from_sentence_document
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.layout_normalizer import (
     normalize_text as llm_normalize_text,
@@ -45,6 +48,20 @@ router = APIRouter()
 
 _notices: dict[str, Notice] = {}
 MAX_CARDS = 16  # 학년별 표(공용+개인 12행) 같은 다중 카드 통신문 누락 방지
+TTS_MAX_CHARS = 2000
+
+# 체크리스트 영속 — 시연용 메모리 dict. 서버 재시작 시 초기화 OK.
+# key: (parent_id, notice_id, card_kind, card_id, item_id)
+#   card_kind: "card" (action cards) | "info" (info_cards)
+#   card_id, item_id: SlotCard.card_id / ChecklistItem.item_id stable hash
+#     (header_ko+value_ko / ko+note 해시) — 카드 순서 변경/재분석에 강건
+_checklist_state: dict[tuple[str, str, str, str, str], bool] = {}
+
+# 분석 결과 영속 — analyze 호출 시 cards/info_cards/title 캐시.
+# 통합 체크리스트(/inbox/{parent_id}/checklist) 엔드포인트가 parent의 모든 통신문
+# 분석 결과를 한 번에 모아 반환할 때 사용. 시연용 메모리 dict.
+# key: notice_id, value: {title, cards, info_cards}
+_analyses: dict[str, dict] = {}
 
 NOTICES_DIR = Path("/app/static/notices")
 
@@ -128,6 +145,57 @@ def _sentence_doc_from_structured(structured: dict | None) -> SentenceListDocume
             error,
         )
         return None
+
+
+def _dedup_info_against_cards(
+    info_cards: list[SlotCard],
+    cards: list[SlotCard],
+) -> list[SlotCard]:
+    """info_cards에서 cards와 동일/substring value_ko를 갖는 카드 제거.
+
+    cards(윤정 todo)와 info_cards(sentence_list)가 같은 헤더-값을 만들어 같은
+    준비물 카드가 양쪽에 부착되는 문제(HWP 학년별 12카드) 방지. cards를 source of
+    truth로 보고 info_cards 중복만 제거.
+
+    공백 정규화 후 비교. info_card.value_ko ⊂ card.value_ko (또는 ⊃)면 중복.
+    """
+    if not cards or not info_cards:
+        return info_cards
+    card_norms = [
+        re.sub(r"\s+", "", c.value_ko)
+        for c in cards
+        if c.value_ko and len(c.value_ko) >= 5
+    ]
+    out: list[SlotCard] = []
+    for ic in info_cards:
+        ic_norm = re.sub(r"\s+", "", ic.value_ko or "")
+        if len(ic_norm) < 5:
+            out.append(ic)
+            continue
+        is_dup = any(ic_norm in cn or cn in ic_norm for cn in card_norms)
+        if is_dup:
+            continue
+        out.append(ic)
+    return out
+
+
+def _apply_checklist_state(
+    cards_list: list[SlotCard],
+    card_kind: str,
+    parent_id: str,
+    notice_id: str,
+) -> None:
+    """analyze 응답 빌드 시 _checklist_state에서 checked 채움. in-place 수정.
+
+    card_kind: "card" (action cards) | "info" (info_cards) — 같은 ID라도 분리 보관.
+    키는 (parent_id, notice_id, card_kind, card_id, item_id) — stable hash 기반.
+    누락 항목은 False 기본값(빌드 시 이미 False) 그대로.
+    """
+    for card in cards_list:
+        for item in card.checklist:
+            key = (parent_id, notice_id, card_kind, card.card_id, item.item_id)
+            if key in _checklist_state:
+                item.checked = _checklist_state[key]
 
 
 @router.post("/send", response_model=ApiResponse)
@@ -336,6 +404,82 @@ async def get_inbox(
         )
     inbox = [n for n in _notices.values() if n.parent_id == parent_id]
     return ApiResponse.success(data=inbox)
+
+
+@router.get("/inbox/{parent_id}/checklist", response_model=ApiResponse)
+async def get_inbox_checklist(
+    parent_id: str,
+    user: UserProfile = Depends(require_user),
+):
+    """부모의 모든 통신문 체크리스트 통합 — chip별 그룹 + 마감일 정렬.
+
+    안드 "이번 주 할 일" 화면용. 학부모가 analyze를 한 번씩 호출한 통신문만
+    포함 (시연 전 일괄 분석 권장). cards/info_cards 양쪽에서 checklist 있는
+    카드만 모아서 chip별로 그룹화 + 마감일순 평면 리스트도 같이 반환.
+
+    응답 형식:
+        {
+          "by_chip": {chip: [entry, ...], ...},
+          "by_due_date": [entry, ...]
+        }
+        entry = {notice_id, notice_title, card_kind, card_idx, header_ko,
+                 value_ko, chip, due_date, checklist}
+    """
+    if user.role != "parent" or user.user_id != parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 수신함만 조회할 수 있습니다",
+        )
+
+    # 이 parent가 받은 통신문만 골라서 분석 캐시 매칭
+    parent_notice_ids = {
+        nid for nid, n in _notices.items() if n.parent_id == parent_id
+    }
+
+    by_chip: dict[str, list[dict]] = {}
+    flat: list[dict] = []
+    for nid, snapshot in _analyses.items():
+        if nid not in parent_notice_ids:
+            continue
+        title = snapshot.get("title", "")
+        for card_kind, lst in (("card", snapshot.get("cards", [])),
+                               ("info", snapshot.get("info_cards", []))):
+            for card in lst:
+                if not card.checklist:
+                    continue
+                # checked 상태는 _checklist_state에서 stable id 기반 조회 — analyze 이후 토글 반영
+                checklist_with_state = []
+                for item in card.checklist:
+                    key = (parent_id, nid, card_kind, card.card_id, item.item_id)
+                    checked = _checklist_state.get(key, item.checked)
+                    checklist_with_state.append({
+                        "item_id": item.item_id,
+                        "ko": item.ko,
+                        "note": item.note,
+                        "translated": item.translated,
+                        "checked": checked,
+                    })
+                entry = {
+                    "notice_id": nid,
+                    "notice_title": title,
+                    "card_kind": card_kind,
+                    "card_id": card.card_id,
+                    "header_ko": card.header_ko,
+                    "header_translated": card.header_translated,
+                    "value_ko": card.value_ko,
+                    "value_translated": card.value_translated,
+                    "chip": card.chip,
+                    "due_date": card.due_date,
+                    "checklist": checklist_with_state,
+                }
+                chip_key = card.chip or "기타"
+                by_chip.setdefault(chip_key, []).append(entry)
+                flat.append(entry)
+
+    # 마감일순 평면 리스트 — due_date 있는 것 먼저, 같은 날은 importance 순
+    flat.sort(key=lambda e: (e["due_date"] is None, e["due_date"] or ""))
+
+    return ApiResponse.success(data={"by_chip": by_chip, "by_due_date": flat})
 
 
 @router.delete("/inbox/{parent_id}", response_model=ApiResponse)
@@ -584,6 +728,51 @@ def _build_summary(
     return summary
 
 
+@router.post("/checklist/{notice_id}", response_model=ApiResponse)
+async def update_checklist(
+    notice_id: str,
+    req: ChecklistUpdateRequest,
+    user: UserProfile = Depends(require_user),
+):
+    """체크박스 토글 — 시연용 메모리 dict에 (parent, notice, kind, card_id, item_id) 저장.
+
+    본인 통신문에만 토글 허용. 다음 analyze 호출 시 SlotCard.checklist[].checked로
+    채워져 안드 UI에 반영. card_id/item_id는 stable hash라 잘못된 ID는 dict miss로
+    무시 (다음 analyze에서 매칭 실패 → 그냥 False).
+    """
+    if notice_id not in _notices:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="가정통신문을 찾을 수 없습니다",
+        )
+    notice = _notices[notice_id]
+    if user.role != "parent" or user.user_id != notice.parent_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 가정통신문의 체크리스트만 수정할 수 있습니다",
+        )
+    if req.card_kind not in ("card", "info"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="card_kind는 'card' 또는 'info'여야 합니다",
+        )
+    if not req.card_id or not req.item_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="card_id, item_id는 빈 문자열일 수 없습니다",
+        )
+    key = (notice.parent_id, notice_id, req.card_kind, req.card_id, req.item_id)
+    _checklist_state[key] = req.checked
+    return ApiResponse.success(
+        data={
+            "card_kind": req.card_kind,
+            "card_id": req.card_id,
+            "item_id": req.item_id,
+            "checked": req.checked,
+        },
+    )
+
+
 @router.post("/analyze/{notice_id}", response_model=ApiResponse)
 async def analyze_notice(
     notice_id: str,
@@ -761,6 +950,23 @@ async def analyze_notice(
     # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
     sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
+    calendar_events = build_calendar_events_from_sentence_document(
+        sentence_doc,
+        notice_id=notice_id,
+        title=title_ko,
+    )
+
+    # [6.55] info_cards dedup — cards와 동일/substring value_ko 갖는 카드 제거.
+    # cards(윤정 todo)와 info_cards(sentence_list)가 같은 헤더-값을 만들어 학년별
+    # 준비물이 양쪽에 부착되는 문제(HWP 12카드 양쪽) 방지. cards 우선.
+    info_cards = _dedup_info_against_cards(info_cards, cards)
+
+    # [6.6] 체크리스트 영속 — 메모리 dict에서 (parent, notice, kind, card_idx, item_idx)
+    # 키로 checked 채움. 없으면 False 기본값(체크리스트 빌드 시 이미 False).
+    # cards는 build_cards 안에서 chip(경이 카테고리) 기반으로 이미 checklist 부착됨.
+    # info_cards도 build_info_cards 안에서 role_hint 기반 부착됨.
+    _apply_checklist_state(cards, "card", notice.parent_id, notice_id)
+    _apply_checklist_state(info_cards, "info", notice.parent_id, notice_id)
     _t_marks["card_build_nllb"] = time.time() - _t_start - sum(_t_marks.values())
 
     # [6''] highlights: layout_json 있을 때만 카드 ↔ bbox 매칭 — 없으면 빈 리스트.
@@ -776,16 +982,11 @@ async def analyze_notice(
     # [7] TTS: 두 갈래 — 번역 합본 + 쉬운 한국어 합본 (세종님 별도 버튼 요청)
     tts_text_translated = _build_tts_text_from_cards(cards, "translated")
     tts_text_easy_ko = _build_tts_text_from_cards(cards, "easy_ko")
-    try:
-        tts_url = await generate_tts_file(tts_text_translated, target_lang=target_lang) if tts_text_translated else ""
-    except Exception as error:
-        logger.warning("[analyze] TTS (translated) failed: %s", error)
-        tts_url = ""
-    try:
-        tts_url_easy_ko = await generate_tts_file(tts_text_easy_ko, target_lang="ko_easy") if tts_text_easy_ko else ""
-    except Exception as error:
-        logger.warning("[analyze] TTS (easy_ko) failed: %s", error)
-        tts_url_easy_ko = ""
+    tts_url, tts_url_easy_ko = await _generate_tts_pair(
+        tts_text_translated,
+        tts_text_easy_ko,
+        target_lang,
+    )
     _t_marks["tts"] = time.time() - _t_start - sum(_t_marks.values())
 
     _t_total = time.time() - _t_start
@@ -811,6 +1012,7 @@ async def analyze_notice(
         "highlights": highlights,
         "cards": [c.model_dump() for c in cards],
         "info_cards": [c.model_dump() for c in info_cards],
+        "calendar_events": [event.model_dump() for event in calendar_events],
         "summary": summary.model_dump(),
         "items": [item.model_dump() for item in items],
         "tts_text": tts_text_translated,
@@ -821,10 +1023,50 @@ async def analyze_notice(
         "ocr_corrections": [c.model_dump() for c in notice.ocr_corrections],
         "has_review_required": any(c.review_required for c in notice.ocr_corrections),
     }
+
+    # 통합 체크리스트(/inbox/checklist) 엔드포인트가 재사용할 수 있게 cards/info_cards
+    # 캐시. ChecklistUpdateRequest로 토글된 checked는 다음 analyze 호출 시점에
+    # _apply_checklist_state로 다시 채워지므로 이 캐시는 정렬·집계용 source.
+    _analyses[notice_id] = {
+        "title": title_ko,
+        "target_language": target_lang,
+        "cards": cards,
+        "info_cards": info_cards,
+    }
     return ApiResponse.success(data=response)
 
 
-def _build_tts_text_from_cards(cards: list[SlotCard], mode: str) -> str:
+async def _generate_tts_pair(
+    tts_text_translated: str,
+    tts_text_easy_ko: str,
+    target_lang: str,
+) -> tuple[str, str]:
+    """Generate translated and easy-Korean TTS concurrently."""
+    jobs = []
+    if tts_text_translated:
+        jobs.append(("translated", "tts_url", generate_tts_file(tts_text_translated, target_lang=target_lang)))
+    if tts_text_easy_ko:
+        jobs.append(("easy_ko", "tts_url_easy_ko", generate_tts_file(tts_text_easy_ko, target_lang="ko_easy")))
+    if not jobs:
+        return "", ""
+
+    results = await asyncio.gather(*(job for _, _, job in jobs), return_exceptions=True)
+    tts_url = ""
+    tts_url_easy_ko = ""
+    for (label, field, _), result in zip(jobs, results):
+        if isinstance(result, Exception):
+            logger.warning("[analyze] TTS (%s) failed: %s", label, result)
+            value = ""
+        else:
+            value = result or ""
+        if field == "tts_url":
+            tts_url = value
+        else:
+            tts_url_easy_ko = value
+    return tts_url, tts_url_easy_ko
+
+
+def _build_tts_text_from_cards(cards: list[SlotCard], mode: str, max_chars: int = TTS_MAX_CHARS) -> str:
     """슬롯 카드 → TTS 텍스트 (헤더 + 값 한 줄씩 합본).
 
     mode="translated": 대상 언어 TTS용 — value_translated + header_translated
@@ -845,7 +1087,52 @@ def _build_tts_text_from_cards(cards: list[SlotCard], mode: str) -> str:
         value = strip_markers(value)
         line = f"{header}. {value}" if header else value
         lines.append(line)
-    return "\n".join(lines)
+    return _limit_tts_text("\n".join(lines), max_chars=max_chars, mode=mode)
+
+
+def _limit_tts_text(text: str, *, max_chars: int, mode: str) -> str:
+    """Limit TTS text without cutting in the middle of a useful phrase."""
+    text = (text or "").strip()
+    if not text or len(text) <= max_chars:
+        return text
+
+    original_length = len(text)
+    kept: list[str] = []
+    current = 0
+    for line in [line.strip() for line in text.splitlines() if line.strip()]:
+        extra = len(line) + (1 if kept else 0)
+        if current + extra <= max_chars:
+            kept.append(line)
+            current += extra
+            continue
+        remaining = max_chars - current - (1 if kept else 0)
+        if remaining > 80:
+            piece = _soft_cut(line, remaining)
+            if piece:
+                kept.append(piece)
+        break
+
+    truncated = "\n".join(kept).strip()
+    if not truncated:
+        truncated = _soft_cut(text, max_chars)
+    logger.info(
+        "[analyze] TTS text truncated mode=%s original_length=%s truncated_length=%s max_chars=%s",
+        mode,
+        original_length,
+        len(truncated),
+        max_chars,
+    )
+    return truncated
+
+
+def _soft_cut(text: str, max_chars: int) -> str:
+    """Cut near a sentence/word boundary when possible."""
+    candidate = text[:max_chars].rstrip()
+    for sep in ("\n", ".", "。", "!", "?", "다.", "요.", " ", ","):
+        idx = candidate.rfind(sep)
+        if idx >= max(40, int(max_chars * 0.65)):
+            return candidate[:idx + len(sep)].strip()
+    return candidate.strip()
 
 
 def _build_tts_text(
