@@ -13,13 +13,152 @@
 """
 from __future__ import annotations
 
+import hashlib
 import re
 
-from app.models.schemas import Category, SlotCard, YunjeongTodo
+from app.models.schemas import Category, ChecklistItem, SlotCard, YunjeongTodo
 from app.services.classifier import classify_category
 from app.services.easy_korean import to_easy_korean
 from app.services.header_split import split_header_value
-from app.services.translator import translate_short_sentence, translate_term
+from app.services.translator import (
+    translate_short_sentence, translate_short_sentence_batch, translate_term,
+)
+
+
+# 체크리스트 후보 chip — 학부모가 챙김/제출/납부/안전수칙 이행하는 카테고리.
+# 정보성(일정) + None(분류 불가)은 체크박스 미표시.
+_ACTION_CHIPS: frozenset[str] = frozenset({
+    Category.supplies.value,    # "준비물"
+    Category.submission.value,  # "제출"
+    Category.cost.value,        # "비용"
+    Category.health.value,      # "건강·안전"
+})
+
+
+def _stable_id(text: str) -> str:
+    """문자열 stable hash 12자 — 카드/항목 식별자.
+
+    같은 통신문 재분석에도 동일 ID — 카드 순서 변경/Claude 비결정성에 강건.
+    sha1 12자 충돌 확률 무시 가능 (한 분석 안 카드/항목 < 100).
+    """
+    return hashlib.sha1((text or "").encode("utf-8")).hexdigest()[:12]
+
+# 콤마/슬래시 split을 적용할 chip — 본질이 다중 항목 나열인 카테고리만.
+# 제출/비용/건강·안전은 보통 단일 액션이라 split 안 함 ("2,3,5,6학년 학생은..." 같은
+# 학년 나열을 의미 없는 단일 숫자 체크박스로 깨먹는 사고 방지). 세종님 우려 반영.
+_SPLIT_CHIPS: frozenset[str] = frozenset({
+    Category.supplies.value,    # "준비물" — 알림장, 색종이, 연필 ...
+})
+
+
+def _split_with_paren_protection(text: str) -> list[str]:
+    """콤마/슬래시 split — 괄호 안 콤마는 보존.
+
+    예: "필통 (깎은 연필 3자루, 지우개, 딱풀), 가위, 풀"
+        → ["필통 (깎은 연필 3자루, 지우개, 딱풀)", "가위", "풀"]
+    """
+    if not text:
+        return []
+    parts: list[str] = []
+    cur: list[str] = []
+    depth = 0
+    for ch in text:
+        if ch in "([{":
+            depth += 1
+            cur.append(ch)
+        elif ch in ")]}":
+            depth = max(0, depth - 1)
+            cur.append(ch)
+        elif ch in ",/" and depth == 0:
+            piece = "".join(cur).strip()
+            if piece:
+                parts.append(piece)
+            cur = []
+        else:
+            cur.append(ch)
+    tail = "".join(cur).strip()
+    if tail:
+        parts.append(tail)
+    return parts
+
+
+# 숫자만으로 된 짧은 토큰 — split 결과로 떨어지면 다음 항목과 머지 (학년 나열 깨짐 방지)
+_NUMERIC_ONLY = re.compile(r"^\s*\d{1,3}\s*$")
+
+
+def _merge_orphan_numeric_pieces(pieces: list[str]) -> list[str]:
+    """split 후 숫자만 토큰을 다음 항목 앞에 머지 — "2,3,5,6학년" 깨짐 방지.
+
+    예: ["2", "3", "5", "6학년 학생은..."] → ["2,3,5,6학년 학생은..."]
+    """
+    out: list[str] = []
+    pending: list[str] = []
+    for p in pieces:
+        if _NUMERIC_ONLY.match(p):
+            pending.append(p.strip())
+        else:
+            if pending:
+                p = ",".join(pending) + "," + p
+                pending = []
+            out.append(p)
+    if pending:
+        if out:
+            out[-1] = out[-1] + "," + ",".join(pending)
+        else:
+            out = [",".join(pending)]
+    return out
+
+
+# 끝부분 괄호 부연 — "샤프식 색연필 12색 (연필식 색연필 불가)" → ("샤프식 색연필 12색", "연필식 색연필 불가")
+_TRAILING_PAREN = re.compile(r"^(.+?)\s*[\(（]\s*([^)）]+?)\s*[\)）]\s*$")
+
+
+def _split_paren_note(item_text: str) -> tuple[str, str]:
+    """항목 끝 괄호 부연을 (ko, note)로 분리. 괄호 없으면 (item_text, '')."""
+    s = item_text.strip()
+    m = _TRAILING_PAREN.match(s)
+    if m:
+        return m.group(1).strip(), m.group(2).strip()
+    return s, ""
+
+
+def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[ChecklistItem]:
+    """경이 카테고리(chip) 기반 체크리스트 분리.
+
+    chip ∈ _ACTION_CHIPS면 체크리스트 후보:
+      - chip ∈ _SPLIT_CHIPS (준비물): 콤마/슬래시 split → 다중 항목
+      - 그 외 (제출/비용/건강·안전): 단일 ChecklistItem (sentence 통째)
+
+    정보성(일정) + None은 빈 리스트 → 체크박스 미표시.
+    """
+    if card.chip not in _ACTION_CHIPS:
+        return []
+
+    if card.chip in _SPLIT_CHIPS:
+        pieces = _split_with_paren_protection(card.value_ko)
+        pieces = _merge_orphan_numeric_pieces(pieces)
+    else:
+        # 제출/비용/건강·안전은 단일 액션 — 콤마 split 시 사고 발생 (학년 나열 등)
+        pieces = [card.value_ko.strip()] if card.value_ko.strip() else []
+
+    if not pieces:
+        return []
+    out: list[ChecklistItem] = []
+    for piece in pieces:
+        ko, note = _split_paren_note(piece)
+        if not ko:
+            continue
+        translated = ""
+        if target_lang != "ko_easy":
+            translated = translate_short_sentence(ko, target_lang) or ""
+        out.append(ChecklistItem(
+            item_id=_stable_id(f"{ko}|{note}"),
+            ko=ko,
+            note=note,
+            translated=translated,
+            checked=False,
+        ))
+    return out
 
 # 헤더 추정 실패 시 fallback
 _FALLBACK_HEADER = "기타"
@@ -29,7 +168,9 @@ _FALLBACK_MAX_TRANSLATED_LEN = 120
 
 # 정상 헤더(명시) 카드도 value 과도하게 길면 trim — 신청방법 등이 전체 안내문 흡수하는 문제 방지
 # translated는 translate_short_sentence 내부 MAX_TRANSLATE_CHARS=100으로 이미 제한됨
-_NAMED_MAX_KO_LEN = 150
+# 250 (이전 150)으로 상향 — Claude가 학년 prefix를 sentence 끝 괄호 ("(1학년 공용)")로
+# 보존하는데 긴 학년별 준비물 sentence가 150자에서 잘려 끝의 학년 정보 잃는 문제 방지.
+_NAMED_MAX_KO_LEN = 250
 
 # regex 슬롯별 기본 헤더 (todo에서 못 잡은 정보 보강용 카드)
 # todo로 헤더가 추정된 경우엔 이 카드를 만들지 않음 (중복 방지).
@@ -65,7 +206,7 @@ def _normalize_header(h: str) -> str:
 
 
 def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
-    """YunjeongTodo → SlotCard."""
+    """YunjeongTodo → SlotCard. value_translated 는 build_cards 마지막에 batch 번역."""
     header, value = split_header_value(todo.text)
     if header is None:
         header = _FALLBACK_HEADER
@@ -78,13 +219,15 @@ def _build_card_from_todo(todo: YunjeongTodo, target_lang: str) -> SlotCard:
     chip = category.value if category != Category.other else None
 
     return SlotCard(
+        card_id=_stable_id(f"{header}|{value}"),
         header_ko=header,
         header_translated="" if header == _FALLBACK_HEADER else translate_term(header, target_lang),
         value_ko=value,
         value_easy_ko=to_easy_korean(value),
-        value_translated=translate_short_sentence(value, target_lang) or value,
+        value_translated="",  # build_cards 끝에서 batch 번역
         chip=chip,
         importance=todo.confidence,
+        due_date=todo.due_date,  # 통합 체크리스트 마감일 정렬용
     )
 
 
@@ -105,7 +248,12 @@ def _build_cards_from_regex_slots(
     target_lang: str,
     todo_headers: set[str],
 ) -> list[SlotCard]:
-    """regex 슬롯 → 보강 SlotCard. todo 헤더가 이미 커버한 슬롯은 스킵."""
+    """regex 슬롯 → 보강 SlotCard. todo 헤더가 이미 커버한 슬롯은 스킵.
+
+    value_translated 는 urls/phones만 ko 그대로 사용(NLLB 거치면 placeholder
+    잔재로 "Không, không" 같이 깨짐). 그 외 슬롯은 빈 문자열로 두고 build_cards
+    끝의 batch 번역 단계가 채움.
+    """
     cards: list[SlotCard] = []
 
     todo_headers_norm = {_normalize_header(h) for h in todo_headers}
@@ -121,37 +269,24 @@ def _build_cards_from_regex_slots(
 
         # 슬롯당 한 카드 — 여러 값 결합
         values_ko = [_slot_entry_ko(e) for e in entries if _slot_entry_ko(e)]
-        values_translated = []
-        for e in entries:
-            ko = _slot_entry_ko(e)
-            if not ko:
-                continue
-            tr = _slot_entry_translated(e)
-            # URL/Phone 은 어떤 언어든 ko 그대로 — NLLB 거치면 placeholder
-            # 잔재로 "Không, không" 같이 깨짐. 학부모도 전화번호/URL 은 원본 필요.
-            if slot_name in ("urls", "phones"):
-                values_translated.append(tr or ko)
-                continue
-            # translated가 ko와 같거나 비면 (placeholder), NLLB 번역 호출
-            if not tr or tr == ko:
-                tr = translate_short_sentence(ko, target_lang) or ko
-            values_translated.append(tr)
         # times: 2개면 시작-끝으로 보고 ~ 로 연결 (가독성). 그 외는 콤마.
         if slot_name == "times" and len(values_ko) == 2:
             value_ko = " ~ ".join(values_ko)
-            value_translated = " ~ ".join(v or k for v, k in zip(values_translated, values_ko))
         else:
             value_ko = ", ".join(values_ko)
-            value_translated = ", ".join(v or k for v, k in zip(values_translated, values_ko))
         if not value_ko:
             continue
 
+        # urls/phones는 NLLB 우회 — ko 그대로 (placeholder 잔재 방지)
+        value_translated = value_ko if slot_name in ("urls", "phones") else ""
+
         cards.append(SlotCard(
+            card_id=_stable_id(f"{default_header}|{value_ko}"),
             header_ko=default_header,
             header_translated=translate_term(default_header, target_lang),
             value_ko=value_ko,
             value_easy_ko=to_easy_korean(value_ko),
-            value_translated=value_translated or value_ko,
+            value_translated=value_translated,
             chip=None,  # regex 슬롯은 칩 없음 — todo가 아니므로 카테고리 모호
             importance=0.7,  # todo 평균 confidence보다 살짝 낮음
         ))
@@ -341,7 +476,11 @@ def build_cards(
     regex_slots: dict[str, list[dict]],
     target_lang: str,
 ) -> list[SlotCard]:
-    """todos + regex_slots → list[SlotCard]. dedup + importance 내림차순 정렬."""
+    """todos + regex_slots → list[SlotCard]. dedup + importance 내림차순 정렬.
+
+    번역은 dedup/sort/limit 후 살아남은 카드만 한 번에 batch — NLLB CPU 14회 호출
+    오버헤드를 1회 batch로 줄임 (2026-05-07).
+    """
     cards = [_build_card_from_todo(t, target_lang) for t in todos]
 
     todo_headers = {c.header_ko for c in cards}
@@ -356,4 +495,23 @@ def build_cards(
     cards = _dedup_cards(cards)
     cards.sort(key=lambda c: -c.importance)
     cards = _limit_fallback_cards(cards)
+
+    # 살아남은 카드 value 만 batch 번역 — value_translated 가 빈 카드만 대상
+    # (urls/phones 는 _build_cards_from_regex_slots 에서 ko 로 이미 채워둠)
+    pending_idx = [i for i, c in enumerate(cards) if not c.value_translated]
+    if pending_idx:
+        pending_texts = [cards[i].value_ko for i in pending_idx]
+        translated = translate_short_sentence_batch(pending_texts, target_lang)
+        for i, tr in zip(pending_idx, translated):
+            cards[i] = cards[i].model_copy(
+                update={"value_translated": tr or cards[i].value_ko},
+            )
+
+    # 체크리스트 — 경이 카테고리(chip)가 행동성이면 value_ko 콤마/슬래시 split.
+    # 정보성(일정) + None은 빈 리스트 → 안드 UI 체크박스 영역 미표시.
+    for i, c in enumerate(cards):
+        cl = _build_checklist_from_card(c, target_lang)
+        if cl:
+            cards[i] = c.model_copy(update={"checklist": cl})
+
     return cards
