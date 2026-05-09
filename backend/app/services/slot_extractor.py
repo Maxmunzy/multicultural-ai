@@ -430,6 +430,17 @@ _SYMBOL_ONLY_LINE = re.compile(
     r"^[ \t]*[━─=\-~·.○◯✕✗×▪▫■□▶▸◆●○*]{5,}[ \t]*$",
     re.MULTILINE,
 )
+# "네(동의) 아니오(동의하지 않음)" 한국어 YN 선택지 — 기호 없이 한국어로 적힌 OX
+# NLLB가 "Đúng rồi. – Cảm ơn anh!" 오역 유발. 앞부분만 제거, 뒤 문장(단서 조항)은 보존.
+_KO_YN_CHOICE_RE = re.compile(
+    r"(?:네|예)\s*\([^)]{1,20}\)\s*/?\s*(?:아니오|미동의)\s*\([^)]{1,30}\)"
+)
+# "신청함 신청하지 않음 불참사유" — 신청 여부 선택 표 헤더 단독 줄
+# Yunjeong가 todo로 잘못 추출, NLLB가 "Không xin đơn. Cần phải nộp..." 오역 유발.
+_FORM_TABLE_HEADER_RE = re.compile(
+    r"^[ \t]*신청함?\s+신청하지\s*않음[^\n]*$",
+    re.MULTILINE,
+)
 
 
 def preprocess_notice_text(text: str) -> str:
@@ -441,6 +452,8 @@ def preprocess_notice_text(text: str) -> str:
     - 빈 괄호((   ))
     - OX 체크박스 기호 (NLLB 오번역 유발)
     - 기호만으로 이루어진 구분선 줄
+    - "네(동의) 아니오(동의하지 않음)" 한국어 YN 선택지 쌍
+    - "신청함 신청하지 않음 불참사유" 신청 여부 표 헤더
     """
     text = _BLANK_UNDERSCORES.sub("", text)
     text = _BLANK_DASHES_LINE.sub("", text)
@@ -448,6 +461,8 @@ def preprocess_notice_text(text: str) -> str:
     text = _SYMBOL_ONLY_LINE.sub("", text)
     text = _BLANK_PARENS.sub("", text)
     text = _OX_CHOICE_SYMBOLS.sub("", text)
+    text = _KO_YN_CHOICE_RE.sub("", text)        # "네(동의) 아니오(동의하지 않음)" 제거
+    text = _FORM_TABLE_HEADER_RE.sub("", text)   # 신청 여부 표 헤더 줄 제거
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 

@@ -72,6 +72,8 @@ NOTICE_RAW = textwrap.dedent("""
     동의 여부를 O/X로 표시해 주세요.
     보호자 서명: ___________
     불참 시 사유를 작성해 주세요.
+    네(동의) 아니오(동의하지 않음) (단, 동의하지 않을 시 보험비 및 차량 지원과 현장체험학습 운영이 어려울 수 있습니다.)
+    신청함 신청하지 않음 불참사유
 
     제출기한: 2026. 4. 28.(화)까지 담임 선생님께 제출
 
@@ -171,6 +173,12 @@ check("빈 괄호( ) 제거", not re.search(r"\(\s{1,10}\)", preprocessed))
 check("○ 체험학습비 제거", "○ 체험학습비" not in preprocessed and "○체험학습비" not in preprocessed)
 check("O 체험학습비 제거", not re.search(r"(?<![가-힣a-zA-Z])O\s+체험학습비", preprocessed))
 check("학년반번호 form 제거 (OX 기호 제거)", not re.search(r"[○◯O]\s*\([^)]+\)\s*[X✕✗×]", preprocessed))
+# P0: 신규 추가 항목
+check("네(동의) 아니오(동의하지 않음) 제거 — Đúng rồi 오역 차단",
+      not re.search(r"(?:네|예)\s*\([^)]+\)\s*/?\s*(?:아니오|미동의)\s*\([^)]+\)", preprocessed),
+      preprocessed[:80])
+check("신청함 신청하지 않음 표 헤더 제거 — Không xin đơn 오역 차단",
+      "신청함 신청하지 않음" not in preprocessed)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
