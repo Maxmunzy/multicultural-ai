@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
-from app.models.schemas import ChecklistItem, SlotCard
+from app.models.schemas import Category, ChecklistItem, SlotCard
 from app.services.card_builder import (
     _merge_orphan_numeric_pieces,
     _split_paren_note,
@@ -101,11 +101,13 @@ def is_nllb_skip_value(text: str, role_hint: RoleHint) -> bool:
 def _value_from_sentence(item: SentenceListItem) -> tuple[str, str]:
     """Return (label, value) for an info sentence."""
     label = INFO_ROLE_LABELS.get(item.role_hint, "")
-    header, value = split_header_value(item.text)
+    # "★ 준비물: ..." 처럼 앞에 특수문자가 붙은 경우 split_header_value regex가 실패함 → 먼저 제거
+    text = re.sub(r"^[^가-힣A-Za-z\d]+", "", (item.text or "").strip())
+    header, value = split_header_value(text)
     if header:
         label = INFO_ROLE_LABELS.get(item.role_hint) or normalize_header(header)
         return label, value
-    return label, item.text.strip()
+    return label, text.strip()
 
 
 def _translate_info_value(value: str, role_hint: RoleHint, target_lang: str) -> str:
@@ -206,7 +208,7 @@ def build_info_cards_from_sentence_document(
                 _translate_info_value(value, item.role_hint, target_lang)
                 if translate_values else value
             ),
-            chip=None,
+            chip=Category.supplies.value if item.role_hint == "supplies" else None,
             importance=INFO_ROLE_IMPORTANCE.get(item.role_hint, 0.8),
             checklist=_build_checklist_for_role(value, item.role_hint, target_lang),
         ))
@@ -227,7 +229,7 @@ def build_info_cards_from_sentence_document(
                     value_ko=value,
                     value_easy_ko=value,
                     value_translated=value,
-                    chip=None,
+                    chip=Category.supplies.value,
                     importance=INFO_ROLE_IMPORTANCE.get("supplies", 0.84),
                     checklist=cl,
                 ))
