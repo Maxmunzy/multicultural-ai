@@ -32,7 +32,7 @@ ROLE_EVENT_TYPE: dict[str, tuple[str, str, str]] = {
     "event_datetime": ("event_datetime", "운영일시", "green"),
     "result_announcement": ("result_announcement", "결과발표", "purple"),
     "submit": ("submit_deadline", "제출", "orange"),
-    "fee": ("payment_deadline", "납부/비용", "orange"),
+    "fee": ("payment_deadline", "납부/비용", "gold"),
 }
 
 HOLIDAY_HINTS = ("공휴일", "휴업", "재량휴업", "기념일", "어린이날", "스승의 날")
