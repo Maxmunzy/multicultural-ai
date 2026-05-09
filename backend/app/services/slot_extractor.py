@@ -441,6 +441,13 @@ _FORM_TABLE_HEADER_RE = re.compile(
     r"^[ \t]*신청함?\s+신청하지\s*않음[^\n]*$",
     re.MULTILINE,
 )
+# "비용: 체험학습비: 23,000원" → "체험학습비: 23,000원" — 줄머리 중복 비용 라벨 제거
+# _OX_CHOICE_SYMBOLS 적용 후 "비용: O 체험학습비:" → "비용: 체험학습비:" → "체험학습비:"
+# NLLB value_ko 번역 시 "Chi phí: phí trải nghiệm:" 이중 라벨 유발 차단.
+_COST_OUTER_LABEL_RE = re.compile(
+    r"^비용\s*[:：]\s*(?=체험\s*학습비|참가비|수강료|재료비|교재비|급식비|회비)",
+    re.MULTILINE,
+)
 
 
 def preprocess_notice_text(text: str) -> str:
@@ -454,6 +461,7 @@ def preprocess_notice_text(text: str) -> str:
     - 기호만으로 이루어진 구분선 줄
     - "네(동의) 아니오(동의하지 않음)" 한국어 YN 선택지 쌍
     - "신청함 신청하지 않음 불참사유" 신청 여부 표 헤더
+    - "비용: 체험학습비:" 줄머리 이중 라벨 (번역 시 Chi phí: phí trải nghiệm: 방지)
     """
     text = _BLANK_UNDERSCORES.sub("", text)
     text = _BLANK_DASHES_LINE.sub("", text)
@@ -461,6 +469,7 @@ def preprocess_notice_text(text: str) -> str:
     text = _SYMBOL_ONLY_LINE.sub("", text)
     text = _BLANK_PARENS.sub("", text)
     text = _OX_CHOICE_SYMBOLS.sub("", text)
+    text = _COST_OUTER_LABEL_RE.sub("", text)    # "비용: 체험학습비:" → "체험학습비:"
     text = _KO_YN_CHOICE_RE.sub("", text)        # "네(동의) 아니오(동의하지 않음)" 제거
     text = _FORM_TABLE_HEADER_RE.sub("", text)   # 신청 여부 표 헤더 줄 제거
     text = re.sub(r"\n{3,}", "\n\n", text)

@@ -56,8 +56,8 @@ NOTICE_RAW = textwrap.dedent("""
     준비물: 도시락, 물통, 돗자리
 
     비용 안내
-    ○ 체험학습비: 23,000원 (4/13 스쿨뱅킹 자동이체)
-    O 체험학습비: 스쿨뱅킹 잔액 부족 시 선납 바랍니다.
+    비용: ○ 체험학습비: 23,000원 (4/13 스쿨뱅킹 자동이체)
+    비용: O 체험학습비: 스쿨뱅킹 잔액 부족 시 선납 바랍니다.
     납부기간: 2026. 4. 13.(월)~2026. 4. 15.(수)
     잔액 확인 부탁드립니다.
 
@@ -174,6 +174,9 @@ check("○ 체험학습비 제거", "○ 체험학습비" not in preprocessed an
 check("O 체험학습비 제거", not re.search(r"(?<![가-힣a-zA-Z])O\s+체험학습비", preprocessed))
 check("학년반번호 form 제거 (OX 기호 제거)", not re.search(r"[○◯O]\s*\([^)]+\)\s*[X✕✗×]", preprocessed))
 # P0: 신규 추가 항목
+check("비용: 체험학습비: 이중 라벨 제거",
+      not re.search(r"^비용\s*[:：]\s*체험학습비", preprocessed, re.MULTILINE),
+      preprocessed[:80])
 check("네(동의) 아니오(동의하지 않음) 제거 — Đúng rồi 오역 차단",
       not re.search(r"(?:네|예)\s*\([^)]+\)\s*/?\s*(?:아니오|미동의)\s*\([^)]+\)", preprocessed),
       preprocessed[:80])
