@@ -64,6 +64,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,6 +89,9 @@ public class MainActivity extends Activity {
     public  static final String PREF_USER_ID  = "user_id";   // 자동 로그인용
     public  static final String PREF_ROLE     = "role";       // "teacher" | "parent"
     public  static final String PREF_FCM_TOKEN = "fcm_token"; // 마지막 등록한 토큰 (재등록 비교용)
+    // 인박스 NEW 뱃지용 — user_id 별로 본 적 있는 notice_id Set + 첫 로드 마킹 플래그
+    private static final String PREF_SEEN_PREFIX = "seen_notices_";  // + user_id
+    private static final String PREF_INBOX_INIT_PREFIX = "inbox_init_";  // + user_id
     // Android 13+ 알림 권한 런타임 요청 코드
     private static final int    REQUEST_POST_NOTIFICATIONS = 2001;
 
@@ -744,6 +748,9 @@ public class MainActivity extends Activity {
         for (int i = inboxListBox.getChildCount() - 1; i >= 0; i--) {
             if (inboxListBox.getChildAt(i) != inboxEmptyText) inboxListBox.removeViewAt(i);
         }
+        // NEW 뱃지 — 처음 로드면 모두 seen 처리(과거 통신문 NEW 안 표시), 이후엔 seen 안 된 것만 NEW
+        boolean firstTime = !isInboxInitialized();
+        Set<String> seen = firstTime ? new HashSet<>() : getSeenNoticeIds();
         String[] avatarEmojis = {"🍱", "📅", "📢", "🏃", "📝", "📖"};
         int[] avatarColors  = {COLOR_MINT, COLOR_LAVENDER, COLOR_PEACH, COLOR_LEMON, COLOR_SKY, COLOR_PAPER2};
         int[] avatarInks    = {COLOR_MINT_INK, COLOR_LAVENDER_INK, COLOR_PEACH_INK, COLOR_LEMON_INK, Color.parseColor("#1F5B8A"), COLOR_INK3};
@@ -752,16 +759,18 @@ public class MainActivity extends Activity {
             String emoji = avatarEmojis[i % avatarEmojis.length];
             int avatarBg = avatarColors[i % avatarColors.length];
             int avatarInk = avatarInks[i % avatarInks.length];
-            inboxListBox.addView(noticeListCard(n, emoji, avatarBg, avatarInk));
+            boolean isNew = !firstTime && !seen.contains(n.noticeId);
+            inboxListBox.addView(noticeListCard(n, emoji, avatarBg, avatarInk, isNew));
         }
+        if (firstTime) markAllInboxSeen();
     }
 
-    private LinearLayout noticeListCard(NoticeItem n, String emoji, int avatarBg, int avatarInk) {
+    private View noticeListCard(NoticeItem n, String emoji, int avatarBg, int avatarInk, boolean isNew) {
         LinearLayout box = new LinearLayout(this);
         box.setOrientation(LinearLayout.HORIZONTAL);
         box.setGravity(Gravity.CENTER_VERTICAL);
         box.setPadding(dp(14), dp(13), dp(14), dp(13));
-        box.setLayoutParams(spacedParams());
+        // wrap 시 LayoutParams 충돌 방지 — 마지막에 frame 또는 box 중 하나에 spacedParams 부여
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.WHITE);
         bg.setCornerRadius(dp(16));
@@ -770,7 +779,11 @@ public class MainActivity extends Activity {
         box.setElevation(dp(0.5f));
         box.setClickable(true);
         box.setFocusable(true);
-        box.setOnClickListener(v -> showNoticeDetail(n));
+        box.setOnClickListener(v -> {
+            // 탭 시 즉시 seen 마킹 — 다음 렌더링부터 NEW 뱃지 사라짐
+            markNoticeSeen(n.noticeId);
+            showNoticeDetail(n);
+        });
         // 길게 누르기 → 삭제 확인 다이얼로그
         box.setOnLongClickListener(v -> {
             confirmAndDeleteNotice(n);
@@ -806,16 +819,49 @@ public class MainActivity extends Activity {
         col.addView(meta);
         box.addView(col);
 
-        // unread dot
-        View dot = new View(this);
-        GradientDrawable db = new GradientDrawable();
-        db.setShape(GradientDrawable.OVAL);
-        db.setColor(COLOR_PEACH_DEEP);
-        dot.setBackground(db);
-        LinearLayout.LayoutParams dp_ = new LinearLayout.LayoutParams(dp(8), dp(8));
-        dot.setLayoutParams(dp_);
-        box.addView(dot);
-        return box;
+        // unread dot — NEW일 때만 (이전엔 모든 카드에 켜져있어서 NEW 의미가 약했음)
+        if (isNew) {
+            View dot = new View(this);
+            GradientDrawable db = new GradientDrawable();
+            db.setShape(GradientDrawable.OVAL);
+            db.setColor(COLOR_PEACH_DEEP);
+            dot.setBackground(db);
+            LinearLayout.LayoutParams dp_ = new LinearLayout.LayoutParams(dp(8), dp(8));
+            dot.setLayoutParams(dp_);
+            box.addView(dot);
+        }
+
+        if (!isNew) {
+            box.setLayoutParams(spacedParams());
+            return box;
+        }
+        // NEW 뱃지 — 좌상단 빨간 칩으로 명확히 표시 (FrameLayout 으로 감싸 absolute 위치)
+        FrameLayout frame = new FrameLayout(this);
+        frame.setLayoutParams(spacedParams());
+        FrameLayout.LayoutParams boxFp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        box.setLayoutParams(boxFp);
+        frame.addView(box);
+
+        TextView newBadge = new TextView(this);
+        newBadge.setText("NEW");
+        newBadge.setTextSize(9);
+        newBadge.setTextColor(Color.WHITE);
+        newBadge.setTypeface(null, Typeface.BOLD);
+        newBadge.setLetterSpacing(0.06f);
+        newBadge.setPadding(dp(6), dp(2), dp(6), dp(2));
+        GradientDrawable badgeBg = new GradientDrawable();
+        badgeBg.setColor(Color.parseColor("#E55A45"));
+        badgeBg.setCornerRadius(dp(8));
+        newBadge.setBackground(badgeBg);
+        newBadge.setElevation(dp(2));
+        FrameLayout.LayoutParams badgeFp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        badgeFp.gravity = Gravity.TOP | Gravity.START;
+        badgeFp.setMargins(dp(8), dp(6), 0, 0);
+        newBadge.setLayoutParams(badgeFp);
+        frame.addView(newBadge);
+        return frame;
     }
 
     // 카드 길게 누르기 → 삭제 확인 → DELETE /notice/{notice_id} → 수신함 새로고침
@@ -4032,6 +4078,52 @@ public class MainActivity extends Activity {
         getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
                 .edit()
                 .putString(PREF_KEY_LANG, langCode)
+                .apply();
+    }
+
+    // ============================================================
+    //  인박스 NEW 뱃지 — user_id 별 seen notice_id 추적
+    // ============================================================
+
+    private String seenSetKey() {
+        return PREF_SEEN_PREFIX + (currentUserId.isEmpty() ? "default" : currentUserId);
+    }
+
+    private String inboxInitKey() {
+        return PREF_INBOX_INIT_PREFIX + (currentUserId.isEmpty() ? "default" : currentUserId);
+    }
+
+    private boolean isInboxInitialized() {
+        return getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .getBoolean(inboxInitKey(), false);
+    }
+
+    private Set<String> getSeenNoticeIds() {
+        // SharedPreferences.getStringSet 반환 객체 직접 수정 X — 새 HashSet 으로 복사.
+        Set<String> stored = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .getStringSet(seenSetKey(), null);
+        return stored == null ? new HashSet<>() : new HashSet<>(stored);
+    }
+
+    private void markNoticeSeen(String noticeId) {
+        if (noticeId == null || noticeId.isEmpty()) return;
+        Set<String> seen = getSeenNoticeIds();
+        seen.add(noticeId);
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putStringSet(seenSetKey(), seen)
+                .apply();
+    }
+
+    private void markAllInboxSeen() {
+        Set<String> seen = getSeenNoticeIds();
+        for (NoticeItem n : inbox) {
+            if (n != null && n.noticeId != null) seen.add(n.noticeId);
+        }
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putStringSet(seenSetKey(), seen)
+                .putBoolean(inboxInitKey(), true)
                 .apply();
     }
 
