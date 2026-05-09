@@ -1,0 +1,124 @@
+{
+  "model": "kcelectra",
+  "version": "v3_2",
+  "base_model": "beomi/kcelectra-base",
+  "macro_f1": 0.8374,
+  "macro_precision": 0.841,
+  "macro_recall": 0.8369,
+  "per_class": {
+    "일정": {
+      "precision": 0.9191,
+      "recall": 0.8196,
+      "f1": 0.8665,
+      "support": 194.0
+    },
+    "준비물": {
+      "precision": 0.8837,
+      "recall": 0.8636,
+      "f1": 0.8736,
+      "support": 44.0
+    },
+    "제출": {
+      "precision": 0.8439,
+      "recall": 0.8038,
+      "f1": 0.8233,
+      "support": 316.0
+    },
+    "비용": {
+      "precision": 0.8095,
+      "recall": 0.8095,
+      "f1": 0.8095,
+      "support": 84.0
+    },
+    "건강·안전": {
+      "precision": 0.7402,
+      "recall": 0.8785,
+      "f1": 0.8034,
+      "support": 214.0
+    },
+    "기타": {
+      "precision": 0.8496,
+      "recall": 0.8462,
+      "f1": 0.8479,
+      "support": 741.0
+    }
+  },
+  "confusion_matrix": [
+    [
+      159,
+      0,
+      10,
+      1,
+      2,
+      22
+    ],
+    [
+      1,
+      38,
+      0,
+      0,
+      1,
+      4
+    ],
+    [
+      3,
+      0,
+      254,
+      4,
+      1,
+      54
+    ],
+    [
+      0,
+      1,
+      4,
+      68,
+      1,
+      10
+    ],
+    [
+      0,
+      0,
+      5,
+      0,
+      188,
+      21
+    ],
+    [
+      10,
+      4,
+      28,
+      11,
+      61,
+      627
+    ]
+  ],
+  "labels": [
+    "일정",
+    "준비물",
+    "제출",
+    "비용",
+    "건강·안전",
+    "기타"
+  ],
+  "data_version": "v3_1_20260509",
+  "train_size": 12759,
+  "test_size": 1593,
+  "epochs_trained": 16,
+  "best_val_f1": 0.8254,
+  "lr": 2e-05,
+  "batch_size": 16,
+  "warmup_ratio": 0.1,
+  "weighted_loss": true,
+  "class_weights": [
+    1.3702,
+    5.9399,
+    0.8418,
+    3.1411,
+    1.2378,
+    0.3587
+  ],
+  "early_stopping": true,
+  "patience": 5,
+  "simple_baseline_f1": 0.759
+}

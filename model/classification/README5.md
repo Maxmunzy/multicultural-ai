@@ -19,6 +19,7 @@ TF-IDF와 Logistic Regression은 가볍고, 빠르며, 연산 비용이 거의 �
 
 기존 KcELECTRA v3: C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\notebooks\05_train_kcelectra_v3_20260505.ipynb
 C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\docs\devlog_2026-05-05_실행결과.md
+---> 중요 : BASE_MODEL을 진짜 koelectra(monologg/koelectra-base)가 아닌 KcELECTRA(beomi/kcelectra-base)로 교체 
 
 
 2. 의사결정자 설득용을 위한 그 모델에 적합한 평가 방식 및 성능 지표 만들기.
@@ -31,14 +32,13 @@ C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\d
 
 ==> 결론: 파인튜닝의 성능이 베이스라인 성능보다 좋은 쪽으로 모델이 나와야하고 그 모델에 맞는 평가 지표가 나와야 한다. 글씨로 정리하는 것 뿐만아니라 시각적인 도구를 활용해서 그래프 혹은 직선 사용 등으로 제시할 근거 자료가 필요.
 
+---> 중요 : BASE_MODEL을 진짜 koelectra(monologg/koelectra-base)가 아닌 KcELECTRA(beomi/kcelectra-base)로 교체
 
 # 가상환경 설치 권장: tensorflow, torch
 그리고 위에서 제시된 파일들(기존의 파일들)은 그대로 냅두고 대신에 "그래서 경이님의 목표는 현재 가장 성능이 좋은 KcELECTRA v3을 기반으로 ── 셀 6: 가중치 손실 함수 계산에서 input data의 클래스 불균형에 따른 적절한 가중치를 준다. 다시 말해서, Simple (TF-IDF + LogReg)보다 반드시 모든 면에서 성능이 좋게 나와야 한다." 이 부분에서는 V3_1_오늘날짜로 새로운 파일들을 형성. 즉, 기존의 파일들이 v3이라면 새롭게 만든 파일들은 v3_1_오늘날짜로 만들기. 
 05_train_kcelectra_v3_20260505.ipynb 처럼 코랩에서 실행해야 하는 것은 ipynb로 만들기.
 
-------파일들 생성 결과 후 ----------------------------------
-1. Simple 베이스라인 Macro F1 = 0.7590 (v3: 0.8116보다 낮음)
-새 데이터(notice_sample_v6_2_20260509.csv)는 기타 클래스가 46.5% 로 극단적으로 편향되어 있어서 Simple 모델의 전체 점수가 내려갔습니다. 이건 정상이며, KcELECTRA가 클래스 가중치(셀 6)로 이 불균형을 보정하므로 더 유리합니다.
+---> 중요 : BASE_MODEL을 진짜 koelectra(monologg/koelectra-base)가 아닌 KcELECTRA(beomi/kcelectra-base)로 교체 
 
 
 
