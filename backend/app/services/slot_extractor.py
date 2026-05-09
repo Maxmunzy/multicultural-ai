@@ -430,6 +430,24 @@ _SYMBOL_ONLY_LINE = re.compile(
     r"^[ \t]*[━─=\-~·.○◯✕✗×▪▫■□▶▸◆●○*]{5,}[ \t]*$",
     re.MULTILINE,
 )
+# "네(동의) 아니오(동의하지 않음)" 한국어 YN 선택지 — 기호 없이 한국어로 적힌 OX
+# NLLB가 "Đúng rồi. – Cảm ơn anh!" 오역 유발. 앞부분만 제거, 뒤 문장(단서 조항)은 보존.
+_KO_YN_CHOICE_RE = re.compile(
+    r"(?:네|예)\s*\([^)]{1,20}\)\s*/?\s*(?:아니오|미동의)\s*\([^)]{1,30}\)"
+)
+# "신청함 신청하지 않음 불참사유" — 신청 여부 선택 표 헤더 단독 줄
+# Yunjeong가 todo로 잘못 추출, NLLB가 "Không xin đơn. Cần phải nộp..." 오역 유발.
+_FORM_TABLE_HEADER_RE = re.compile(
+    r"^[ \t]*신청함?\s+신청하지\s*않음[^\n]*$",
+    re.MULTILINE,
+)
+# "비용: 체험학습비: 23,000원" → "체험학습비: 23,000원" — 줄머리 중복 비용 라벨 제거
+# _OX_CHOICE_SYMBOLS 적용 후 "비용: O 체험학습비:" → "비용: 체험학습비:" → "체험학습비:"
+# NLLB value_ko 번역 시 "Chi phí: phí trải nghiệm:" 이중 라벨 유발 차단.
+_COST_OUTER_LABEL_RE = re.compile(
+    r"^비용\s*[:：]\s*(?=체험\s*학습비|참가비|수강료|재료비|교재비|급식비|회비)",
+    re.MULTILINE,
+)
 
 
 def preprocess_notice_text(text: str) -> str:
@@ -441,6 +459,9 @@ def preprocess_notice_text(text: str) -> str:
     - 빈 괄호((   ))
     - OX 체크박스 기호 (NLLB 오번역 유발)
     - 기호만으로 이루어진 구분선 줄
+    - "네(동의) 아니오(동의하지 않음)" 한국어 YN 선택지 쌍
+    - "신청함 신청하지 않음 불참사유" 신청 여부 표 헤더
+    - "비용: 체험학습비:" 줄머리 이중 라벨 (번역 시 Chi phí: phí trải nghiệm: 방지)
     """
     text = _BLANK_UNDERSCORES.sub("", text)
     text = _BLANK_DASHES_LINE.sub("", text)
@@ -448,6 +469,9 @@ def preprocess_notice_text(text: str) -> str:
     text = _SYMBOL_ONLY_LINE.sub("", text)
     text = _BLANK_PARENS.sub("", text)
     text = _OX_CHOICE_SYMBOLS.sub("", text)
+    text = _COST_OUTER_LABEL_RE.sub("", text)    # "비용: 체험학습비:" → "체험학습비:"
+    text = _KO_YN_CHOICE_RE.sub("", text)        # "네(동의) 아니오(동의하지 않음)" 제거
+    text = _FORM_TABLE_HEADER_RE.sub("", text)   # 신청 여부 표 헤더 줄 제거
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -455,6 +479,29 @@ def preprocess_notice_text(text: str) -> str:
 # ── 비용 문구 추출 (납부 vs 지원 분리) ──────────────────────────────
 # 순수 금액 숫자 줄 — extract_amounts 가 이미 잡음
 _PURE_AMOUNT_LINE = re.compile(r"^[\d,]+\s*(?:만|천|억)?\s*원$")
+
+# 복합 문장(지원+납부) 분리용 — 쉼표 또는 ※ 기준
+_MIXED_LINE_SPLIT_RE = re.compile(r",\s*|※\s*")
+
+# 납부 '행위' 키워드 — 분리된 파트 분류 시 사용 (체험학습비 등 품목명 제외)
+# "체험학습비: ... 버스 1대 지원" 처럼 품목명만 포함된 파트를 납부로 오분류하지 않도록.
+_PAYMENT_ACTION_RE = re.compile(
+    r"스쿨뱅킹|자동이체|잔액|납부(?:기한|완료|대상|액)?|미납"
+)
+
+
+def _split_mixed_cost_line(text: str) -> tuple[list[str], list[str]]:
+    """납부+지원 키워드가 모두 있는 복합 문장을 쉼표/※ 기준으로 분리.
+
+    Returns (cost_parts, support_parts). 두 키워드 중 하나만 있으면 ([], []) 반환.
+    파트 분류는 _PAYMENT_ACTION_RE(행위 동사) vs _COST_SUPPORT_INFO_RE 로 판단.
+    """
+    if not (_COST_PAYMENT_RE.search(text) and _COST_SUPPORT_INFO_RE.search(text)):
+        return [], []
+    parts = [p.strip() for p in _MIXED_LINE_SPLIT_RE.split(text) if p.strip() and len(p.strip()) >= 4]
+    cost_parts = [p for p in parts if _PAYMENT_ACTION_RE.search(p) and not _COST_SUPPORT_INFO_RE.search(p)]
+    support_parts = [p for p in parts if _COST_SUPPORT_INFO_RE.search(p) and not _PAYMENT_ACTION_RE.search(p)]
+    return cost_parts, support_parts
 
 # 개인정보 동의·서명 문장 — 비용/지원 탭 모두 제외 (form artifact)
 _CONSENT_RE = re.compile(
@@ -494,14 +541,24 @@ def extract_cost_sentences(text: str) -> list[str]:
     seen: set[str] = set()
     for line in text.splitlines():
         s = strip_markers(line).strip()
-        if not s or len(s) > 80:
+        if not s:
             continue
         if _PURE_AMOUNT_LINE.match(s):
             continue
         if not _COST_ALL_RE.search(s):
             continue
-        # 개인정보 동의 문장은 form artifact — 비용 탭 제외
         if _CONSENT_RE.search(s):
+            continue
+        # 납부+지원 복합 문장 — 분리해서 납부 파트만 가져옴
+        cost_parts, _ = _split_mixed_cost_line(s)
+        if cost_parts:
+            for p in cost_parts:
+                if p not in seen:
+                    seen.add(p)
+                    out.append(p)
+            continue
+        # 길이 제한은 단순 문장에만 적용 (복합은 위에서 처리)
+        if len(s) > 80:
             continue
         # 지원 키워드만 있고 납부 키워드 없으면 → support_info로 분리
         if _COST_SUPPORT_INFO_RE.search(s) and not _COST_PAYMENT_RE.search(s):
@@ -522,16 +579,26 @@ def extract_cost_support_info(text: str) -> list[str]:
     seen: set[str] = set()
     for line in text.splitlines():
         s = strip_markers(line).strip()
-        if not s or len(s) > 80:
+        if not s:
             continue
         if _PURE_AMOUNT_LINE.match(s):
             continue
         if not _COST_SUPPORT_INFO_RE.search(s):
             continue
-        # 개인정보 동의 문장은 form artifact — 지원 안내 탭도 제외
         if _CONSENT_RE.search(s):
             continue
-        # 납부 키워드가 같이 있으면 cost_sentences가 처리
+        # 납부+지원 복합 문장 — 분리해서 지원 파트만 가져옴
+        _, support_parts = _split_mixed_cost_line(s)
+        if support_parts:
+            for p in support_parts:
+                if p not in seen:
+                    seen.add(p)
+                    out.append(p)
+            continue
+        # 길이 제한은 단순 문장에만 적용
+        if len(s) > 80:
+            continue
+        # 납부 키워드가 같이 있으면 cost_sentences가 처리 (단순 문장)
         if _COST_PAYMENT_RE.search(s):
             continue
         if s not in seen:
