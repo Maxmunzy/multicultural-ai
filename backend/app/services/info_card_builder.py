@@ -47,6 +47,10 @@ INFO_ROLE_LABELS: dict[RoleHint, str] = {
     "location": "장소",
     "fee": "비용",
     "supplies": "준비물",
+    # 활동/체험 내용 보존 — 현장체험학습·창의활동 통신문에서 학부모가 알아야 할
+    # "무엇을 하는지" 정보를 info_card로 노출. 체크리스트 아님(행동 불필요).
+    "content": "활동 내용",
+    "program_title": "프로그램",
 }
 
 INFO_ROLE_IMPORTANCE: dict[RoleHint, float] = {
@@ -55,6 +59,8 @@ INFO_ROLE_IMPORTANCE: dict[RoleHint, float] = {
     "application_url": 0.95,
     "contact": 0.94,
     "target": 0.93,
+    "content": 0.92,
+    "program_title": 0.91,
     "location": 0.88,
     "result_announcement": 0.86,
     "fee": 0.85,

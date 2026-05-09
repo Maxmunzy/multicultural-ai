@@ -22,11 +22,14 @@ from app.services.classifier import classify_category
 from app.services.tts import generate_tts_file
 from app.services.slot_extractor import (
     extract_summary_regex_slots, find_when_in_text,
-    split_supply_tokens, strip_markers,
+    split_supply_tokens, strip_markers, preprocess_notice_text,
 )
 from app.services.card_builder import build_cards
 from app.services.info_card_builder import build_info_cards_from_sentence_document
-from app.services.calendar_event_builder import build_calendar_events_from_sentence_document
+from app.services.calendar_event_builder import (
+    build_calendar_events_from_sentence_document,
+    merge_with_holidays,
+)
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.layout_normalizer import (
     normalize_text as llm_normalize_text,
@@ -884,6 +887,10 @@ async def analyze_notice(
 
     _t_marks["llm_normalizer"] = time.time() - _t_start - sum(_t_marks.values())
 
+    # [2.7] 서식 아티팩트 제거 — 기재란 밑줄(_____), 구분선(-----), 빈 괄호((  )).
+    # 번역 파이프라인 전체에 적용되도록 LLM 정규화 이후 최종 analysis_text 에 적용.
+    analysis_text = preprocess_notice_text(analysis_text)
+
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     # \n 단위 sentence 분리 후 한 줄씩 윤정에 개별 호출.
     # 원칙: API는 윤정 input quality 개선 도구. 후처리 X — Gemini가 윤정 친화 형태로
@@ -955,6 +962,7 @@ async def analyze_notice(
         notice_id=notice_id,
         title=title_ko,
     )
+    calendar_events = merge_with_holidays(calendar_events, 2026)
 
     # [6.55] info_cards dedup — cards와 동일/substring value_ko 갖는 카드 제거.
     # cards(윤정 todo)와 info_cards(sentence_list)가 같은 헤더-값을 만들어 학년별

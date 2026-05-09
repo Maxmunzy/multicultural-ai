@@ -307,22 +307,155 @@ def format_amount(a: dict, target_lang: str) -> str:
     return f"{formatted}{suffix}"
 
 
-_SUPPLIES_RE = re.compile(
-    r"(?:^|\n)\s*\d{0,2}\.?\s*(?:준\s*비물?|지\s*참\s*물?|준비\s*사항)\s*[:：]\s*([^\n]+)",
-    re.MULTILINE,
+# 같은 줄 콜론: "준비물: 도화지, 크레파스, ..."
+_SUPPLIES_INLINE_RE = re.compile(
+    r"^[ \t]*(?:\d+\.)?[ \t]*"
+    r"(?:준\s*비물?|지\s*참\s*물?|준비\s*사항|챙길\s*것|준비할\s*것)"
+    r"[ \t]*[:：][ \t]*(.+)$"
+)
+
+# 독립 헤더: "5. 준비물" (콜론/내용 없이 헤더만)
+_SUPPLIES_STANDALONE_RE = re.compile(
+    r"^[ \t]*(?:\d+\.)?[ \t]*"
+    r"(?:준\s*비물?|지\s*참\s*물?|준비\s*사항|챙길\s*것|준비할\s*것)"
+    r"[ \t]*$"
+)
+
+# 다음 번호 섹션 헤더: "6. 제출물", "7. 유의사항" 등
+_NEXT_SECTION_RE = re.compile(r"^[ \t]*\d+\.[ \t]*\S")
+
+# 명사 목록 구분자
+_NOUN_SEP = re.compile(r"[,，、·/]\s*")
+
+# 동사 어미 — 이 패턴이 있으면 명사 목록 아님
+_VERB_END_RE = re.compile(
+    r"주세요|해주세요|하세요|주십시오|하십시오"
+    r"|됩니다|합니다|있습니다|입니다|바랍니다|주시기"
 )
 
 
-def extract_supplies(text: str) -> list[str]:
-    """본문에서 "준비물:", "준 비:", "지참물:" 헤더 다음 한 줄 추출.
+def _is_noun_list(line: str) -> bool:
+    """줄이 콤마/슬래시/가운뎃점으로 구분된 짧은 명사 목록인지 판단."""
+    s = line.strip()
+    if not s or _VERB_END_RE.search(s):
+        return False
+    if not re.search(r"[,，、·/]", s):
+        return False
+    tokens = [t.strip() for t in _NOUN_SEP.split(s) if t.strip()]
+    return bool(tokens) and all(0 < len(t) <= 20 for t in tokens)
 
-    윤정 모델이 todo 로 못 잡은 case 보강 (가통문 보편 슬롯).
+
+def extract_supplies(text: str) -> list[str]:
+    """본문에서 준비물 목록 추출.
+
+    패턴 1 — 같은 줄 콜론:   "준비물: 도화지, 크레파스, ..."
+    패턴 2 — 독립 헤더 + 다음 줄:
+        "5. 준비물
+         도화지, 크레파스, 사인펜, ..."
+
+    다음 번호 섹션 헤더 또는 동사 어미 문장에서 수집 종료.
+    """
+    lines = text.splitlines()
+    out: list[str] = []
+    seen: set[str] = set()
+    collecting = False
+    block_lines: list[str] = []
+
+    def emit_block() -> None:
+        nonlocal collecting
+        if block_lines:
+            combined = ", ".join(block_lines)
+            if combined not in seen:
+                seen.add(combined)
+                out.append(combined)
+            block_lines.clear()
+        collecting = False
+
+    for line in lines:
+        s = line.strip()
+
+        m = _SUPPLIES_INLINE_RE.match(s)
+        if m:
+            emit_block()
+            val = m.group(1).strip()
+            if val and val not in seen:
+                seen.add(val)
+                out.append(val)
+            continue
+
+        if _SUPPLIES_STANDALONE_RE.match(s):
+            emit_block()
+            collecting = True
+            continue
+
+        if not collecting:
+            continue
+
+        if _NEXT_SECTION_RE.match(s):
+            emit_block()
+            continue
+
+        if not s:
+            if block_lines:
+                emit_block()
+            continue
+
+        if _is_noun_list(s):
+            block_lines.append(s)
+        else:
+            emit_block()
+
+    emit_block()
+    return out
+
+
+# ── 서식 아티팩트 제거 ───────────────────────────────────────────
+_BLANK_UNDERSCORES = re.compile(r"_{3,}")
+_BLANK_DASHES_LINE = re.compile(r"^[ \t\-─—]{5,}[ \t]*$", re.MULTILINE)
+_BLANK_PARENS = re.compile(r"\(\s{2,}\)")
+
+
+def preprocess_notice_text(text: str) -> str:
+    """OCR 원문에서 서식 아티팩트 제거 — 번역 파이프라인 전 적용.
+
+    제거 대상: 기재란 밑줄(_____), 구분선(----- 단독 줄), 빈 괄호((   )).
+    """
+    text = _BLANK_UNDERSCORES.sub("", text)
+    text = _BLANK_DASHES_LINE.sub("", text)
+    text = _BLANK_PARENS.sub("", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+# ── 비용 지원 문구 추출 ───────────────────────────────────────────
+_COST_SUPPORT_RE = re.compile(
+    r"지원(?:\s*금)?|보험료|스쿨뱅킹|자동이체|잔액"
+    r"|감면|보조|무료|무상|체험\s*학습비|참가비|재료비"
+    r"|교재비|급식비|납부|회비|수강료"
+)
+# 순수 금액 숫자 줄 — extract_amounts 가 이미 잡음
+_PURE_AMOUNT_LINE = re.compile(r"^[\d,]+\s*(?:만|천|억)?\s*원$")
+
+
+def extract_cost_sentences(text: str) -> list[str]:
+    """비용 관련 지원 문구가 있는 줄 추출.
+
+    '버스 1대 지원', '보험료 지원', '스쿨뱅킹 자동이체' 등
+    extract_amounts 로 잡히지 않는 지원·납부 관련 문구.
     """
     out: list[str] = []
-    for m in _SUPPLIES_RE.finditer(text):
-        v = m.group(1).strip()
-        if v and v not in out:
-            out.append(v)
+    seen: set[str] = set()
+    for line in text.splitlines():
+        s = strip_markers(line).strip()
+        if not s or len(s) > 80:
+            continue
+        if _PURE_AMOUNT_LINE.match(s):
+            continue
+        if not _COST_SUPPORT_RE.search(s):
+            continue
+        if s not in seen:
+            seen.add(s)
+            out.append(s)
     return out
 
 
@@ -334,7 +467,7 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
     """
     out: dict[str, list[dict]] = {
         "dates": [], "times": [], "amounts": [], "urls": [], "phones": [],
-        "deadlines": [], "supplies": [],
+        "deadlines": [], "supplies": [], "cost_support": [],
     }
     for d in extract_dates(text):
         idx = text.find(d["ko"])
@@ -376,6 +509,8 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
     for s in extract_supplies(text):
         # 번역은 _build_cards_from_regex_slots 에서 한 번에 처리되도록 placeholder
         out["supplies"].append({"ko": s, "translated": "", "source": "regex"})
+    for s in extract_cost_sentences(text):
+        out["cost_support"].append({"ko": s, "translated": "", "source": "regex"})
     return out
 
 
@@ -405,7 +540,7 @@ def find_deadline_in_text(text: str) -> str | None:
 
 # ── 준비물 리스트 분해 ────────────────────────────────────────────
 # "도시락, 물통, 돗자리, 편한 운동화, 여벌 옷" → 5개 토큰
-_LIST_SEP = re.compile(r"[,，、]\s*|\s*(?:과|와|및)\s+")
+_LIST_SEP = re.compile(r"[,，、·/]\s*|\s*(?:과|와|및)\s+")
 
 
 def split_supply_tokens(text: str) -> list[str]:
