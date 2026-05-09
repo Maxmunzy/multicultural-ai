@@ -18,6 +18,7 @@ STATIC_DIR.mkdir(parents=True, exist_ok=True)
 async def lifespan(app: FastAPI):
     seed_demo_users()
     _warmup_nllb()
+    _init_fcm()
     yield
 
 
@@ -33,6 +34,16 @@ def _warmup_nllb() -> None:
         print("[startup] NLLB warmup 완료")
     except Exception as error:
         print(f"[startup] NLLB warmup 실패 (lazy load fallback): {error}")
+
+
+def _init_fcm() -> None:
+    """Firebase Cloud Messaging 1회 초기화. 키 없거나 SDK 없어도 부팅 안 막음."""
+    try:
+        from app.services import fcm_sender
+        status = fcm_sender.initialize()
+        print(f"[startup] FCM init: {status}")
+    except Exception as error:
+        print(f"[startup] FCM init 실패 (알림 비활성): {error}")
 
 
 app = FastAPI(

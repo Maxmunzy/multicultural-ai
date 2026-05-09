@@ -73,3 +73,8 @@ data/raw/
 
 # 용어사전 후보 아카이브 (term_glossary.csv에 전부 반영 완료)
 model/translation_tts/archive/
+
+# Firebase 인증 파일 (절대 git에 올리면 안 됨 — secret)
+android/app/google-services.json
+backend/*firebase-adminsdk*.json
+backend/firebase-admin-key.json

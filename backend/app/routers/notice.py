@@ -11,9 +11,9 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from app.auth import get_user, require_teacher, require_user
 from app.models.schemas import (
-    AnalyzeItem, ApiResponse, Category, ChecklistUpdateRequest, Notice,
-    NoticeAnalyzeRequest, NoticeSendRequest, SlotCard, SlotEntry,
-    SummarySlots, UserProfile, YunjeongTodo,
+    AnalyzeItem, ApiResponse, Category, ChecklistUpdateRequest,
+    FcmTokenRegisterRequest, Notice, NoticeAnalyzeRequest, NoticeSendRequest,
+    SlotCard, SlotEntry, SummarySlots, UserProfile, YunjeongTodo,
 )
 from app.services.extractor import extract_todos, extract_title
 from app.services.parser import ParserError, parse_bytes_to_text
@@ -37,6 +37,7 @@ from app.services.layout_normalizer import (
     VISION_SUPPORTED_MIMES,
 )
 from app.services.ocr_slot_corrector import apply_ocr_slot_corrections
+from app.services import fcm_sender
 from app.services.sentence_skeleton import (
     SentenceListDocument,
     parse_sentence_list_payload,
@@ -223,7 +224,7 @@ async def send_notice(
     req: NoticeSendRequest,
     user: UserProfile = Depends(require_teacher),
 ):
-    """선생님이 가정통신문 발송 → 부모 수신함에 저장."""
+    """선생님이 가정통신문 발송 → 부모 수신함에 저장 + FCM 알림."""
     if user.user_id != req.teacher_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -244,7 +245,58 @@ async def send_notice(
         todos=[],
     )
     _notices[notice_id] = notice
-    return ApiResponse.success(data={"notice_id": notice_id}, message="발송 완료")
+    fcm_status = fcm_sender.send_to_user(
+        user_id=req.parent_id,
+        notice_id=notice_id,
+        text_preview=req.text or "",
+    )
+    logger.info("[send] notice_id=%s fcm=%s", notice_id, fcm_status)
+    return ApiResponse.success(
+        data={"notice_id": notice_id, "fcm_status": fcm_status},
+        message="발송 완료",
+    )
+
+
+@router.post("/register-fcm-token", response_model=ApiResponse)
+async def register_fcm_token(
+    req: FcmTokenRegisterRequest,
+    user: UserProfile = Depends(require_user),
+):
+    """안드 앱이 로그인·언어 변경 시 호출. 본인 user_id에만 등록 허용."""
+    if user.user_id != req.user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 ID로만 토큰 등록 가능합니다",
+        )
+    if not req.token or not req.token.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="FCM token이 비어있습니다",
+        )
+    fcm_sender.register_token(
+        user_id=req.user_id,
+        token=req.token.strip(),
+        lang=req.target_language or "ko",
+    )
+    return ApiResponse.success(
+        data={"registered": True, "user_id": req.user_id},
+        message="FCM 토큰 등록 완료",
+    )
+
+
+@router.delete("/register-fcm-token/{user_id}", response_model=ApiResponse)
+async def unregister_fcm_token(
+    user_id: str,
+    user: UserProfile = Depends(require_user),
+):
+    """학부모 로그아웃 시점에 호출 — 알림 끊기."""
+    if user.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="본인 ID로만 토큰 제거 가능합니다",
+        )
+    fcm_sender.unregister_token(user_id)
+    return ApiResponse.success(data={"unregistered": True}, message="FCM 토큰 제거 완료")
 
 
 @router.post("/extract-text", response_model=ApiResponse)
@@ -344,8 +396,14 @@ async def upload_notice(
         layout_json=_parse_layout_json_field(layout_json),
     )
     _notices[notice_id] = notice
+    fcm_status = fcm_sender.send_to_user(
+        user_id=parent_id,
+        notice_id=notice_id,
+        text_preview=text or "",
+    )
+    logger.info("[upload] notice_id=%s fcm=%s", notice_id, fcm_status)
     return ApiResponse.success(
-        data={"notice_id": notice_id, "char_count": len(text), "text": text},
+        data={"notice_id": notice_id, "char_count": len(text), "text": text, "fcm_status": fcm_status},
         message=f"파일 업로드 완료 ({file.filename})",
     )
 

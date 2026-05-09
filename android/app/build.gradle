@@ -1,5 +1,7 @@
 plugins {
     id 'com.android.application'
+    // Firebase Cloud Messaging — google-services.json 자동 처리 + 토큰 발급 SDK 통합
+    id 'com.google.gms.google-services'
 }
 
 android {
@@ -39,4 +41,8 @@ dependencies {
     implementation 'com.google.android.gms:play-services-mlkit-text-recognition-korean:16.0.1'
     // OpenCV 4.9 — 이미지 전처리 (grayscale, CLAHE, Perspective Transform)
     implementation 'org.opencv:opencv:4.9.0'
+    // Firebase Cloud Messaging — 새 가정통신문 도착 알림 push
+    // BoM 사용으로 SDK 버전 일괄 관리. messaging만 필요.
+    implementation platform('com.google.firebase:firebase-bom:33.7.0')
+    implementation 'com.google.firebase:firebase-messaging'
 }

@@ -3,7 +3,9 @@ package com.multicultural.demo;
 import android.Manifest;
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
@@ -38,6 +40,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.firebase.messaging.FirebaseMessaging;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -78,8 +82,14 @@ public class MainActivity extends Activity {
     private static final String BASE_URL = BuildConfig.BASE_URL;
     private static final String DEFAULT_PARENT_ID = "parent_001";
     private static final String DEFAULT_TEACHER_ID = "teacher_001";
-    private static final String PREFS_NAME = "app";
-    private static final String PREF_KEY_LANG = "selected_lang";
+    // FCM/Persistent login용 — Service 클래스에서도 참조하기 때문에 public.
+    public  static final String PREFS_NAME = "app";
+    public  static final String PREF_KEY_LANG = "selected_lang";
+    public  static final String PREF_USER_ID  = "user_id";   // 자동 로그인용
+    public  static final String PREF_ROLE     = "role";       // "teacher" | "parent"
+    public  static final String PREF_FCM_TOKEN = "fcm_token"; // 마지막 등록한 토큰 (재등록 비교용)
+    // Android 13+ 알림 권한 런타임 요청 코드
+    private static final int    REQUEST_POST_NOTIFICATIONS = 2001;
 
     // SAF 파일 픽커 요청 코드 (legacy startActivityForResult 사용 — minSdk 23 호환).
     private static final int REQUEST_PICK_FILE        = 1001;
@@ -287,7 +297,11 @@ public class MainActivity extends Activity {
         ttsEngine = new TextToSpeech(this, status -> {
             ttsEngineReady = (status == TextToSpeech.SUCCESS);
         });
-        showLoginScreen();
+        // Persistent login — 저장된 역할/ID 있으면 로그인 화면 건너뛰고 바로 홈으로.
+        // 없으면 종전대로 역할 선택 화면.
+        if (!tryAutoLogin()) {
+            showLoginScreen();
+        }
     }
 
     @Override
@@ -359,6 +373,12 @@ public class MainActivity extends Activity {
                 currentUserId = id;
                 String role = pendingRole;
                 pendingRole = "";
+                // 자동 로그인 + FCM 알림용으로 prefs 저장.
+                saveLoginPrefs(role, id);
+                // Android 13+ 알림 권한 (없으면 토큰 받아도 시스템 트레이에 안 뜸)
+                ensureNotificationPermission();
+                // FCM 토큰 받아서 백엔드 등록 — push가 이 user_id로 도달하게.
+                fetchAndRegisterFcmToken();
                 if (role.equals("teacher")) showTeacherHome();
                 else {
                     showParentHome();
@@ -548,7 +568,7 @@ public class MainActivity extends Activity {
         content.addView(bigPrimaryButton("📤  통신문 발송", v -> sendNotice()));
         // 파일 업로드 (HWP/PDF/TXT) — 선택 시 SAF 픽커 → 백엔드 /notice/upload
         content.addView(outlineButton("📎  PDF/HWP 파일 업로드", v -> launchFilePicker()));
-        content.addView(smallTextButton("← 로그아웃", v -> showLoginScreen()));
+        content.addView(smallTextButton("← 로그아웃", v -> logout()));
     }
 
     private LinearLayout templateChip(String label, boolean active, View.OnClickListener listener) {
@@ -666,7 +686,7 @@ public class MainActivity extends Activity {
 
         content.addView(outlineButton("🔄  " + uiText("refresh_inbox"), v -> loadInbox()));
         content.addView(outlineButton("📥  통신문 직접 올리기", v -> showUploadDialog()));
-        content.addView(smallTextButton("← " + uiText("logout"), v -> showLoginScreen()));
+        content.addView(smallTextButton("← " + uiText("logout"), v -> logout()));
 
         loadInbox();
     }
@@ -4013,6 +4033,161 @@ public class MainActivity extends Activity {
                 .edit()
                 .putString(PREF_KEY_LANG, langCode)
                 .apply();
+    }
+
+    // ============================================================
+    //  Persistent login + FCM 토큰 등록
+    // ============================================================
+
+    /** 저장된 role + user_id 가 있으면 자동 로그인 → 홈으로 진입. 성공 시 true. */
+    private boolean tryAutoLogin() {
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String userId = prefs.getString(PREF_USER_ID, "");
+        String role   = prefs.getString(PREF_ROLE, "");
+        if (userId.isEmpty() || role.isEmpty()) return false;
+        currentUserId = userId;
+        // 자동 진입 시점에도 알림 권한 + 토큰 등록 — 토큰이 만료/순환됐을 수 있어 매번 갱신.
+        ensureNotificationPermission();
+        fetchAndRegisterFcmToken();
+        if (role.equals("teacher")) showTeacherHome();
+        else showParentHome();
+        return true;
+    }
+
+    private void saveLoginPrefs(String role, String userId) {
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(PREF_USER_ID, userId)
+                .putString(PREF_ROLE, role)
+                .apply();
+    }
+
+    /** 로그아웃 — prefs 비우고, 백엔드에 FCM 토큰 등록 해제 + 화면 로그인으로. */
+    private void logout() {
+        String userId = currentUserId;
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        prefs.edit().remove(PREF_USER_ID).remove(PREF_ROLE).apply();
+        // 백엔드에서 토큰 제거 (실패해도 로그아웃은 진행)
+        if (!userId.isEmpty()) {
+            executor.submit(() -> sendUnregisterFcmToken(userId));
+        }
+        currentUserId = "";
+        showLoginScreen();
+    }
+
+    /** Android 13+ — 알림 표시 권한 런타임 요청 (이전 버전은 권한 자동 부여). */
+    private void ensureNotificationPermission() {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) return;
+        if (checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
+                == PackageManager.PERMISSION_GRANTED) return;
+        requestPermissions(
+                new String[]{Manifest.permission.POST_NOTIFICATIONS},
+                REQUEST_POST_NOTIFICATIONS);
+    }
+
+    /**
+     * Firebase 에서 디바이스 토큰 받아서 백엔드 /notice/register-fcm-token 으로 등록.
+     * 등록 실패해도 앱 사용은 계속 — 알림이 안 올 뿐.
+     */
+    private void fetchAndRegisterFcmToken() {
+        if (currentUserId.isEmpty()) return;
+        FirebaseMessaging.getInstance().getToken().addOnCompleteListener(task -> {
+            if (!task.isSuccessful() || task.getResult() == null) {
+                android.util.Log.w("FCM", "getToken 실패: " + task.getException());
+                return;
+            }
+            String token = task.getResult();
+            getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                    .edit()
+                    .putString(PREF_FCM_TOKEN, token)
+                    .apply();
+            executor.submit(() -> sendRegisterFcmToken(currentUserId, token, selectedLanguage));
+        });
+    }
+
+    /** 백엔드 POST /notice/register-fcm-token */
+    private void sendRegisterFcmToken(String userId, String token, String lang) {
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(BASE_URL + "/notice/register-fcm-token");
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("POST");
+            conn.setRequestProperty("Content-Type", "application/json");
+            conn.setRequestProperty("X-User-Id", userId);
+            conn.setDoOutput(true);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(8000);
+            JSONObject body = new JSONObject()
+                    .put("user_id", userId)
+                    .put("token", token)
+                    .put("target_language", lang == null ? "ko" : lang);
+            try (OutputStream os = conn.getOutputStream()) {
+                os.write(body.toString().getBytes(StandardCharsets.UTF_8));
+            }
+            int code = conn.getResponseCode();
+            android.util.Log.i("FCM", "register status=" + code + " user_id=" + userId);
+        } catch (Exception error) {
+            android.util.Log.w("FCM", "register 실패 user_id=" + userId + ": " + error);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    /** 백엔드 DELETE /notice/register-fcm-token/{user_id} */
+    private void sendUnregisterFcmToken(String userId) {
+        HttpURLConnection conn = null;
+        try {
+            URL url = new URL(BASE_URL + "/notice/register-fcm-token/" + URLEncoder.encode(userId, "UTF-8"));
+            conn = (HttpURLConnection) url.openConnection();
+            conn.setRequestMethod("DELETE");
+            conn.setRequestProperty("X-User-Id", userId);
+            conn.setConnectTimeout(5000);
+            conn.setReadTimeout(8000);
+            int code = conn.getResponseCode();
+            android.util.Log.i("FCM", "unregister status=" + code + " user_id=" + userId);
+        } catch (Exception error) {
+            android.util.Log.w("FCM", "unregister 실패 user_id=" + userId + ": " + error);
+        } finally {
+            if (conn != null) conn.disconnect();
+        }
+    }
+
+    /**
+     * SchoolBridgeMessagingService.onNewToken() 에서 호출하는 정적 진입점.
+     * 앱이 로그인 상태면 즉시 백엔드에 새 토큰 등록.
+     */
+    public static void tryRegisterFcmTokenFromService(Context ctx, String token) {
+        SharedPreferences prefs = ctx.getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        String userId = prefs.getString(PREF_USER_ID, "");
+        String lang   = prefs.getString(PREF_KEY_LANG, "ko");
+        if (userId.isEmpty() || token == null || token.isEmpty()) return;
+        // 백엔드 호출 — 짧은 스레드 (Service 생명주기는 길지 않음)
+        new Thread(() -> {
+            HttpURLConnection conn = null;
+            try {
+                URL url = new URL(BuildConfig.BASE_URL + "/notice/register-fcm-token");
+                conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("POST");
+                conn.setRequestProperty("Content-Type", "application/json");
+                conn.setRequestProperty("X-User-Id", userId);
+                conn.setDoOutput(true);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(8000);
+                JSONObject body = new JSONObject()
+                        .put("user_id", userId)
+                        .put("token", token)
+                        .put("target_language", lang);
+                try (OutputStream os = conn.getOutputStream()) {
+                    os.write(body.toString().getBytes(StandardCharsets.UTF_8));
+                }
+                int code = conn.getResponseCode();
+                android.util.Log.i("FCM", "service-register status=" + code + " user_id=" + userId);
+            } catch (Exception error) {
+                android.util.Log.w("FCM", "service-register 실패: " + error);
+            } finally {
+                if (conn != null) conn.disconnect();
+            }
+        }).start();
     }
 
     private boolean isSupportedLanguage(String code) {
