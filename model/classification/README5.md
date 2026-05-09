@@ -1,0 +1,44 @@
+### 카테고리 분류 담당-경이님
+6개 카테고리 {`일정`, `준비물`, `제출`, `비용`, `건강·안전`, `기타`}
+
+# 주어진 input data: C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\data\20260509\notice_sample_v6_2_20260509.csv
+
+
+★가장 중요한 핵심과제: 모델 성능 비교 (베이스라인 VS. 파인튜닝)★
+1. 조건: 베이스라인 모델, 파인튜닝한 모델에 들어가는 input data가 동일한 데이터셋 및 동일한 조건에서 두 모델의 성능을 비교. 다시 말해서, 기존에 있던 모델을 가지고 동일한 조건을 맞춰서 일정, 준비물, 제출, 비용, 건강·안전, 기타에 대한 분류 성능 점수가 나와야하고 파인튜닝한 모델을 동일한 조건으로 6가지 분류 성능 점수가 나와야 비교가 가능. 그래서 파인튜닝된 모델이 베이스라인모델보다 성능이 좋다라는 지표가 나와야 성능의 우수함을 입증할 수 있음. 근거 자료를 만들어야 함. 
+
+베이스라인은 보통 “내가 만든 고급 모델이 정말 필요한가?”를 증명하기 위한 가장 단순하고 합리적인 기준 모델이며 ML에서 baseline은 무엇을 증명하려고 하느냐에 따라 의미가 달라짐.
+
+-메인비교의 목적 Simple (TF-IDF + LogReg) vs KcELECTRA v3 
+목적: "왜 굳이 무겁고 비용이 드는 딥러닝(트랜스포머) 모델을 써야 하는가?"에 대한 당위성 증명 (Global Baseline) VS. 딥러닝(트랜스포머) --> 최종 성능 입증용이며 투자 및 아키텍처 정당화
+
+실무에서 새로운 AI 모델을 도입할 때 가장 먼저 받는 질문은 "그냥 간단한 머신러닝 돌리면 안 돼?"입니다.
+TF-IDF와 Logistic Regression은 가볍고, 빠르며, 연산 비용이 거의 들지 않는 전통적인 자연어 처리(NLP) 기법입니다. 이것을 글로벌 베이스라인(최소한의 기준점)으로 삼는 것은 AI 업계의 표준 방식.
+==> 그래서 경이님의 목표는 현재 가장 성능이 좋은 KcELECTRA v3을 기반으로 ── 셀 6: 가중치 손실 함수 계산에서 input data의 클래스 불균형에 따른 적절한 가중치를 준다. 다시 말해서, Simple (TF-IDF + LogReg)보다 반드시 모든 면에서 성능이 좋게 나와야 한다.
+
+
+기존 KcELECTRA v3: C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\notebooks\05_train_kcelectra_v3_20260505.ipynb
+C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\docs\devlog_2026-05-05_실행결과.md
+
+
+2. 의사결정자 설득용을 위한 그 모델에 적합한 평가 방식 및 성능 지표 만들기.
+   (사용하고자 하는 모델 기능들의 자세한 설명 보기.)
+
+관련 데이터들: C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\scripts\evaluate_compare_v3_20260505.py
+C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\notebooks\06_visualize_comparison_v3_20260505.ipynb
+C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\data\20260505
+
+
+==> 결론: 파인튜닝의 성능이 베이스라인 성능보다 좋은 쪽으로 모델이 나와야하고 그 모델에 맞는 평가 지표가 나와야 한다. 글씨로 정리하는 것 뿐만아니라 시각적인 도구를 활용해서 그래프 혹은 직선 사용 등으로 제시할 근거 자료가 필요.
+
+
+# 가상환경 설치 권장: tensorflow, torch
+그리고 위에서 제시된 파일들(기존의 파일들)은 그대로 냅두고 대신에 "그래서 경이님의 목표는 현재 가장 성능이 좋은 KcELECTRA v3을 기반으로 ── 셀 6: 가중치 손실 함수 계산에서 input data의 클래스 불균형에 따른 적절한 가중치를 준다. 다시 말해서, Simple (TF-IDF + LogReg)보다 반드시 모든 면에서 성능이 좋게 나와야 한다." 이 부분에서는 V3_1_오늘날짜로 새로운 파일들을 형성. 즉, 기존의 파일들이 v3이라면 새롭게 만든 파일들은 v3_1_오늘날짜로 만들기. 
+05_train_kcelectra_v3_20260505.ipynb 처럼 코랩에서 실행해야 하는 것은 ipynb로 만들기.
+
+------파일들 생성 결과 후 ----------------------------------
+1. Simple 베이스라인 Macro F1 = 0.7590 (v3: 0.8116보다 낮음)
+새 데이터(notice_sample_v6_2_20260509.csv)는 기타 클래스가 46.5% 로 극단적으로 편향되어 있어서 Simple 모델의 전체 점수가 내려갔습니다. 이건 정상이며, KcELECTRA가 클래스 가중치(셀 6)로 이 불균형을 보정하므로 더 유리합니다.
+
+
+
