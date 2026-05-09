@@ -24,6 +24,7 @@ from app.services.slot_extractor import (
     preprocess_notice_text,
     extract_cost_sentences,
     extract_cost_support_info,
+    extract_times,
     strip_markers,
 )
 from app.services.sentence_skeleton import (
@@ -182,6 +183,9 @@ check("네(동의) 아니오(동의하지 않음) 제거 — Đúng rồi 오역
       preprocessed[:80])
 check("신청함 신청하지 않음 표 헤더 제거 — Không xin đơn 오역 차단",
       "신청함 신청하지 않음" not in preprocessed)
+check("개인정보 동의 문장 라인 제거 — Đúng rồi 추가 차단",
+      not re.search(r"개인정보\s*제공\s*동의|상기.*내용.*확인|이에.*동의합니다", preprocessed),
+      preprocessed[:80])
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -214,6 +218,9 @@ check("sanitize 후 ○/O 체험학습비 제거", not re.search(r"[○◯O]\s+�
 check("sanitize 후 ___ 제거", "___" not in all_sentence_texts)
 check("sanitize 후 빈 괄호( ) 제거", not re.search(r"\(\s{1,10}\)", all_sentence_texts))
 check("sanitize 후 OX 쌍 제거", not re.search(r"[○◯O]\s*\([^)]+\)\s*[X✕✗×]", all_sentence_texts))
+check("sanitize 후 개인정보 동의 문장 제거 — Gemini structured 경로 Đúng rồi 차단",
+      not re.search(r"개인정보\s*제공\s*동의|상기.*내용.*확인|이에.*동의합니다", all_sentence_texts),
+      f"잔재: {all_sentence_texts[:80]}")
 # form stub 문장("2학년  반  번 이름")이 남는지 — 빈 괄호 제거 후에도 "2학년 반 번 이름" 잔재 허용
 # (preprocess가 괄호만 제거하므로 텍스트 stub 잔재는 OK — 정보 자체가 무해함)
 
@@ -262,6 +269,42 @@ check("복합문장 버스지원 → 비용탭 미포함", not any("버스" in l
       f"cost={_mixed_cost}")
 check("복합문장 스쿨뱅킹 → 지원탭 미포함", not any("스쿨뱅킹" in l for l in _mixed_support),
       f"support={_mixed_support}")
+
+# 시간 중복 제거 — "9:10" vs "09:10" dedup
+_TIME_DEDUP_TEXT = "9:10 출발, 09:10 현장 도착, 14:40 귀교"
+_times_dedup = extract_times(_TIME_DEDUP_TEXT)
+_time_kos = [t["ko"] for t in _times_dedup]
+check("9:10/09:10 시간 중복 제거", len(_times_dedup) == 2 and _time_kos.count("09:10") <= 1,
+      f"times={_time_kos}")
+
+# info_card fee/support 필터 — 순수 지원 문장이 fee로 태깅된 경우 비용 탭 제외
+_FEE_SUPPORT_DOC = parse_sentence_list_payload({
+    "document_title": "테스트",
+    "sentence_list": [
+        {"sentence_id": "x1", "text": "체험학습비: 버스 1대 지원", "role_hint": "fee", "source_order": 1},
+        {"sentence_id": "x2", "text": "스쿨뱅킹 자동이체로 납부하세요.", "role_hint": "fee", "source_order": 2},
+    ],
+})
+_fee_cards = build_info_cards_from_sentence_document(_FEE_SUPPORT_DOC, "vi_demo")
+_fee_values = [c.value_ko for c in _fee_cards]
+check("순수 지원 fee → info_card 비용 탭 제외", not any("버스 1대 지원" in v for v in _fee_values),
+      f"fee_values={_fee_values}")
+check("납부 fee → info_card 비용 탭 포함", any("스쿨뱅킹" in v for v in _fee_values),
+      f"fee_values={_fee_values}")
+
+# 준비물 fallback — Gemini가 supplies role 누락 시 regex 추출
+_SUPPLIES_FALLBACK_DOC = parse_sentence_list_payload({
+    "document_title": "테스트",
+    "sentence_list": [
+        {"sentence_id": "f1", "text": "준비물: 도시락, 물통, 돗자리", "role_hint": "etc", "source_order": 1},
+        {"sentence_id": "f2", "text": "납부기간: 2026. 5. 1.(금)", "role_hint": "fee", "source_order": 2},
+    ],
+})
+_fallback_cards = build_info_cards_from_sentence_document(_SUPPLIES_FALLBACK_DOC, "vi_demo")
+_fallback_checklists = [cl.ko for c in _fallback_cards for cl in (c.checklist or [])]
+check("준비물 fallback — role 누락 시 regex 추출",
+      any("도시락" in k or "물통" in k for k in _fallback_checklists),
+      f"checklist={_fallback_checklists}")
 
 
 # ──────────────────────────────────────────────────────────────────────────────

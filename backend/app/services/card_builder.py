@@ -277,9 +277,12 @@ def _build_cards_from_regex_slots(
 
         # 슬롯당 한 카드 — 여러 값 결합
         values_ko = [_slot_entry_ko(e) for e in entries if _slot_entry_ko(e)]
-        # times: 2개면 시작-끝으로 보고 ~ 로 연결 (가독성). 그 외는 콤마.
-        if slot_name == "times" and len(values_ko) == 2:
-            value_ko = " ~ ".join(values_ko)
+        # times: 상세 일정표에서 다수 추출될 수 있으므로 2개로 제한 (시작~종료만 노출).
+        # 3개 이상이면 첫 두 개 (안내문에서 이벤트 시작~종료가 먼저 등장)
+        if slot_name == "times":
+            if len(values_ko) > 2:
+                values_ko = values_ko[:2]
+            value_ko = " ~ ".join(values_ko) if len(values_ko) == 2 else (values_ko[0] if values_ko else "")
         else:
             value_ko = ", ".join(values_ko)
         if not value_ko:
@@ -476,6 +479,17 @@ def _is_form_card(card: SlotCard) -> bool:
 _FORM_CHECKBOX_RE = re.compile(r"[○◯✕✗×]")
 _FORM_DIVIDER_RE = re.compile(r"[-─—|]{3,}")
 
+# 순수 개인정보 동의 진술 — submission chip으로 변환하지 않고 완전 제거.
+# "상기의 내용을 확인하였으며 개인정보 제공에 동의합니다"처럼 동의 '서술문'은
+# 학부모 행동 항목이 아님. (인)/성명/학년반번호 같은 form 기재란과 구분.
+_PURE_CONSENT_RE = re.compile(
+    r"개인\s*정보\s*(?:제공|수집|활용|처리|동의)"
+    r"|상기\s*(?:의\s*)?내용을?\s*(?:확인|동의|읽고)"
+    r"|이에\s*(?:동의|서명)\s*합니다"
+    r"|위\s*내용에?\s*(?:동의|서명)"
+    r"|동의\s*(?:서명|날인)"
+)
+
 
 def _transform_form_cards(cards: list[SlotCard]) -> list[SlotCard]:
     """동의서 form 카드를 삭제 대신 제출 chip 항목으로 변환.
@@ -489,6 +503,9 @@ def _transform_form_cards(cards: list[SlotCard]) -> list[SlotCard]:
     for card in cards:
         if not _is_form_card(card):
             out.append(card)
+            continue
+        # 순수 동의 진술문은 submission chip 변환 없이 완전 제거 (제출 탭 혼입 방지)
+        if _PURE_CONSENT_RE.search(card.value_ko):
             continue
         ko = _FORM_CHECKBOX_RE.sub("", card.value_ko)
         ko = _FORM_DIVIDER_RE.sub("", ko)
