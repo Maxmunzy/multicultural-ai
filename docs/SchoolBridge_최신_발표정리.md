@@ -173,10 +173,85 @@ glossary injection / template-based / slot masking → 사실값 왜곡 방지
 - 준비물 이름을 정확히 번역해도 실제 물건을 모를 수 있기 때문에, 이미지와 쉬운 설명을 체크리스트에 연결했습니다.
 - 세종 파트의 목표는 번역을 예쁘게 만드는 것이 아니라, 학부모가 놓치면 안 되는 정보를 보존하고 TTS로 안내 가능한 구조로 만드는 것이었습니다.
 
-### Backend
+### Backend (담당자: 태수)
 
-- **담당자**: TODO
-- **역할**: FastAPI 기반 REST API, 분석 파이프라인 오케스트레이션, checklist 상태 관리 (MVP: 인메모리), calendar_events 생성, info_cards, slot 추출
+#### Backend 담당 범위
+
+- FastAPI 기반 REST API 설계 및 구현
+- 분석 파이프라인 오케스트레이션 (Model A / Model B / 번역·TTS 모듈 통합)
+- 체크리스트 시스템 설계 및 구현 (백엔드 + 안드 통합 화면)
+- Claude / Gemini Vision API 통합 — 가정통신문 정제 + sentence_list 컨트랙트 출력
+- 사용자 권한 시스템 — 선생님 ↔ 학부모 분리, 본인 통신문만 접근
+- 카드 빌더 / 헤더 슬롯 추출 / 가정통신문 parser 안정화
+- 안드로이드 UI 네이티브 재작성 (XML 없이 코드 동적 생성)
+- 컨테이너 빌드·배포 자동화 (HF Spaces / NCP Docker)
+
+#### Backend 문제 인식
+
+- 가정통신문 PDF·HWP는 표·자간·줄바꿈이 깨져 raw 추출본만으로 모델이 활용하기 어려움
+- 윤정·경이·세종 모듈은 각각 다른 입출력 컨트랙트를 가져 통합 오케스트레이션 계층이 필요함
+- 생성형 AI(GPT·Gemini)는 통신문 1건은 분석할 수 있지만, 학부모의 행동 완료 상태를 지속 관리하지 못함
+- LLM이 자주 "준비물 → 용품" 같은 임의 어휘 변환을 일으켜 원문 정보가 변형되는 할루시네이션 발생
+- 같은 통신문 안에 동일 헤더가 반복되거나 같은 통신문을 재분석할 때, 카드 식별자가 인덱스 기반이면 깨지기 쉬움
+
+#### Backend 적용한 개선 구조
+
+- **레이어드 분석 파이프라인**
+  - PDF/HWP 추출 → Claude Vision 정제 → Model A → Model B → 카드 빌더 → 번역 → TTS → 응답 통합
+  - 각 단계 timing 로그 부착해 단계별 성능 진단 가능
+- **Claude Prompt 엔지니어링 (도메인 특화 + 할루시네이션 차단)**
+  - systemInstruction을 가정통신문 도메인에 맞춘 12개 규칙 → 6개로 압축
+  - "원문 어구만 사용. 한 단어라도 원문에 없으면 출력 금지" 최우선 원칙
+  - 위반 사례 6개를 prompt에 명시 (예: 원문 "준비물" → 출력 "용품" 금지, 원문 "8명" → 출력 "8명 모집" 금지)
+  - 출력 직전 self-check 지시 → 학습된 표현으로의 자동 교체 차단
+- **sentence_list 컨트랙트**
+  - LLM이 13종 RoleHint(target / event_datetime / application_period / submit / fee / supplies / contact 등)로 직접 분류하는 구조 정의
+  - pydantic validation 통과한 것만 다음 단계로 전달, 실패 시 룰 기반 fallback
+- **체크리스트 시스템**
+  - 카테고리(chip) 기반 자체 콤마/슬래시 split — 행동성 카테고리(준비물·제출·비용·건강·안전)만 다중 항목 분리, 정보성(일정·기타)은 미생성
+  - stable hash 식별자: `card_id`는 `sha1(header+value)`의 첫 12자, `item_id`는 `sha1(ko+note)`의 첫 12자 — 같은 통신문 재분석에도 ID 동일 → 체크 상태 안정 보존
+  - 통합 체크리스트 엔드포인트 `GET /inbox/{parent_id}/checklist` — chip별 그룹화 + 마감일순 평면 리스트 동시 제공
+  - 토글 API `POST /checklist/{notice_id}` — 메모리 dict 영속
+- **권한 시스템 + 인프라 안전성**
+  - 선생님 / 학부모 역할 분리, 본인 통신문만 분석·삭제 가능
+  - 데모용 엔드포인트는 환경변수 가드(`ENABLE_DEMO_ENDPOINTS`)로 운영 노출 차단
+  - LLM API 키 누락 시 모듈 로드 시점에 경고 로그 + 분석 호출은 안전 fallback
+  - 권한 게이트 단위 테스트 추가 (분석/삭제 라우트 7개)
+
+#### Backend — 안드로이드 UI
+
+- **네이티브 재작성**: XML 레이아웃 없이 Java 코드로 모든 화면 동적 생성 — 화면 구조 변경이 코드 한 곳에서 가능
+- **선생님 화면**: 통신문 발송 + 파일 업로드 미리보기 (PDF/HWP/이미지)
+- **학부모 화면**: 수신함 → 통신문 상세 (원본 PDF 표시) → 분석 결과 카드 (체크리스트·번역·TTS·STT)
+- **ChecklistActivity (통합 체크리스트 화면)**: 학부모 계정의 모든 통신문 행동 항목을 5개 탭(준비물 / 제출 / 비용 / 건강·안전 / 마감일순)으로 한 화면에 모음
+- **NoticeChecklistDialog (한 통신문 모달)**: 분석 결과 화면에서 현재 통신문만 빠르게 확인하는 하단 슬라이드 모달
+- 두 체크리스트 화면 모두 stable hash ID 기반으로 백엔드 영속 dict와 자동 동기화 → 토글 결과가 다음 진입에서도 유지
+- **BASE_URL 보안**: 서버 IP를 코드에 하드코딩하지 않고 BuildConfig로 빌드 시점 주입 → 레포 노출 차단
+
+#### Backend 정량 지표
+
+| 항목 | 값 |
+|---|---|
+| 분석 파이프라인 단계 | 7단계 (parser → Claude → Model A → Model B → 카드 빌더 → 번역 → TTS) |
+| API 엔드포인트 | 10개 이상 |
+| LLM provider 옵션 | 2개 (`LLM_PROVIDER=gemini\|claude` 환경변수 토글) — Gemini 503 폭주 안전망 |
+| Claude prompt 규칙 | 12개 → 6개로 압축, 위반 사례 6개 명시 |
+| 체크리스트 식별자 | 12자 sha1 stable hash (재분석 강건성) |
+| 권한 게이트 단위 테스트 | 7개 (분석/삭제 라우트 + demo 엔드포인트 회귀 방지) |
+
+#### Backend 발표에서 말할 핵심 문장
+
+- 백엔드의 역할은 모델을 호출하는 게 아니라, 학부모가 끝까지 행동할 수 있도록 모델 결과를 묶고 상태를 관리하는 것이었습니다.
+- LLM이 임의로 "준비물 → 용품"으로 바꾸지 못하도록, 위반 사례를 prompt에 직접 명시해 학습된 표현 자동 교체를 차단했습니다.
+- 체크리스트는 stable hash 식별자로 같은 통신문을 재분석해도 학부모의 체크 상태가 깨지지 않도록 설계했습니다.
+- 통합 체크리스트 화면은 한 통신문이 아닌 학부모 계정 전체의 할 일을 chip별로 모아, 생성형 AI가 못 하는 누적 상태 관리를 가능하게 합니다.
+- 안드 UI는 XML 레이아웃 없이 코드 동적 생성으로 화면 구조 변경 비용을 줄였습니다.
+
+#### Backend 한계와 향후 개선
+
+- 자녀별 child_id 미적용 (1 parent = 1 child 가정) → 다자녀 시나리오 확장 필요
+- 분석 결과 캐시가 시연용 — 다른 사용자 첫 진입 시 콜드 캐시
+- 추후 API가 아닌 자체 모델로도 sentence를 API처럼 뽑을 수 있게 실험 중
 
 ### Android
 
@@ -431,7 +506,7 @@ translation-tts-lab은 단순 실험 노트가 아니라, 팀 백엔드와 연�
 
 | 이름 | 역할 | 주요 기여 |
 |---|---|---|
-| 태수 | Backend / API / 전체 파이프라인 | TODO |
+| 태수 | Backend / API / 전체 파이프라인 / Android UI | FastAPI 분석 파이프라인 7단계 오케스트레이션 / Claude·Gemini Vision API 통합 + sentence_list 컨트랙트 / 도메인 특화 Prompt 엔지니어링 (verbatim 정책으로 할루시네이션 차단) / 체크리스트 시스템 (chip-based split + stable hash IDs + 통합 엔드포인트) / 안드로이드 UI 네이티브 재작성 + ChecklistActivity·NoticeChecklistDialog / 권한 시스템 + 단위 테스트 / HF Spaces·NCP Docker 배포 자동화 |
 | 윤정 | Model A / 해야 할 일 추출 | TODO |
 | 경이 | Model B / 카테고리 분류 | TODO |
 | 세종 | 번역·TTS / glossary / 준비물 이미지 / 서비스 연결 | NLLB 실험, 번역 안정화, template-based translation, TTS 연결, 준비물 이미지·설명 기능, vi_demo 시연 안정화, 발표 프레임 정리 |
