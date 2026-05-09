@@ -44,3 +44,23 @@ def test_url_and_phone_are_not_nllb_translated():
 def test_date_time_fragment_skips_nllb():
     assert is_nllb_skip_value("23.(토) / 13:00 ~ 15:00", "event_datetime")
     assert is_nllb_skip_value("13:00 ~ 15:00", "event_datetime")
+
+
+def test_activity_content_preserved_as_info_card():
+    """활동 내용/체험 내용 헤더가 info_card로 보존되는지 검증."""
+    doc = raw_text_to_sentence_list(
+        "\n".join([
+            "해조류박람회 체험학습 안내",
+            "일시: 2026년 5월 6일(목) 8:50~14:40",
+            "장소: 해조류박람회 및 빙그레 시네마",
+            "활동 내용: 해조류박람회 및 빙그레 시네마 체험",
+            "준비물: 도시락, 물통",
+        ])
+    )
+
+    cards = build_info_cards_from_sentence_document(doc, "vi")
+    headers = [c.header_ko for c in cards]
+
+    assert "활동 내용" in headers, f"활동 내용 info_card 누락. headers={headers}"
+    content_card = next(c for c in cards if c.header_ko == "활동 내용")
+    assert "해조류박람회" in content_card.value_ko

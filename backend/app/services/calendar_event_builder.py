@@ -170,6 +170,17 @@ def _actions(urls: list[str], start_date: str) -> list[CalendarAction]:
     return actions
 
 
+def _extract_header_value(text: str) -> str:
+    """'헤더: 값' 형태에서 값 부분 반환. 구분자 없으면 text 그대로."""
+    for sep in ("：", ":"):
+        if sep in text:
+            parts = text.split(sep, 1)
+            val = parts[1].strip()
+            if val:
+                return val
+    return text.strip()
+
+
 def build_calendar_events_from_sentence_document(
     document: SentenceListDocument,
     *,
@@ -179,6 +190,19 @@ def build_calendar_events_from_sentence_document(
     """Build calendar events from hard-fact sentence-list items."""
     texts = [item.text for item in document.sentence_list]
     default_year, default_month = _base_year_month(texts)
+
+    # 장소·활동 내용 수집 — display_text 보강용 (학부모가 "무슨 행사인지" 알 수 있게)
+    place_items = [
+        item for item in document.sentence_list if item.role_hint == "location"
+    ]
+    content_items = [
+        item for item in document.sentence_list
+        if item.role_hint in ("content", "program_title")
+    ]
+    place_hint = _extract_header_value(place_items[0].text) if place_items else ""
+    content_hint = _extract_header_value(content_items[0].text) if content_items else ""
+
+    doc_title = title or document.document_title
     events: list[CalendarEvent] = []
 
     for item in sorted(document.sentence_list, key=lambda x: x.source_order):
@@ -193,16 +217,24 @@ def build_calendar_events_from_sentence_document(
         start_date = dates[0]
         end_date = dates[1] if is_period and len(dates) > 1 else start_date
         urls = _extract_urls(item.text)
+
+        # display_text: 원문 + 장소·활동 보강 (달력 상세 모달에서 행사 맥락 표시)
+        display = item.text.strip()
+        if place_hint and place_hint not in display:
+            display += f"\n장소: {place_hint}"
+        if content_hint and content_hint not in display:
+            display += f"\n활동: {content_hint}"
+
         events.append(CalendarEvent(
             event_id=f"{notice_id or 'notice'}_{item.sentence_id}_{len(events) + 1}",
             notice_id=notice_id,
-            title=title or document.document_title,
+            title=doc_title,
             type=event_type,
             label=label,
             start_date=start_date,
             end_date=end_date,
             time=_extract_time(item.text),
-            display_text=item.text.strip(),
+            display_text=display,
             color=color,
             source_text=item.text.strip(),
             translated="",
