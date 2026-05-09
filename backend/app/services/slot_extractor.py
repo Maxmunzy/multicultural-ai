@@ -480,6 +480,29 @@ def preprocess_notice_text(text: str) -> str:
 # 순수 금액 숫자 줄 — extract_amounts 가 이미 잡음
 _PURE_AMOUNT_LINE = re.compile(r"^[\d,]+\s*(?:만|천|억)?\s*원$")
 
+# 복합 문장(지원+납부) 분리용 — 쉼표 또는 ※ 기준
+_MIXED_LINE_SPLIT_RE = re.compile(r",\s*|※\s*")
+
+# 납부 '행위' 키워드 — 분리된 파트 분류 시 사용 (체험학습비 등 품목명 제외)
+# "체험학습비: ... 버스 1대 지원" 처럼 품목명만 포함된 파트를 납부로 오분류하지 않도록.
+_PAYMENT_ACTION_RE = re.compile(
+    r"스쿨뱅킹|자동이체|잔액|납부(?:기한|완료|대상|액)?|미납"
+)
+
+
+def _split_mixed_cost_line(text: str) -> tuple[list[str], list[str]]:
+    """납부+지원 키워드가 모두 있는 복합 문장을 쉼표/※ 기준으로 분리.
+
+    Returns (cost_parts, support_parts). 두 키워드 중 하나만 있으면 ([], []) 반환.
+    파트 분류는 _PAYMENT_ACTION_RE(행위 동사) vs _COST_SUPPORT_INFO_RE 로 판단.
+    """
+    if not (_COST_PAYMENT_RE.search(text) and _COST_SUPPORT_INFO_RE.search(text)):
+        return [], []
+    parts = [p.strip() for p in _MIXED_LINE_SPLIT_RE.split(text) if p.strip() and len(p.strip()) >= 4]
+    cost_parts = [p for p in parts if _PAYMENT_ACTION_RE.search(p) and not _COST_SUPPORT_INFO_RE.search(p)]
+    support_parts = [p for p in parts if _COST_SUPPORT_INFO_RE.search(p) and not _PAYMENT_ACTION_RE.search(p)]
+    return cost_parts, support_parts
+
 # 개인정보 동의·서명 문장 — 비용/지원 탭 모두 제외 (form artifact)
 _CONSENT_RE = re.compile(
     r"개인\s*정보\s*(?:제공|수집|활용|처리|동의)"
@@ -518,14 +541,24 @@ def extract_cost_sentences(text: str) -> list[str]:
     seen: set[str] = set()
     for line in text.splitlines():
         s = strip_markers(line).strip()
-        if not s or len(s) > 80:
+        if not s:
             continue
         if _PURE_AMOUNT_LINE.match(s):
             continue
         if not _COST_ALL_RE.search(s):
             continue
-        # 개인정보 동의 문장은 form artifact — 비용 탭 제외
         if _CONSENT_RE.search(s):
+            continue
+        # 납부+지원 복합 문장 — 분리해서 납부 파트만 가져옴
+        cost_parts, _ = _split_mixed_cost_line(s)
+        if cost_parts:
+            for p in cost_parts:
+                if p not in seen:
+                    seen.add(p)
+                    out.append(p)
+            continue
+        # 길이 제한은 단순 문장에만 적용 (복합은 위에서 처리)
+        if len(s) > 80:
             continue
         # 지원 키워드만 있고 납부 키워드 없으면 → support_info로 분리
         if _COST_SUPPORT_INFO_RE.search(s) and not _COST_PAYMENT_RE.search(s):
@@ -546,16 +579,26 @@ def extract_cost_support_info(text: str) -> list[str]:
     seen: set[str] = set()
     for line in text.splitlines():
         s = strip_markers(line).strip()
-        if not s or len(s) > 80:
+        if not s:
             continue
         if _PURE_AMOUNT_LINE.match(s):
             continue
         if not _COST_SUPPORT_INFO_RE.search(s):
             continue
-        # 개인정보 동의 문장은 form artifact — 지원 안내 탭도 제외
         if _CONSENT_RE.search(s):
             continue
-        # 납부 키워드가 같이 있으면 cost_sentences가 처리
+        # 납부+지원 복합 문장 — 분리해서 지원 파트만 가져옴
+        _, support_parts = _split_mixed_cost_line(s)
+        if support_parts:
+            for p in support_parts:
+                if p not in seen:
+                    seen.add(p)
+                    out.append(p)
+            continue
+        # 길이 제한은 단순 문장에만 적용
+        if len(s) > 80:
+            continue
+        # 납부 키워드가 같이 있으면 cost_sentences가 처리 (단순 문장)
         if _COST_PAYMENT_RE.search(s):
             continue
         if s not in seen:

@@ -247,6 +247,22 @@ check("보험료 지원 → 지원 안내탭", any("보험료" in l for l in sup
 check("개인정보 동의 → 비용탭 제외", not any("개인정보" in l for l in cost_lines))
 check("개인정보 동의 → 지원 안내탭 제외", not any("개인정보" in l for l in support_lines))
 
+# 복합 문장 분리 — "버스 지원, ※ 스쿨뱅킹 자동이체" 형태
+_MIXED_LINE = (
+    "체험학습비: 양주시농업기술센터 '농촌사랑 자연체험 학습 지원사업'에서 버스 1대 지원,"
+    " ※ 체험학습비는 4.13.~4.15. 스쿨뱅킹 계좌에서 자동이체됩니다."
+)
+_mixed_cost = extract_cost_sentences(_MIXED_LINE)
+_mixed_support = extract_cost_support_info(_MIXED_LINE)
+check("복합문장 납부파트 → 비용탭", any("스쿨뱅킹" in l or "자동이체" in l for l in _mixed_cost),
+      f"cost={_mixed_cost}")
+check("복합문장 지원파트 → 지원탭", any("버스" in l or "지원" in l for l in _mixed_support),
+      f"support={_mixed_support}")
+check("복합문장 버스지원 → 비용탭 미포함", not any("버스" in l for l in _mixed_cost),
+      f"cost={_mixed_cost}")
+check("복합문장 스쿨뱅킹 → 지원탭 미포함", not any("스쿨뱅킹" in l for l in _mixed_support),
+      f"support={_mixed_support}")
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # § 4. info_cards — sanitized sentence_doc 기준
