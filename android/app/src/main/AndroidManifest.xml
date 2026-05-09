@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- Android 13+ 알림 표시 권한 (FCM 새 통신문 도착 알림) -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
@@ -29,6 +31,20 @@
             android:exported="false"
             android:label="이번 주 할 일"
             android:screenOrientation="portrait" />
+
+        <!-- FCM 메시지 수신 서비스 (앱 백그라운드/종료 상태에서도 알림 수신) -->
+        <service
+            android:name=".SchoolBridgeMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
+
+        <!-- FCM 알림 채널 ID (Android 8+ 필수) -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="schoolbridge_inbox" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

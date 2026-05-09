@@ -68,6 +68,13 @@ class NoticeSendRequest(BaseModel):
     text: str
 
 
+class FcmTokenRegisterRequest(BaseModel):
+    """안드 앱이 부팅·로그인 시점에 FCM 토큰을 등록 — 학부모/선생님 ID와 매핑."""
+    user_id: str
+    token: str
+    target_language: str = "ko"  # 알림 텍스트 다국어 표시용 (학부모 선택 언어)
+
+
 class NoticeAnalyzeRequest(BaseModel):
     target_language: str   # vi/en/ru/ms/mn/zh/th/ja/ko_easy — 필수, default 없음
     # OCR/PDF layout — Android ML Kit OCR JSON 또는 backend pdfplumber probe JSON.

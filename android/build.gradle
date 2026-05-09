@@ -1,3 +1,5 @@
 plugins {
     id 'com.android.application' version '9.2.0' apply false
+    // Firebase Cloud Messaging — 학부모 폰에 새 가정통신문 알림 push
+    id 'com.google.gms.google-services' version '4.4.2' apply false
 }
