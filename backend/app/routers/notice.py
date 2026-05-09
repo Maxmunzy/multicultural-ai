@@ -22,7 +22,7 @@ from app.services.classifier import classify_category
 from app.services.tts import generate_tts_file
 from app.services.slot_extractor import (
     extract_summary_regex_slots, find_when_in_text,
-    split_supply_tokens, strip_markers,
+    split_supply_tokens, strip_markers, preprocess_notice_text,
 )
 from app.services.card_builder import build_cards
 from app.services.info_card_builder import build_info_cards_from_sentence_document
@@ -883,6 +883,10 @@ async def analyze_notice(
                 analysis_text = normalized
 
     _t_marks["llm_normalizer"] = time.time() - _t_start - sum(_t_marks.values())
+
+    # [2.7] 서식 아티팩트 제거 — 기재란 밑줄(_____), 구분선(-----), 빈 괄호((  )).
+    # 번역 파이프라인 전체에 적용되도록 LLM 정규화 이후 최종 analysis_text 에 적용.
+    analysis_text = preprocess_notice_text(analysis_text)
 
     # [3] 윤정 추출 → list[YunjeongTodo] (할일 없으면 [])
     # \n 단위 sentence 분리 후 한 줄씩 윤정에 개별 호출.

@@ -409,6 +409,56 @@ def extract_supplies(text: str) -> list[str]:
     return out
 
 
+# ── 서식 아티팩트 제거 ───────────────────────────────────────────
+_BLANK_UNDERSCORES = re.compile(r"_{3,}")
+_BLANK_DASHES_LINE = re.compile(r"^[ \t\-─—]{5,}[ \t]*$", re.MULTILINE)
+_BLANK_PARENS = re.compile(r"\(\s{2,}\)")
+
+
+def preprocess_notice_text(text: str) -> str:
+    """OCR 원문에서 서식 아티팩트 제거 — 번역 파이프라인 전 적용.
+
+    제거 대상: 기재란 밑줄(_____), 구분선(----- 단독 줄), 빈 괄호((   )).
+    """
+    text = _BLANK_UNDERSCORES.sub("", text)
+    text = _BLANK_DASHES_LINE.sub("", text)
+    text = _BLANK_PARENS.sub("", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
+# ── 비용 지원 문구 추출 ───────────────────────────────────────────
+_COST_SUPPORT_RE = re.compile(
+    r"지원(?:\s*금)?|보험료|스쿨뱅킹|자동이체|잔액"
+    r"|감면|보조|무료|무상|체험\s*학습비|참가비|재료비"
+    r"|교재비|급식비|납부|회비|수강료"
+)
+# 순수 금액 숫자 줄 — extract_amounts 가 이미 잡음
+_PURE_AMOUNT_LINE = re.compile(r"^[\d,]+\s*(?:만|천|억)?\s*원$")
+
+
+def extract_cost_sentences(text: str) -> list[str]:
+    """비용 관련 지원 문구가 있는 줄 추출.
+
+    '버스 1대 지원', '보험료 지원', '스쿨뱅킹 자동이체' 등
+    extract_amounts 로 잡히지 않는 지원·납부 관련 문구.
+    """
+    out: list[str] = []
+    seen: set[str] = set()
+    for line in text.splitlines():
+        s = strip_markers(line).strip()
+        if not s or len(s) > 80:
+            continue
+        if _PURE_AMOUNT_LINE.match(s):
+            continue
+        if not _COST_SUPPORT_RE.search(s):
+            continue
+        if s not in seen:
+            seen.add(s)
+            out.append(s)
+    return out
+
+
 # ── 통합 진입점 ──────────────────────────────────────────────────
 def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[dict]]:
     """summary 슬롯 중 정규식으로 채울 수 있는 항목들을 SlotEntry-ready dict로.
@@ -417,7 +467,7 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
     """
     out: dict[str, list[dict]] = {
         "dates": [], "times": [], "amounts": [], "urls": [], "phones": [],
-        "deadlines": [], "supplies": [],
+        "deadlines": [], "supplies": [], "cost_support": [],
     }
     for d in extract_dates(text):
         idx = text.find(d["ko"])
@@ -459,6 +509,8 @@ def extract_summary_regex_slots(text: str, target_lang: str) -> dict[str, list[d
     for s in extract_supplies(text):
         # 번역은 _build_cards_from_regex_slots 에서 한 번에 처리되도록 placeholder
         out["supplies"].append({"ko": s, "translated": "", "source": "regex"})
+    for s in extract_cost_sentences(text):
+        out["cost_support"].append({"ko": s, "translated": "", "source": "regex"})
     return out
 
 

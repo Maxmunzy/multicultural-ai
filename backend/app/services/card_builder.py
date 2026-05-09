@@ -51,6 +51,7 @@ def _stable_id(text: str) -> str:
 # 학년 나열을 의미 없는 단일 숫자 체크박스로 깨먹는 사고 방지). 세종님 우려 반영.
 _SPLIT_CHIPS: frozenset[str] = frozenset({
     Category.supplies.value,    # "준비물" — 알림장, 색종이, 연필 ...
+    Category.cost.value,        # "비용" — 23,000원, 버스 지원, 보험료 ...
 })
 
 
@@ -185,6 +186,7 @@ _SLOT_HEADERS: dict[str, str] = {
     "phones": "연락처",
     "amounts": "비용",
     "supplies": "준비물",
+    "cost_support": "비용 지원",
 }
 
 # regex 슬롯이 todo로 이미 흡수됐는지 판단할 헤더 매핑.
@@ -200,6 +202,7 @@ _TODO_HEADER_COVERS: dict[str, set[str]] = {
     "phones": {"연락처", "문의", "문의처"},
     "amounts": {"비용", "회비", "참가비", "수강료", "급식비"},
     "supplies": {"준비물", "준비", "지참물", "준비사항"},
+    "cost_support": {"비용", "회비", "참가비", "수강료", "급식비"},
 }
 
 
@@ -291,9 +294,13 @@ def _build_cards_from_regex_slots(
             value_ko=value_ko,
             value_easy_ko=to_easy_korean(value_ko),
             value_translated=value_translated,
-            # supplies regex 슬롯은 "준비물" 칩 부여 → _build_checklist_from_card 가 comma split
+            # supplies → 준비물 칩, amounts/cost_support → 비용 칩
             # 나머지 regex 슬롯은 카테고리 모호 → chip=None (체크리스트 미생성)
-            chip=Category.supplies.value if slot_name == "supplies" else None,
+            chip=(
+                Category.supplies.value if slot_name == "supplies"
+                else Category.cost.value if slot_name in ("amounts", "cost_support")
+                else None
+            ),
             importance=0.7,  # todo 평균 confidence보다 살짝 낮음
         ))
 
@@ -452,6 +459,37 @@ def _is_form_card(card: SlotCard) -> bool:
     return bool(_FORM_SIGNALS.search(card.value_ko))
 
 
+_FORM_CHECKBOX_RE = re.compile(r"[○◯✕✗×]")
+_FORM_DIVIDER_RE = re.compile(r"[-─—|]{3,}")
+
+
+def _transform_form_cards(cards: list[SlotCard]) -> list[SlotCard]:
+    """동의서 form 카드를 삭제 대신 제출 chip 항목으로 변환.
+
+    서명·동의 여부·학년/반/번호 기재란은 학부모가 실제로 처리해야 할
+    항목이므로 삭제하지 않고 제출(submission) 칩 카드로 보존.
+    체크박스 기호(○/✕)·구분선은 제거 후 의미 있는 텍스트가 남으면 변환,
+    4자 미만으로 짧아지면 제거.
+    """
+    out: list[SlotCard] = []
+    for card in cards:
+        if not _is_form_card(card):
+            out.append(card)
+            continue
+        ko = _FORM_CHECKBOX_RE.sub("", card.value_ko)
+        ko = _FORM_DIVIDER_RE.sub("", ko)
+        ko = re.sub(r"\s{2,}", " ", ko).strip().strip(":.：")
+        if not ko or len(ko) < 4:
+            continue
+        out.append(card.model_copy(update={
+            "value_ko": ko,
+            "value_easy_ko": ko,
+            "value_translated": "",
+            "chip": Category.submission.value,
+        }))
+    return out
+
+
 def _dedup_cards(cards: list[SlotCard]) -> list[SlotCard]:
     """카드 value 가 다른 카드의 substring 이면 짧은 쪽 제거 (cross-header).
 
@@ -532,7 +570,7 @@ def build_cards(
     todo_headers = {c.header_ko for c in cards}
     cards.extend(_build_cards_from_regex_slots(regex_slots, target_lang, todo_headers))
 
-    cards = [c for c in cards if not _is_form_card(c)]
+    cards = _transform_form_cards(cards)
     # orphan merge 는 cards 가 본문 순서일 때만 안전한데, 윤정 todos 가 confidence
     # 순으로 들어와 직전 카드 = 본문 직전 카드 보장 X. 잘못 붙는 사고 방지를
     # 위해 merge 대신 단순 필터로 통일 (정보 일부 손실 감수).
