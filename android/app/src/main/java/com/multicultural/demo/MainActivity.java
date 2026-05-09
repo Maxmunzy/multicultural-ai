@@ -1946,6 +1946,7 @@ public class MainActivity extends Activity {
         legend.addView(calendarLegend("신청", calendarColor("blue")));
         legend.addView(calendarLegend("행사", calendarColor("green")));
         legend.addView(calendarLegend("제출", calendarColor("orange")));
+        legend.addView(calendarLegend("비용/납부", calendarColor("gold")));
         legend.addView(calendarLegend("휴업/기념일", calendarColor("red")));
         box.addView(legend);
 
@@ -2141,6 +2142,7 @@ public class MainActivity extends Activity {
             case "blue": return Color.parseColor("#2F80ED");
             case "green": return Color.parseColor("#2F9E6D");
             case "orange": return Color.parseColor("#F2994A");
+            case "gold": return Color.parseColor("#D4A017");
             case "red": return Color.parseColor("#D64545");
             case "purple": return Color.parseColor("#7B61D1");
             default: return COLOR_INK3;

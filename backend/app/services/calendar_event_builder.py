@@ -32,10 +32,17 @@ ROLE_EVENT_TYPE: dict[str, tuple[str, str, str]] = {
     "event_datetime": ("event_datetime", "운영일시", "green"),
     "result_announcement": ("result_announcement", "결과발표", "purple"),
     "submit": ("submit_deadline", "제출", "orange"),
-    "fee": ("payment_deadline", "납부/비용", "red"),
+    "fee": ("payment_deadline", "납부/비용", "gold"),
 }
 
 HOLIDAY_HINTS = ("공휴일", "휴업", "재량휴업", "기념일", "어린이날", "스승의 날")
+
+# 일반 안내문 표현 — content_hint에서 제외 (display_text 오염 방지)
+_GENERIC_NOTICE_RE = re.compile(
+    r"드릴\s*말씀|아래와\s*같이|계획하여\s*운영|실시할\s*예정"
+    r"|참고하시어|안전하고\s*즐거운|교육과정\s*운영"
+    r"|보고\s*교육과정|이에\s*안내|와\s*같이\s*운영"
+)
 
 # 2026년 공휴일/기념일 static map.
 # TODO: 서비스 전환 시 공공데이터포털 특일정보 API(data.go.kr) 또는
@@ -200,7 +207,13 @@ def build_calendar_events_from_sentence_document(
         if item.role_hint in ("content", "program_title")
     ]
     place_hint = _extract_header_value(place_items[0].text) if place_items else ""
-    content_hint = _extract_header_value(content_items[0].text) if content_items else ""
+    # 일반 안내문 아닌 첫 번째 content 항목만 사용 — "드릴 말씀은...", "아래와 같이..." 필터
+    content_hint = ""
+    for _ci in content_items:
+        _val = _extract_header_value(_ci.text)
+        if not _GENERIC_NOTICE_RE.search(_val):
+            content_hint = _val
+            break
 
     doc_title = title or document.document_title
     events: list[CalendarEvent] = []
