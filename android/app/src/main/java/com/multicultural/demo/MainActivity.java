@@ -2179,8 +2179,6 @@ public class MainActivity extends Activity {
         if (glossaryChipsBox != null) {
             View parent = (View) glossaryChipsBox.getParent();
             if (parent != null) parent.setVisibility(View.GONE);
-            View grandparent = parent != null ? (View) parent.getParent() : null;
-            if (grandparent != null) grandparent.setVisibility(View.GONE);
         }
         return false;
     }
