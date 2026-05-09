@@ -26,7 +26,10 @@ from app.services.slot_extractor import (
 )
 from app.services.card_builder import build_cards
 from app.services.info_card_builder import build_info_cards_from_sentence_document
-from app.services.calendar_event_builder import build_calendar_events_from_sentence_document
+from app.services.calendar_event_builder import (
+    build_calendar_events_from_sentence_document,
+    merge_with_holidays,
+)
 from app.services.highlight_mapper import build_highlights_from_cards
 from app.services.layout_normalizer import (
     normalize_text as llm_normalize_text,
@@ -959,6 +962,7 @@ async def analyze_notice(
         notice_id=notice_id,
         title=title_ko,
     )
+    calendar_events = merge_with_holidays(calendar_events, 2026)
 
     # [6.55] info_cards dedup — cards와 동일/substring value_ko 갖는 카드 제거.
     # cards(윤정 todo)와 info_cards(sentence_list)가 같은 헤더-값을 만들어 학년별

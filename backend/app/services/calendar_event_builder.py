@@ -63,7 +63,7 @@ _HOLIDAY_MAP_BY_YEAR: dict[int, dict[str, str]] = {
 }
 
 
-def _build_holiday_events(year: int) -> list[CalendarEvent]:
+def build_holiday_events(year: int) -> list[CalendarEvent]:
     """Static 공휴일 CalendarEvent 목록 반환. 미지원 연도는 빈 리스트."""
     holidays = _HOLIDAY_MAP_BY_YEAR.get(year, {})
     events: list[CalendarEvent] = []
@@ -209,8 +209,6 @@ def build_calendar_events_from_sentence_document(
             actions=_actions(urls, start_date),
         ))
 
-    # 해당 연도 공휴일을 항상 포함 — Android hasRedCalendarEvent()가 날짜 색상 처리
-    events.extend(_build_holiday_events(default_year))
     return _dedup_events(events)
 
 
@@ -224,3 +222,12 @@ def _dedup_events(events: list[CalendarEvent]) -> list[CalendarEvent]:
         seen.add(key)
         out.append(event)
     return out
+
+
+def merge_with_holidays(events: list[CalendarEvent], year: int) -> list[CalendarEvent]:
+    """문서 이벤트에 해당 연도 공휴일을 merge해서 반환.
+
+    build_calendar_events_from_sentence_document 는 순수하게 문서 슬롯만 반환.
+    호출부(notice.py)에서 이 함수를 통해 공휴일을 명시적으로 합친다.
+    """
+    return _dedup_events(events + build_holiday_events(year))
