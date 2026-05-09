@@ -7,7 +7,7 @@ KcELECTRA 파인튜닝 분류기 — 추론 전용 모듈
       학습(Training)은 이 파일이 아닌 notebooks/01_train_kcelectra.ipynb에서 진행.
 
 요구 환경: torch, transformers (CPU 추론 가능)
-학습 체크포인트 경로: model/classification/checkpoints/kcelectra-category/
+학습 체크포인트 경로: model/classification/checkpoints/kcelectra-category-v3_2/
 """
 
 import os
@@ -24,13 +24,13 @@ except ImportError:
     _HF_AVAILABLE = False
 
 _BASE = Path(__file__).parent.parent
-_CKPT_DIR    = _BASE / "checkpoints" / "kcelectra-category-v3"
+_CKPT_DIR    = _BASE / "checkpoints" / "kcelectra-category-v3_2"
 _LABELS_FILE = _CKPT_DIR / "label2id.json"
 
 # HF Hub fallback — 로컬 체크포인트 없을 때 자동 다운로드
 # upload_classifier_to_hf.py 실행 후 아래 두 값을 채워 주세요.
 _BASE_MODEL_ID = "kysophia/kcelectra-category"
-_HF_SUBFOLDER  = "kcelectra-category-v3"
+_HF_SUBFOLDER  = "kcelectra-category-v3_2"
 
 LABELS = ["일정", "준비물", "제출", "비용", "건강·안전", "기타"]
 
