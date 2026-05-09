@@ -8,9 +8,9 @@ KcELECTRA 분류 모델 → HuggingFace Hub 업로드 스크립트
 
 업로드 결과:
     HF Hub repo: HF_USERNAME/kcelectra-category
-    서브폴더:     kcelectra-category-v3/
+    서브폴더:     kcelectra-category-v3_2/
     → AutoModel.from_pretrained("HF_USERNAME/kcelectra-category",
-                                subfolder="kcelectra-category-v3")
+                                subfolder="kcelectra-category-v3_2")
 
 완료 후 반드시:
     classifier_kcelectra.py 의 _BASE_MODEL_ID 를 실제 repo ID로 수정할 것.
@@ -26,10 +26,10 @@ HF_USERNAME = "kysophia"
 # ─────────────────────────────────────────────────────────────────
 
 REPO_NAME   = "kcelectra-category"
-SUBFOLDER   = "kcelectra-category-v3"
+SUBFOLDER   = "kcelectra-category-v3_2"
 
 _HERE      = Path(__file__).parent.parent   # classification/
-CKPT_DIR   = _HERE / "checkpoints" / "kcelectra-category-v3"
+CKPT_DIR   = _HERE / "checkpoints" / "kcelectra-category-v3_2"
 
 
 def _check_prerequisites():
@@ -39,7 +39,7 @@ def _check_prerequisites():
 
     if not CKPT_DIR.exists():
         print(f"[오류] 체크포인트 폴더가 없습니다: {CKPT_DIR}")
-        print("  Colab 학습 완료 후 kcelectra-category-v3/ 를 이 경로에 두세요.")
+        print("  Colab 학습 완료 후 kcelectra-category-v3_2/ 를 이 경로에 두세요.")
         sys.exit(1)
 
     required = ["config.json", "label2id.json", "tokenizer.json", "tokenizer_config.json"]
@@ -77,7 +77,7 @@ def upload():
         folder_path=str(CKPT_DIR),
         repo_id=repo_id,
         path_in_repo=SUBFOLDER,
-        commit_message=f"Add KcELECTRA classification v3 checkpoint",
+        commit_message=f"Add KcELECTRA classification v3_2 checkpoint",
     )
 
     print(f"\n[3/3] 완료!")
