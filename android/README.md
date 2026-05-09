@@ -59,24 +59,46 @@ docker compose up --build
 ipconfig  # PC 내부 IP 확인 (예: 192.168.0.23)
 ```
 
-`MainActivity.java`의 `BASE_URL`을 PC IP로 변경:
+빌드 시 `-P` 옵션으로 PC IP 주입 (`MainActivity.java` 직접 수정 금지 — `BASE_URL`은 `BuildConfig`로 분리됨):
 
-```java
-private static final String BASE_URL = "http://192.168.0.23:8000";
+```powershell
+./gradlew clean assembleDebug -Pschoolbridge.baseUrl=http://192.168.0.23:8000
 ```
 
 휴대폰 브라우저에서 `http://192.168.0.23:8000/docs` 열리는지 먼저 확인. 안 열리면 PC와 휴대폰이 같은 Wi-Fi인지, Windows 방화벽이 8000 포트를 막지 않는지 확인.
 
 주의: Android 실기기에서 `localhost`/`127.0.0.1`은 PC가 아니라 휴대폰 자기 자신을 의미합니다. 로컬 모드에선 반드시 PC IPv4 주소를 사용하세요.
 
-## 4. Android Studio 실행
+## 3. URL 전환 시 주의사항
+
+`-Pschoolbridge.baseUrl` 값을 바꿀 때는 반드시 **`clean`** 을 포함해야 이전 캐시가 날아갑니다:
+
+```powershell
+# NCP 실서버로 전환
+./gradlew clean assembleDebug "-Pschoolbridge.baseUrl=http://YOUR_NCP_VM_IP:8000"
+
+# 빌드 직후 BuildConfig 확인 (값이 맞는지 검증)
+Select-String -Path "app\build\generated\source\buildConfig\debug\com\multicultural\demo\BuildConfig.java" -Pattern "BASE_URL"
+```
+
+`clean` 없이 `assembleDebug`만 치면 이전 URL이 그대로 남아 서버 연결이 안 될 수 있습니다.
+
+## 4. APK 설치 (adb 직접 설치)
+
+Android Studio 없이 adb로 바로 설치하려면:
+
+```powershell
+& "$env:LOCALAPPDATA\Android\Sdk\platform-tools\adb.exe" install -r -t "app\build\outputs\apk\debug\app-debug.apk"
+```
+
+## 5. Android Studio 실행
 
 1. Android Studio에서 `multicultural-ai/android/` 폴더를 엽니다.
 2. Gradle Sync가 끝날 때까지 기다립니다.
 3. Android 실기기를 USB 또는 무선 디버깅으로 연결합니다.
 4. Run 버튼을 눌러 앱을 설치합니다.
 
-## 5. 테스트 순서
+## 6. 테스트 순서
 
 1. `선생님으로 시작`
 2. `샘플 가정통신문 채우기` 또는 **HWP/PDF/사진 파일 업로드** (`POST /notice/upload`)
@@ -91,7 +113,7 @@ private static final String BASE_URL = "http://192.168.0.23:8000";
 11. TTS 재생 중 속도 버튼(단어별 / 천천히 / 오리지날) 전환 확인
 12. 마이크 버튼 누른 뒤 팁에 있는 문장 말하기 → TTS로 답변 확인
 
-## 문제 해결
+## 7. 문제 해결
 
 | 문제 | 확인할 것 |
 | --- | --- |
@@ -104,6 +126,9 @@ private static final String BASE_URL = "http://192.168.0.23:8000";
 | STT가 인식은 되는데 답변 없음 | 팁 카드에 적힌 문장과 비슷하게 말했는지 확인 — 키워드가 포함돼야 매칭됨 |
 | TTS 속도 버튼이 안 보임 | 서버 TTS URL이 없을 때는 속도 행이 표시되지 않을 수 있음 |
 
-## 커밋 주의
+## 8. 커밋 주의
 
-`MainActivity.java`의 `BASE_URL`은 현재 **NCP Seoul 실서버**를 가리킵니다(공통 시연 환경). 로컬 IP로 임시 변경했다면 커밋하지 마세요 — 팀원 환경을 깨뜨릴 수 있습니다. 시연·평가는 실서버 기준입니다.
+`BASE_URL`은 `BuildConfig`로 분리되어 `MainActivity.java`에 하드코딩되어 있지 않습니다. 빌드 시 `-Pschoolbridge.baseUrl` 로 주입하므로, **소스 코드 커밋에는 URL이 포함되지 않습니다.**
+
+- 로컬 IP로 빌드했던 APK를 커밋하지 마세요 (`.gitignore`에 `app/build/` 포함됨).
+- 시연·평가는 항상 NCP 실서버(`-Pschoolbridge.baseUrl=http://NCP_IP:8000`) 기준으로 빌드된 APK를 사용하세요.

@@ -64,6 +64,36 @@ def test_calendar_event_url_actions():
     assert event.actions[0].value == "https://example.com/apply"
 
 
+def test_display_text_enriched_with_place_and_content():
+    """달력 이벤트 display_text에 장소·활동 내용이 추가되는지 검증."""
+    doc = SentenceListDocument(
+        document_title="해조류박람회 체험학습",
+        sentence_list=[
+            _item("s1", "운영일시: 2026년 5월 6일(목) 8:50~14:40", "event_datetime", 1),
+            SentenceListItem(
+                sentence_id="s2",
+                text="장소: 해조류박람회 및 빙그레 시네마",
+                role_hint="location",
+                source_order=2,
+                contains_slots=[],
+            ),
+            SentenceListItem(
+                sentence_id="s3",
+                text="활동 내용: 해조류박람회 체험",
+                role_hint="content",
+                source_order=3,
+                contains_slots=[],
+            ),
+        ],
+    )
+
+    events = build_calendar_events_from_sentence_document(doc, notice_id="n5")
+
+    assert len(events) == 1
+    assert "장소: 해조류박람회 및 빙그레 시네마" in events[0].display_text
+    assert "활동: 해조류박람회 체험" in events[0].display_text
+
+
 def test_calendar_event_january_after_december_notice_uses_next_year():
     doc = SentenceListDocument(
         document_title="겨울방학 프로그램 안내",
