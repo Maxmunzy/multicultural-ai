@@ -34,6 +34,9 @@ _ACTION_CHIPS: frozenset[str] = frozenset({
     Category.health.value,      # "건강·안전"
 })
 
+# 조사 — 준비물 dedup 시 "물통은 ..." 에서 "물통" prefix 판별용
+_KO_PARTICLES: frozenset[str] = frozenset("은는이가을를의와과도")
+
 
 def _stable_id(text: str) -> str:
     """문자열 stable hash 12자 — 카드/항목 식별자.
@@ -474,6 +477,46 @@ def _dedup_cards(cards: list[SlotCard]) -> list[SlotCard]:
     return keep
 
 
+def _dedup_supply_items(cards: list[SlotCard]) -> list[SlotCard]:
+    """준비물 체크리스트 항목 간 중복 제거.
+
+    regex 추출 "물통" + LLM 추출 "물통은 개인 이름을 적어서 가져오세요."가
+    함께 있으면, 더 짧은 핵심 항목("물통")을 유지하고 문장형을 제거한다.
+    판별 기준: 짧은 항목이 긴 항목의 prefix이고 그 다음 문자가 조사/공백일 때.
+    """
+    supply_kos: list[str] = [
+        item.ko.strip()
+        for card in cards
+        if card.chip == Category.supplies.value and card.checklist
+        for item in card.checklist
+    ]
+    if len(supply_kos) <= 1:
+        return cards
+
+    def is_dominated(ko: str) -> bool:
+        for other in supply_kos:
+            if other == ko or len(other) >= len(ko):
+                continue
+            if ko.startswith(other):
+                rest = ko[len(other):]
+                if rest and (rest[0] in _KO_PARTICLES or rest[0] in " \t"):
+                    return True
+        return False
+
+    out: list[SlotCard] = []
+    for card in cards:
+        if card.chip != Category.supplies.value or not card.checklist:
+            out.append(card)
+            continue
+        filtered = [item for item in card.checklist if not is_dominated(item.ko.strip())]
+        out.append(
+            card.model_copy(update={"checklist": filtered})
+            if len(filtered) != len(card.checklist)
+            else card
+        )
+    return out
+
+
 def build_cards(
     todos: list[YunjeongTodo],
     regex_slots: dict[str, list[dict]],
@@ -525,5 +568,9 @@ def build_cards(
         cl = _build_checklist_from_card(c, target_lang)
         if cl:
             cards[i] = c.model_copy(update={"checklist": cl})
+
+    # 준비물 항목 dedup — regex "물통" + LLM "물통은 ... 가져오세요." 동시 존재 시
+    # 짧은 핵심 항목 우선, 조사 확장형 문장 제거.
+    cards = _dedup_supply_items(cards)
 
     return cards
