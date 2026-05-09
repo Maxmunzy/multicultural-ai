@@ -85,6 +85,25 @@ HEADER_NORMALIZE_MAP: dict[str, str] = {
     "내용": "내용",
     "비용": "비용",
     "준비물": "준비물",
+    # 활동/체험 내용 헤더 — 현장체험학습·창의활동 통신문 보존용
+    "활동내용": "활동 내용",
+    "활동 내용": "활동 내용",
+    "체험내용": "체험 내용",
+    "체험 내용": "체험 내용",
+    "프로그램내용": "프로그램 내용",
+    "프로그램 내용": "프로그램 내용",
+    "교육내용": "교육 내용",
+    "교육 내용": "교육 내용",
+    "행사내용": "행사 내용",
+    "행사 내용": "행사 내용",
+    "주요활동": "주요 활동",
+    "주요 활동": "주요 활동",
+    "관람내용": "관람 내용",
+    "관람 내용": "관람 내용",
+    "체험학습내용": "체험학습 내용",
+    "체험학습 내용": "체험학습 내용",
+    "일정내용": "일정 내용",
+    "일정 내용": "일정 내용",
 }
 
 ROLE_BY_HEADER: dict[str, RoleHint] = {
@@ -100,6 +119,16 @@ ROLE_BY_HEADER: dict[str, RoleHint] = {
     "장소": "location",
     "비용": "fee",
     "준비물": "supplies",
+    # 활동/체험 내용 헤더 → content role
+    "활동 내용": "content",
+    "체험 내용": "content",
+    "프로그램 내용": "content",
+    "교육 내용": "content",
+    "행사 내용": "content",
+    "주요 활동": "content",
+    "관람 내용": "content",
+    "체험학습 내용": "content",
+    "일정 내용": "content",
 }
 
 SLOT_PATTERNS: dict[str, re.Pattern[str]] = {
@@ -202,6 +231,12 @@ def detect_contains_slots(text: str) -> list[str]:
     return list(dict.fromkeys(found))
 
 
+_ACTIVITY_CONTENT_HEADERS = (
+    "활동 내용", "체험 내용", "프로그램 내용", "교육 내용",
+    "행사 내용", "주요 활동", "관람 내용", "체험학습 내용", "일정 내용",
+)
+
+
 def infer_role_hint(text: str) -> RoleHint:
     """Best-effort role hint for fallback/local sentence-list adapters."""
     header, value = split_header_value(text)
@@ -209,6 +244,8 @@ def infer_role_hint(text: str) -> RoleHint:
         return ROLE_BY_HEADER[header]
 
     s = (text or "").strip()
+    if any(k in s for k in _ACTIVITY_CONTENT_HEADERS):
+        return "content"
     if "신청" in s and detect_contains_slots(s):
         return "application_period"
     if any(k in s for k in ("운영일시", "일시", "체험일", "행사일")) and detect_contains_slots(s):
@@ -237,19 +274,59 @@ def parse_sentence_list_payload(payload: str | dict[str, Any]) -> SentenceListDo
     return SentenceListDocument.model_validate(data)
 
 
+_BULLET_PREFIX = re.compile(r"^[-•*·▶▸◆●○■]\s+")
+
+
 def raw_text_to_sentence_list(raw_text: str) -> SentenceListDocument:
     """Local fallback adapter until Gemini sentence-list output is wired.
 
     This is intentionally simple: it preserves raw order and only infers headers,
     role hints, and hard-fact slots.  The Gemini path should produce richer
     section names, but downstream code can use the same contract.
+
+    활동 내용 병합: "활동 내용:" 단독 헤더 다음에 오는 불릿 줄들을 한 sentence로 합침.
     """
     lines = [line.strip() for line in (raw_text or "").splitlines() if line.strip()]
     items: list[SentenceListItem] = []
     title = lines[0] if lines else ""
 
-    for idx, line in enumerate(lines, start=1):
+    i = 0
+    idx = 0
+    while i < len(lines):
+        line = lines[i]
         role = infer_role_hint(line)
+        idx += 1
+
+        # 활동 내용 헤더가 단독(value 없음)이면 뒤따르는 불릿 줄을 병합.
+        # split_header_value 는 header=None + value=전체텍스트를 반환하므로
+        # "활동 내용:" 콜론 끝 줄은 header=None, line.endswith(":") 로 감지.
+        if role == "content":
+            header, value = split_header_value(line)
+            is_header_only = (
+                (header is not None and not value)
+                or (header is None and line.rstrip().endswith((":", "：")))
+            )
+            if is_header_only:
+                header_text = header or line.rstrip(" :：")
+                bullets: list[str] = []
+                j = i + 1
+                while j < len(lines):
+                    nxt = lines[j]
+                    if _BULLET_PREFIX.match(nxt) or infer_role_hint(nxt) == "etc":
+                        bullets.append(_BULLET_PREFIX.sub("", nxt).strip())
+                        j += 1
+                    else:
+                        break
+                if bullets:
+                    line = f"{header_text}: " + "; ".join(bullets)
+                    i = j
+                else:
+                    i += 1
+            else:
+                i += 1
+        else:
+            i += 1
+
         items.append(SentenceListItem(
             sentence_id=f"s{idx:03d}",
             text=line,

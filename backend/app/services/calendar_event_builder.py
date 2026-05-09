@@ -37,6 +37,54 @@ ROLE_EVENT_TYPE: dict[str, tuple[str, str, str]] = {
 
 HOLIDAY_HINTS = ("공휴일", "휴업", "재량휴업", "기념일", "어린이날", "스승의 날")
 
+# 2026년 공휴일/기념일 static map.
+# TODO: 서비스 전환 시 공공데이터포털 특일정보 API(data.go.kr) 또는
+#       연도별 holiday table로 대체. 음력 공휴일(설날·추석)은 매년 날짜가 달라지므로
+#       연도별 선제 갱신 필요.
+KOREAN_HOLIDAYS_2026: dict[str, str] = {
+    "2026-01-01": "신정",
+    "2026-02-16": "설날 연휴",
+    "2026-02-17": "설날",
+    "2026-02-18": "설날 연휴",
+    "2026-03-01": "삼일절",
+    "2026-05-05": "어린이날",
+    "2026-06-06": "현충일",
+    "2026-08-15": "광복절",
+    "2026-09-24": "추석 연휴",
+    "2026-09-25": "추석",
+    "2026-09-26": "추석 연휴",
+    "2026-10-03": "개천절",
+    "2026-10-09": "한글날",
+    "2026-12-25": "성탄절",
+}
+
+_HOLIDAY_MAP_BY_YEAR: dict[int, dict[str, str]] = {
+    2026: KOREAN_HOLIDAYS_2026,
+}
+
+
+def _build_holiday_events(year: int) -> list[CalendarEvent]:
+    """Static 공휴일 CalendarEvent 목록 반환. 미지원 연도는 빈 리스트."""
+    holidays = _HOLIDAY_MAP_BY_YEAR.get(year, {})
+    events: list[CalendarEvent] = []
+    for iso, name in holidays.items():
+        events.append(CalendarEvent(
+            event_id=f"holiday_{iso}",
+            notice_id="",
+            title=name,
+            type="holiday",
+            label="휴업/기념일",
+            start_date=iso,
+            end_date=iso,
+            time=None,
+            display_text=name,
+            color="red",
+            source_text=name,
+            translated="",
+            actions=[],
+        ))
+    return events
+
 
 def _base_year_month(texts: Iterable[str]) -> tuple[int, int | None]:
     for text in texts:
@@ -161,6 +209,8 @@ def build_calendar_events_from_sentence_document(
             actions=_actions(urls, start_date),
         ))
 
+    # 해당 연도 공휴일을 항상 포함 — Android hasRedCalendarEvent()가 날짜 색상 처리
+    events.extend(_build_holiday_events(default_year))
     return _dedup_events(events)
 
 
