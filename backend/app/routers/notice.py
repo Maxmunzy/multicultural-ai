@@ -168,6 +168,26 @@ def _sanitize_sentence_doc(doc: SentenceListDocument) -> SentenceListDocument:
     return doc
 
 
+# KoELECTRA가 info 문장을 todo로 잘못 추출하는 경우 cards에서 제거할 헤더.
+# 학부모 직접 행동이 없는 순수 정보 — chip도 없으므로 info_cards에서만 표시.
+_INFO_ONLY_CARD_HEADERS: frozenset[str] = frozenset({
+    "일시", "시간", "운영일시", "장소", "위치", "주소",
+})
+
+
+def _filter_info_only_cards(cards: list[SlotCard]) -> list[SlotCard]:
+    """cards 중 순수 정보 헤더(일시/시간/장소 등) + chip 없는 카드를 제거.
+
+    KoELECTRA가 cleaned_text에서 "일시: 4월 23일(목)" 같은 정보성 문장을 todo로
+    분류하면 '해야 할 일' 섹션에 혼입되고 info_cards와 중복 표시됨.
+    해당 헤더이면서 chip이 없는 카드(=경이 카테고리 미분류)는 action이 없으므로 제거.
+    """
+    return [
+        c for c in cards
+        if not (c.header_ko in _INFO_ONLY_CARD_HEADERS and not c.chip)
+    ]
+
+
 def _dedup_info_against_cards(
     info_cards: list[SlotCard],
     cards: list[SlotCard],
@@ -189,6 +209,11 @@ def _dedup_info_against_cards(
     ]
     out: list[SlotCard] = []
     for ic in info_cards:
+        # checklist 있는 카드는 dedup 제외 — 체크박스 기능은 cards 섹션에 없는 고유 가치.
+        # 준비물 info_card가 todo card와 같은 value_ko를 가져 삭제되는 버그 방지.
+        if ic.checklist:
+            out.append(ic)
+            continue
         ic_norm = re.sub(r"\s+", "", ic.value_ko or "")
         if len(ic_norm) < 5:
             out.append(ic)
@@ -1025,6 +1050,9 @@ async def analyze_notice(
     # [6'] cards: 신규 슬롯 카드 응답 — 시연 안정성을 위해 상위 N개만 번역/TTS 대상으로 사용.
     top_todos = sorted(todos, key=lambda t: -t.confidence)[:MAX_CARDS]
     cards = build_cards(top_todos, regex_slots, target_lang)[:MAX_CARDS]
+    # KoELECTRA가 순수 정보 문장(일시/시간/장소)을 todo로 추출한 경우 제거.
+    # 제거된 카드는 info_cards dedup에서도 제외되므로 info_cards 섹션에 정상 표시됨.
+    cards = _filter_info_only_cards(cards)
 
     # [6.5] info_cards: slot preservation (세종님 PR #139) — 윤정/경이가 todo 분류 안 한
     # 정보(날짜/시간/URL/연락처/대상/장소/비용 등) 별도 보존. cards와 분리해서 응답.
