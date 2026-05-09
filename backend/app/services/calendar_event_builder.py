@@ -226,17 +226,23 @@ def build_calendar_events_from_sentence_document(
         if not dates:
             continue
         event_type, label, color = meta
-        is_period = event_type.endswith("_period") or "기간" in item.text
+        is_period = (
+            event_type.endswith("_period")
+            or "기간" in item.text
+            or (len(dates) > 1 and "~" in item.text)
+        )
         start_date = dates[0]
         end_date = dates[1] if is_period and len(dates) > 1 else start_date
         urls = _extract_urls(item.text)
 
-        # display_text: 원문 + 장소·활동 보강 (달력 상세 모달에서 행사 맥락 표시)
+        # display_text: 원문 + 장소·활동 보강 — event_datetime에만 적용
+        # (payment_deadline·submit_deadline에 행사 장소가 붙는 오염 방지)
         display = item.text.strip()
-        if place_hint and place_hint not in display:
-            display += f"\n장소: {place_hint}"
-        if content_hint and content_hint not in display:
-            display += f"\n활동: {content_hint}"
+        if event_type == "event_datetime":
+            if place_hint and place_hint not in display:
+                display += f"\n장소: {place_hint}"
+            if content_hint and content_hint not in display:
+                display += f"\n활동: {content_hint}"
 
         events.append(CalendarEvent(
             event_id=f"{notice_id or 'notice'}_{item.sentence_id}_{len(events) + 1}",

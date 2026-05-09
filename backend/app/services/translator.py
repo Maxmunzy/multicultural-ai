@@ -485,8 +485,13 @@ def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple
     return masked, placeholders
 
 
+# NLLB가 스쿨뱅킹 계좌 이체 관련 문장에서 "___" 를 출력하는 hallucination 패턴 제거
+_NLLB_UNDERSCORE = re.compile(r"_{2,}")
+
+
 def _strip_residual_protect_tokens(text: str) -> str:
     text = _RESIDUAL_PROTECT_TOKEN.sub("", text)
+    text = _NLLB_UNDERSCORE.sub("", text)   # NLLB underscore artifact 제거
     text = re.sub(r"\s+([,.;:!?])", r"\1", text)
     text = re.sub(r"\s{2,}", " ", text)
     return text.strip()
@@ -507,6 +512,27 @@ def _is_url_or_phone(text: str) -> bool:
     return bool(_URL.fullmatch(s) or _PHONE.fullmatch(s))
 
 
+# glossary CSV에 없는 UI 라벨 고정 번역 — 카드 헤더/라벨 한국어 노출 방지
+_TERM_OVERRIDES: dict[str, dict[str, str]] = {
+    "지원안내": {
+        "vi": "Thông tin hỗ trợ",
+        "en": "Support information",
+        "zh": "支援信息",
+        "ja": "支援案内",
+        "th": "ข้อมูลการสนับสนุน",
+        "ms": "Maklumat sokongan",
+        "mn": "Дэмжлэгийн мэдээлэл",
+        "ru": "Информация о поддержке",
+    },
+    "지원정보": {
+        "vi": "Thông tin hỗ trợ",
+        "en": "Support information",
+        "zh": "支援信息",
+        "ja": "支援情報",
+    },
+}
+
+
 def translate_term(text: str, target_lang: str) -> str:
     """glossary 직접 치환 (summary 슬롯용 — places, supplies, deadlines).
 
@@ -521,9 +547,16 @@ def translate_term(text: str, target_lang: str) -> str:
     if target_lang == "ko_easy" or _is_url_or_phone(text):
         return text
 
-    glossary = _get_glossary()
     term_norm = re.sub(r"\s+", "", text.strip())
     lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang  # vi_demo → vi
+
+    # 1) 하드코딩 override — glossary CSV 미등록 UI 라벨 우선 처리
+    override = _TERM_OVERRIDES.get(term_norm, {})
+    if override.get(lang_key):
+        return override[lang_key]
+
+    # 2) glossary CSV 매칭
+    glossary = _get_glossary()
     for row in glossary:
         if re.sub(r"\s+", "", row.get("korean", "")) == term_norm:
             translated = row.get(f"preferred_{lang_key}", "").strip()
