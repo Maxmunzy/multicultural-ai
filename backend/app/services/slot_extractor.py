@@ -454,6 +454,15 @@ def preprocess_notice_text(text: str) -> str:
 # 순수 금액 숫자 줄 — extract_amounts 가 이미 잡음
 _PURE_AMOUNT_LINE = re.compile(r"^[\d,]+\s*(?:만|천|억)?\s*원$")
 
+# 개인정보 동의·서명 문장 — 비용/지원 탭 모두 제외 (form artifact)
+_CONSENT_RE = re.compile(
+    r"개인\s*정보\s*(?:제공|수집|활용|처리|동의)"
+    r"|상기\s*(?:의\s*)?내용을?\s*(?:확인|동의|읽고)"
+    r"|이에\s*(?:동의|서명)"
+    r"|동의\s*(?:서명|날인)"
+    r"|위\s*내용에?\s*(?:동의|서명)"
+)
+
 # 학부모가 직접 납부·확인해야 하는 키워드
 _COST_PAYMENT_RE = re.compile(
     r"스쿨뱅킹|자동이체|잔액|납부(?:기한|완료|대상|액)?|미납"
@@ -489,6 +498,9 @@ def extract_cost_sentences(text: str) -> list[str]:
             continue
         if not _COST_ALL_RE.search(s):
             continue
+        # 개인정보 동의 문장은 form artifact — 비용 탭 제외
+        if _CONSENT_RE.search(s):
+            continue
         # 지원 키워드만 있고 납부 키워드 없으면 → support_info로 분리
         if _COST_SUPPORT_INFO_RE.search(s) and not _COST_PAYMENT_RE.search(s):
             continue
@@ -513,6 +525,9 @@ def extract_cost_support_info(text: str) -> list[str]:
         if _PURE_AMOUNT_LINE.match(s):
             continue
         if not _COST_SUPPORT_INFO_RE.search(s):
+            continue
+        # 개인정보 동의 문장은 form artifact — 지원 안내 탭도 제외
+        if _CONSENT_RE.search(s):
             continue
         # 납부 키워드가 같이 있으면 cost_sentences가 처리
         if _COST_PAYMENT_RE.search(s):

@@ -1945,7 +1945,7 @@ public class MainActivity extends Activity {
         legend.setGravity(Gravity.CENTER);
         legend.addView(calendarLegend("신청", calendarColor("blue")));
         legend.addView(calendarLegend("행사", calendarColor("green")));
-        legend.addView(calendarLegend("제출", calendarColor("orange")));
+        legend.addView(calendarLegend("제출/납부", calendarColor("orange")));
         legend.addView(calendarLegend("휴업/기념일", calendarColor("red")));
         box.addView(legend);
 
