@@ -154,11 +154,13 @@ def extract_times(text: str) -> list[dict]:
         if not (0 <= hour <= 23 and 0 <= minute <= 59):
             continue
         ko = m.group(0).strip()
-        if ko in seen:
+        # 정규화 키로 dedup — "9:10"과 "09:10"을 같은 시간으로 처리
+        ko_norm = f"{hour:02d}:{minute:02d}"
+        if ko_norm in seen:
             continue
-        seen.add(ko)
+        seen.add(ko_norm)
         out.append({
-            "ko": ko,
+            "ko": ko,          # 원문 그대로 — mask_date_time 등 텍스트 위치 매핑에 사용
             "hour": hour,
             "minute": minute,
             "ampm": None,
@@ -472,6 +474,7 @@ def preprocess_notice_text(text: str) -> str:
     text = _COST_OUTER_LABEL_RE.sub("", text)    # "비용: 체험학습비:" → "체험학습비:"
     text = _KO_YN_CHOICE_RE.sub("", text)        # "네(동의) 아니오(동의하지 않음)" 제거
     text = _FORM_TABLE_HEADER_RE.sub("", text)   # 신청 여부 표 헤더 줄 제거
+    text = _CONSENT_LINE_RE.sub("", text)        # 개인정보 동의 문장 줄 제거 — NLLB "Đúng rồi" 차단
     text = re.sub(r"\n{3,}", "\n\n", text)
     return text.strip()
 
@@ -510,6 +513,15 @@ _CONSENT_RE = re.compile(
     r"|이에\s*(?:동의|서명)"
     r"|동의\s*(?:서명|날인)"
     r"|위\s*내용에?\s*(?:동의|서명)"
+)
+# 동의 문장 단독 줄 — preprocess 에서 완전 제거 (NLLB "Đúng rồi / Cảm ơn anh" 오역 차단)
+_CONSENT_LINE_RE = re.compile(
+    r"^[^\n]*(?:개인\s*정보\s*(?:제공|수집|활용|처리|동의)"
+    r"|상기\s*(?:의\s*)?내용을?\s*(?:확인|동의|읽고)"
+    r"|이에\s*(?:동의|서명)\s*합니다"
+    r"|위\s*내용에?\s*(?:동의|서명)"
+    r"|동의\s*(?:서명|날인))[^\n]*$",
+    re.MULTILINE,
 )
 
 # 학부모가 직접 납부·확인해야 하는 키워드

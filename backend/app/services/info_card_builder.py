@@ -24,6 +24,11 @@ from app.services.sentence_skeleton import (
     parse_sentence_list_payload,
     split_header_value,
 )
+from app.services.slot_extractor import (
+    _COST_SUPPORT_INFO_RE,
+    _PAYMENT_ACTION_RE,
+    extract_supplies,
+)
 from app.services.translator import translate_short_sentence, translate_term
 
 
@@ -170,9 +175,22 @@ def build_info_cards_from_sentence_document(
 ) -> list[SlotCard]:
     """Build must-check info cards from sentence-list role hints."""
     cards: list[SlotCard] = []
+    has_supplies_role = False
+
     for item in sorted(document.sentence_list, key=lambda x: x.source_order):
         if item.role_hint not in INFO_ROLE_LABELS:
             continue
+
+        # fee 문장 중 납부 행위 없이 지원 키워드만 있는 경우 — Gemini 오분류 방지.
+        # "체험학습비: 버스 1대 지원" 처럼 지원 설명이 fee로 잘못 태깅되면 비용 탭 혼입.
+        if item.role_hint == "fee":
+            has_payment = bool(_PAYMENT_ACTION_RE.search(item.text or ""))
+            has_support = bool(_COST_SUPPORT_INFO_RE.search(item.text or ""))
+            if has_support and not has_payment:
+                continue  # 순수 지원 안내 → fee 탭 제외
+
+        if item.role_hint == "supplies":
+            has_supplies_role = True
 
         label, value = _value_from_sentence(item)
         if not value:
@@ -192,6 +210,27 @@ def build_info_cards_from_sentence_document(
             importance=INFO_ROLE_IMPORTANCE.get(item.role_hint, 0.8),
             checklist=_build_checklist_for_role(value, item.role_hint, target_lang),
         ))
+
+    # Fallback: Gemini가 supplies role을 붙이지 않은 경우 regex로 추출.
+    # 준비물은 체크리스트 핵심 항목 — role 누락 시 학부모에게 정보 미전달 방지.
+    if not has_supplies_role:
+        full_text = "\n".join(item.text for item in document.sentence_list if item.text)
+        supply_items = extract_supplies(full_text)
+        if supply_items:
+            value = ", ".join(supply_items)
+            cl = _build_checklist_for_role(value, "supplies", target_lang)
+            if cl:
+                cards.append(SlotCard(
+                    card_id=_stable_id(f"준비물|{value}"),
+                    header_ko="준비물",
+                    header_translated=translate_term("준비물", target_lang),
+                    value_ko=value,
+                    value_easy_ko=value,
+                    value_translated=value,
+                    chip=None,
+                    importance=INFO_ROLE_IMPORTANCE.get("supplies", 0.84),
+                    checklist=cl,
+                ))
 
     cards = _dedup_info_cards(cards)
     cards.sort(key=lambda c: -c.importance)
