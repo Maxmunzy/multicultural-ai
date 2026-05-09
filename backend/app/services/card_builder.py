@@ -186,7 +186,8 @@ _SLOT_HEADERS: dict[str, str] = {
     "phones": "연락처",
     "amounts": "비용",
     "supplies": "준비물",
-    "cost_support": "비용 지원",
+    "cost_support": "비용",
+    "cost_support_info": "지원 안내",
 }
 
 # regex 슬롯이 todo로 이미 흡수됐는지 판단할 헤더 매핑.
@@ -203,6 +204,7 @@ _TODO_HEADER_COVERS: dict[str, set[str]] = {
     "amounts": {"비용", "회비", "참가비", "수강료", "급식비"},
     "supplies": {"준비물", "준비", "지참물", "준비사항"},
     "cost_support": {"비용", "회비", "참가비", "수강료", "급식비"},
+    "cost_support_info": {"지원", "지원사업", "지원안내"},
 }
 
 
@@ -295,6 +297,7 @@ def _build_cards_from_regex_slots(
             value_easy_ko=to_easy_korean(value_ko),
             value_translated=value_translated,
             # supplies → 준비물 칩, amounts/cost_support → 비용 칩
+            # cost_support_info(지원 안내)는 학부모가 납부하지 않으므로 chip=None
             # 나머지 regex 슬롯은 카테고리 모호 → chip=None (체크리스트 미생성)
             chip=(
                 Category.supplies.value if slot_name == "supplies"
@@ -317,9 +320,13 @@ _FORM_SIGNALS = re.compile(
     r"\(인\)"                    # 도장 칸
     r"|성\s*명\s*[:：]"           # "성명 :" 입력란 (공백 변형 허용)
     r"|[○◯][\s,]*[✕✗×]"         # 체크박스 페어 "○,✕" 또는 "○ ✕"
+    r"|[✕✗×Xx]\s*[○◯]"          # 역순 페어
+    r"|(?:네|예|동의)\s*(?:\([^)]+\))?\s*[Xx✕✗×]"  # "네(동의) X" 형태
+    r"|[Xx✕✗×]\s*(?:아니오|미동의|동의하지)"        # "X 아니오(동의하지 않음)"
     r"|참가\s*여부\s+불참\s*사유"  # 표 헤더 "참가여부 불참사유"
     r"|참가\s*여부를?\s*$"        # 동의서 form 끝 "참가 여부를" 잔재
     r"|^[\s,]*[✕✗×]\s*로\s+표시" # 잘린 "✕로 표시하여..."
+    r"|\d+학년\s*\(\s*\)\s*반"   # "2학년 ( )반 ( )번"
 )
 
 

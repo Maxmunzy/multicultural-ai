@@ -2179,8 +2179,6 @@ public class MainActivity extends Activity {
         if (glossaryChipsBox != null) {
             View parent = (View) glossaryChipsBox.getParent();
             if (parent != null) parent.setVisibility(View.GONE);
-            View grandparent = parent != null ? (View) parent.getParent() : null;
-            if (grandparent != null) grandparent.setVisibility(View.GONE);
         }
         return false;
     }
@@ -2207,10 +2205,7 @@ public class MainActivity extends Activity {
         // urls/phones는 NLLB 번역 안 거치고 한국어 그대로 — 신뢰도 표시용
         added += addSlotChips(glossaryChipsBox, summary.optJSONArray("urls"),     "🔗");
         added += addSlotChips(glossaryChipsBox, summary.optJSONArray("phones"),   "☎");
-        if (added > 0) {
-            ((View) glossaryChipsBox.getParent()).setVisibility(View.VISIBLE);
-            ((View) glossaryChipsBox.getParent().getParent()).setVisibility(View.VISIBLE);
-        }
+        // glossaryWrap 은 숨김 유지 — "사용된 학교 용어" 박스 미표시 결정
     }
 
     private int addSlotChips(LinearLayout box, JSONArray slots, String icon) {
