@@ -68,7 +68,8 @@ _NOTICE_SIGN_OFF = re.compile(
 )
 
 # 안내문 줄머리 장식 마크업 (■ ▶ ▸ etc.) — items/슬롯 추출 전 strip
-_MARKER_STRIP = re.compile(r"^[\s■▶▸◆●○*\-•]+")
+# Latin O 는 유니코드 ○ 와 다른 코드포인트 — 별도 alt 패턴으로 추가
+_MARKER_STRIP = re.compile(r"^(?:[\s■▶▸◆●○*\-•]+|O\s+(?=[가-힣]))")
 
 
 def strip_markers(text: str) -> str:
@@ -418,9 +419,10 @@ _BLANK_DOTS_LINE = re.compile(r"^[ \t]*[.·…]{5,}[ \t]*$", re.MULTILINE)
 _BLANK_PARENS = re.compile(r"\(\s+\)")
 # OX 체크박스 기호 — 번역기에 "Không, không" 오번역 유발
 # 동의(○)/미동의(×) 형태의 선택지 줄: "네(동의) X 아니오(동의하지 않음) X" 등
+# Latin O(U+004F) 도 불릿 문맥에서 제거: "O 체험학습비" → "체험학습비"
 _OX_CHOICE_SYMBOLS = re.compile(
     r"(?<![가-힣a-zA-Z])"        # 일반 단어 뒤에 오는 건 보존
-    r"[○◯✕✗×Xx]\s*"             # OX 기호
+    r"[○◯✕✗×XxO]\s*"            # OX 기호 + Latin O 불릿
     r"(?=[(\s]|$)"              # 기호 뒤 괄호·공백·줄끝
 )
 # 줄 전체가 기호+공백만인 순수 구분선 줄

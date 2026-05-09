@@ -150,6 +150,23 @@ def _sentence_doc_from_structured(structured: dict | None) -> SentenceListDocume
         return None
 
 
+def _sanitize_sentence_doc(doc: SentenceListDocument) -> SentenceListDocument:
+    """sentence_list 각 항목 text에 preprocess_notice_text 적용.
+
+    Gemini Vision structured 경로에서 analysis_text 전처리를 우회한 sentence_list에
+    form artifact(___/( )/OX 기호)가 남는 문제를 차단.
+    """
+    cleaned_items = []
+    for item in doc.sentence_list:
+        if not item.text:
+            continue
+        item.text = preprocess_notice_text(item.text)
+        if item.text.strip():
+            cleaned_items.append(item)
+    doc.sentence_list = cleaned_items
+    return doc
+
+
 def _dedup_info_against_cards(
     info_cards: list[SlotCard],
     cards: list[SlotCard],
@@ -956,6 +973,9 @@ async def analyze_notice(
     # LLM(Claude/Gemini)이 sentence_list 채워서 주면 그대로 SentenceListDocument로 변환,
     # 비어있거나 검증 실패 시 raw_text_to_sentence_list(룰 기반) fallback.
     sentence_doc = _sentence_doc_from_structured(structured) or raw_text_to_sentence_list(analysis_text)
+    # form artifact 제거 — Gemini Vision structured 경로는 analysis_text 전처리를 우회.
+    # 각 sentence text에 preprocess_notice_text 적용으로 ___ / ( ) / OX 기호 제거.
+    sentence_doc = _sanitize_sentence_doc(sentence_doc)
     info_cards = build_info_cards_from_sentence_document(sentence_doc, target_lang)[:MAX_CARDS]
     calendar_events = build_calendar_events_from_sentence_document(
         sentence_doc,
