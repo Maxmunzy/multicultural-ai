@@ -153,13 +153,14 @@ def extract_times(text: str) -> list[dict]:
         minute = int(m.group("minute"))
         if not (0 <= hour <= 23 and 0 <= minute <= 59):
             continue
-        # 정규화: "9:10" / "09:10" 모두 "09:10"으로 통일 — 상세 일정표 중복 방지
-        ko = f"{hour:02d}:{minute:02d}"
-        if ko in seen:
+        ko = m.group(0).strip()
+        # 정규화 키로 dedup — "9:10"과 "09:10"을 같은 시간으로 처리
+        ko_norm = f"{hour:02d}:{minute:02d}"
+        if ko_norm in seen:
             continue
-        seen.add(ko)
+        seen.add(ko_norm)
         out.append({
-            "ko": ko,
+            "ko": ko,          # 원문 그대로 — mask_date_time 등 텍스트 위치 매핑에 사용
             "hour": hour,
             "minute": minute,
             "ampm": None,
