@@ -9,7 +9,7 @@
 
 베이스라인은 보통 “내가 만든 고급 모델이 정말 필요한가?”를 증명하기 위한 가장 단순하고 합리적인 기준 모델이며 ML에서 baseline은 무엇을 증명하려고 하느냐에 따라 의미가 달라짐.
 
--메인비교의 목적 Simple (TF-IDF + LogReg) vs KcELECTRA v3 
+-메인비교의 목적 Simple (TF-IDF + LogReg) vs KcELECTRA v3_2 
 목적: "왜 굳이 무겁고 비용이 드는 딥러닝(트랜스포머) 모델을 써야 하는가?"에 대한 당위성 증명 (Global Baseline) VS. 딥러닝(트랜스포머) --> 최종 성능 입증용이며 투자 및 아키텍처 정당화
 
 실무에서 새로운 AI 모델을 도입할 때 가장 먼저 받는 질문은 "그냥 간단한 머신러닝 돌리면 안 돼?"입니다.
@@ -23,13 +23,13 @@ TF-IDF와 Logistic Regression은 가볍고, 빠르며, 연산 비용이 거의 �
 
 ==> 결론: 파인튜닝의 성능이 베이스라인 성능보다 좋은 쪽으로 모델이 나와야하고 그 모델에 맞는 평가 지표가 나와야 한다. 글씨로 정리하는 것 뿐만아니라 시각적인 도구를 활용해서 그래프 혹은 직선 사용 등으로 제시할 근거 자료가 필요.
 
----> 중요 : BASE_MODEL을 진짜 koelectra(monologg/koelectra-base)가 아닌 KcELECTRA(beomi/kcelectra-base)로 교체
+---> 중요 : BASE_MODEL을 koelectra(monologg/koelectra-base)가 아닌 KcELECTRA(beomi/kcelectra-base)로 교체
 
 # 가상환경 설치 권장: tensorflow, torch
-그리고 위에서 제시된 파일들(기존의 파일들)은 그대로 냅두고 대신에 "그래서 경이님의 목표는 현재 가장 성능이 좋은 KcELECTRA v3을 기반으로 ── 셀 6: 가중치 손실 함수 계산에서 input data의 클래스 불균형에 따른 적절한 가중치를 준다. 다시 말해서, Simple (TF-IDF + LogReg)보다 반드시 모든 면에서 성능이 좋게 나와야 한다." 이 부분에서는 V3_1_오늘날짜로 새로운 파일들을 형성. 즉, 기존의 파일들이 v3이라면 새롭게 만든 파일들은 v3_1_오늘날짜로 만들기. 
+그리고 위에서 제시된 파일들(기존의 파일들)은 그대로 냅두고 대신에 "그래서 경이님의 목표는 현재 가장 성능이 좋은 KcELECTRA v3을 기반으로 ── 셀 6: 가중치 손실 함수 계산에서 input data의 클래스 불균형에 따른 적절한 가중치를 준다. 다시 말해서, Simple (TF-IDF + LogReg)보다 반드시 모든 면에서 성능이 좋게 나와야 한다." 이 부분에서는 V3_2_오늘날짜로 새로운 파일들을 형성. 즉, 기존의 파일들이 v3이라면 새롭게 만든 파일들은 v3_2_오늘날짜로 만들기. 
 05_train_kcelectra_v3_20260505.ipynb 처럼 코랩에서 실행해야 하는 것은 ipynb로 만들기.
 
----> 중요 : BASE_MODEL을 진짜 koelectra(monologg/koelectra-base)가 아닌 KcELECTRA(beomi/kcelectra-base)로 교체 
+---> 중요 : BASE_MODEL을 koelectra(monologg/koelectra-base)가 아닌 KcELECTRA(beomi/kcelectra-base)로 교체 
 
 
 

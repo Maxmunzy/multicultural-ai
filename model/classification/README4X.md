@@ -290,3 +290,41 @@ Colab에서 notebooks/01_train_kcelectra.ipynb → KcELECTRA 파인튜닝 (GPU)
 python scripts/evaluate_compare.py → 두 모델 성능 비교
 notebooks/02_evaluate_compare.ipynb → 시각화 차트 생성 (발표 근거 자료)
 백엔드가 호출하는 predict_one() 인터페이스는 기존과 완전히 호환되며, model="simple" / "kcelectra" / "auto" 세 가지 모드를 지원합니다. 자세한 설명은 README2.md와 devlog_2026-04-30.md를 참고.
+
+## 14. 모델 명칭 정정 및 v3_2 시작 (2026-05-09)
+
+### 14-1. 모델 명칭 오류 발견
+
+> v3~v7까지 전 과정에서 **KcELECTRA라고 부른 모델이 실제로는 KoELECTRA였다.**
+
+| 이름 | HuggingFace ID | 만든 곳 | 이 프로젝트 사용 여부 |
+|---|---|---|---|
+| KoELECTRA | `monologg/koelectra-base-v3-discriminator` | monologg (박장원) | **v3~v7, v3_1 모두 이것** |
+| KcELECTRA | `beomi/kcelectra-base` | beomi (이준범) | **v3_2부터 시작** |
+
+### 14-2. 기존 성능 지표는 유효한가?
+
+**결론: 내부적으로 일관성 있고 공정하다.**
+
+기존 devlog와 06_visualize_comparison_v3_20260505.ipynb의 성능 수치는 여전히 유효합니다. v3~v7, v3_1 전체가 동일하게 KoELECTRA를 일관되게 사용했기 때문에 두 모델이 "섞인" 것이 아니라 일관된 KoELECTRA vs Simple 비교였습니다. 단, "KcELECTRA"라는 표기가 잘못된 것이었습니다. 
+
+= 따라서 기존 비교(Simple vs KoELECTRA 파인튜닝)의 성능 수치 자체는 올바르다.
+단, 보고서에 "KcELECTRA"라고 표기한 부분은 실제로 KoELECTRA에 대한 결과였다.
+
+생성된 v3_2 파일 3개
+파일	역할
+notebooks/12_train_kcelectra_v3_2_20260509.ipynb	Colab 학습 — beomi/kcelectra-base (진짜 KcELECTRA)
+scripts/evaluate_compare_v3_2_20260509.py	로컬 평가 실행
+notebooks/13_visualize_comparison_v3_2_20260509.ipynb	시각화 그래프 생성
+
+Simple 기준값은 0.7590 (v3_1 데이터 기준)으로 설정되어 있습니다.
+
+### 14-3. v3_2 시작 — 진짜 KcELECTRA 적용
+
+기존 v3_1 파일들은 그대로 두고, **v3_2** 버전으로 진짜 KcELECTRA를 적용한다.
+
+| 항목 | v3_1 | v3_2 |
+|---|---|---|
+| 데이터 | split_v3_1_20260509.csv (15948행) | split_v3_1_20260509.csv (동일) |
+| **모델** | KoELECTRA (`monologg/koelectra-base-v3-discriminator`) | **KcELECTRA (`beomi/kcelectra-base`)** |
+| Simple 기준 F1 | 0.7590 | 0.7590 (동일) |
