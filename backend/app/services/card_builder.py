@@ -51,7 +51,7 @@ def _stable_id(text: str) -> str:
 # 학년 나열을 의미 없는 단일 숫자 체크박스로 깨먹는 사고 방지). 세종님 우려 반영.
 _SPLIT_CHIPS: frozenset[str] = frozenset({
     Category.supplies.value,    # "준비물" — 알림장, 색종이, 연필 ...
-    Category.cost.value,        # "비용" — 23,000원, 버스 지원, 보험료 ...
+    # Category.cost 제외 — "23,000원" 천단위 쉼표에서 split되어 "23"/"000원"으로 깨짐
 })
 
 
@@ -126,6 +126,46 @@ def _split_paren_note(item_text: str) -> tuple[str, str]:
     return s, ""
 
 
+_SUPPLY_NOTE_NOISE_RE = re.compile(
+    r"\s*(하나하나|이름\s*스티커|스티커.*|붙여서|넣어서|담는.*|처리용|사람만).*$"
+)
+
+
+def _expand_paren_supply_notes_card(
+    items: list[ChecklistItem],
+    target_lang: str,
+) -> list[ChecklistItem]:
+    """준비물 note 안 콤마 나열 항목을 추가 ChecklistItem으로 확장 (card_builder 경로용).
+
+    '학용품(색연필, 싸인펜, 풀, 가위, 연필 하나하나에 이름 스티커를 붙여서)'
+    → [학용품, 색연필, 싸인펜, 풀, 가위, 연필]
+    """
+    seen = {item.ko for item in items}
+    result = []
+    for item in items:
+        result.append(item)
+        if not item.note:
+            continue
+        for raw in item.note.split(","):
+            cleaned = _SUPPLY_NOTE_NOISE_RE.sub("", raw).strip()
+            if not cleaned or len(cleaned) > 12 or cleaned in seen:
+                continue
+            if any(cleaned.endswith(e) for e in ("니다", "세요", "하여", "으로", "안에", "서서")):
+                continue
+            seen.add(cleaned)
+            tr = ""
+            if target_lang != "ko_easy":
+                tr = translate_short_sentence(cleaned, target_lang) or ""
+            result.append(ChecklistItem(
+                item_id=_stable_id(f"{cleaned}|"),
+                ko=cleaned,
+                note=None,
+                translated=tr,
+                checked=False,
+            ))
+    return result
+
+
 def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[ChecklistItem]:
     """경이 카테고리(chip) 기반 체크리스트 분리.
 
@@ -162,13 +202,15 @@ def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[Checkli
             translated=translated,
             checked=False,
         ))
+    if card.chip in _SPLIT_CHIPS:
+        out = _expand_paren_supply_notes_card(out, target_lang)
     return out
 
 # 헤더 추정 실패 시 fallback
 _FALLBACK_HEADER = "기타"
 _FALLBACK_MAX_CARDS = 3
-_FALLBACK_MAX_KO_LEN = 80
-_FALLBACK_MAX_TRANSLATED_LEN = 120
+_FALLBACK_MAX_KO_LEN = 200
+_FALLBACK_MAX_TRANSLATED_LEN = 300
 
 # 정상 헤더(명시) 카드도 value 과도하게 길면 trim — 신청방법 등이 전체 안내문 흡수하는 문제 방지
 # translated는 translate_short_sentence 내부 MAX_TRANSLATE_CHARS=100으로 이미 제한됨
