@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 # ── 여기 두 값을 채워 주세요 ──────────────────────────────────────
-HF_TOKEN    = ""   # HF write 토큰 (빈 문자열이면 huggingface-cli login 세션 사용)
+HF_TOKEN    = os.environ.get("HF_TOKEN", "")  # 환경변수 우선, 없으면 huggingface-cli login 세션 사용
 HF_USERNAME = "kysophia"
 # ─────────────────────────────────────────────────────────────────
 
