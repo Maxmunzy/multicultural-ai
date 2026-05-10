@@ -47,7 +47,12 @@ MUTED   = "#A8B5C2"     # gray-blue
 GREEN   = "#3FA86E"
 
 
-def save(fig, name: str):
+def save(fig, name: str, source: str = ""):
+    """그래프 저장. source 있으면 우하단에 출처 텍스트 자동 삽입."""
+    if source:
+        fig.text(0.99, 0.005, f"출처: {source}",
+                 ha="right", va="bottom", fontsize=8,
+                 color="#888", style="italic")
     path = OUT / f"{name}.png"
     fig.savefig(path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
@@ -79,7 +84,8 @@ def chart_marriage_trend():
     ax.grid(True, alpha=0.3)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    save(fig, "1_marriage_trend")
+    save(fig, "1_marriage_trend",
+         source="통계청 KOSIS '한국인 남편의 혼인종류/외국인 아내의 국적별 혼인' (2014~2025)")
 
 
 # ── 2. 2025년 국가 순위 (가로 막대) ────────────────────────────────
@@ -117,7 +123,8 @@ def chart_country_ranking():
     legend = [Patch(color=PRIMARY, label="SchoolBridge 9개 언어 직접 지원"),
               Patch(color=MUTED, label="기타")]
     ax.legend(handles=legend, loc="lower right", frameon=False)
-    save(fig, "2_country_ranking")
+    save(fig, "2_country_ranking",
+         source="통계청 KOSIS '한국인 남편의 혼인종류/외국인 아내의 국적별 혼인' (2025)")
 
 
 # ── 3. 다문화 초등 학생 13년 추이 (누적 면적) ─────────────────────
@@ -145,7 +152,8 @@ def chart_student_trend():
                 xy=(2025, 116601), xytext=(2018, 110000),
                 fontsize=10, color=ACCENT, weight="bold",
                 arrowprops=dict(arrowstyle="->", color=ACCENT))
-    save(fig, "3_student_trend")
+    save(fig, "3_student_trend",
+         source="한국교육개발원 KESS '연도별 다문화 학생수' (초등학교, 2012~2025)")
 
 
 # ── 4. 부모 국적별 학생 (2025 초등) — 가로 막대 ────────────────────
@@ -185,7 +193,8 @@ def chart_parent_nationality():
     legend = [Patch(color=PRIMARY, label="SchoolBridge 9개 언어 직접 지원"),
               Patch(color=MUTED, label="기타")]
     ax.legend(handles=legend, loc="lower right", frameon=False)
-    save(fig, "4_parent_nationality")
+    save(fig, "4_parent_nationality",
+         source="한국교육개발원 KESS '연도별 부모 국적별 다문화 학생수' (초등학교, 2025)")
 
 
 # ── 5. 시도별 분포 (2025 초등) — 가로 막대 ────────────────────────
@@ -225,7 +234,8 @@ def chart_region_distribution():
     ax.set_xlabel("학생 수")
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
-    save(fig, "5_region_distribution")
+    save(fig, "5_region_distribution",
+         source="한국교육개발원 KESS '행정구역별 다문화(유형별) 학생수' (초등학교, 2025)")
 
 
 # ── 6. TOP5 vs BOTTOM5 — 시군구 다문화 학생 격차 ────────────────
@@ -288,12 +298,13 @@ def chart_hotspot_paradox():
     # 전체 제목 + 하단 메시지 (단순 데이터 사실만)
     fig.suptitle("시군구별 다문화 초등학생 격차 (2025) — 안산 5,205명 vs 울릉 6명, 약 870배",
                  fontsize=14, weight="bold", y=0.99)
-    fig.text(0.5, 0.02,
+    fig.text(0.5, 0.08,
              "전국 시군구 간 다문화 학생 분포 매우 불균등 — 작은 지역일수록 행정·교육 자원 격차 가능성",
              ha="center", fontsize=10.5, color="#444", style="italic")
 
-    plt.subplots_adjust(left=0.10, right=0.97, top=0.85, bottom=0.13, wspace=0.45)
-    save(fig, "6_hotspot_paradox")
+    plt.subplots_adjust(left=0.10, right=0.97, top=0.85, bottom=0.22, wspace=0.45)
+    save(fig, "6_hotspot_paradox",
+         source="한국교육개발원 KESS '행정구역별 다문화(유형별) 학생수' (초등학교, 2025) 시군구 단위")
 
 
 # ── 7. 한국어 능력 4영역 (여가부 2024) — 막대 ────────────────────
@@ -324,7 +335,8 @@ def chart_korean_ability():
                 arrowprops=dict(arrowstyle="->", color=ACCENT, lw=1.8),
                 bbox=dict(boxstyle="round,pad=0.45", fc="#FFF5F0",
                           ec=ACCENT, lw=1.5))
-    save(fig, "7_korean_ability")
+    save(fig, "7_korean_ability",
+         source="여성가족부 '2024년 전국 다문화가족 실태조사'")
 
 
 # ── 8. 가정통신문 어휘 난이도 — "일상 회화 ≠ 가정통신문" ────────
@@ -389,7 +401,8 @@ def chart_form_letter_vocab():
             bbox=dict(boxstyle="round,pad=0.55", fc="#E8F2FB",
                       ec=PRIMARY, lw=1.5))
 
-    save(fig, "8_form_letter_vocab")
+    save(fig, "8_form_letter_vocab",
+         source="자체 분석 (가정통신문 어휘 예시) / 평균 점수: 여성가족부 2024 다문화가족 실태조사")
 
 
 # ── 9. 간접 데이터 종합 — 가정통신문 영역 격차의 일관된 신호 ──────
@@ -424,12 +437,13 @@ def chart_indirect_evidence():
     ax.grid(True, alpha=0.3, axis="x")
 
     # 하단 메시지
-    fig.text(0.5, 0.02,
+    fig.text(0.5, 0.09,
              "→ '가정통신문 이해도' 직접 통계는 부재. 그러나 정보·소통 격차 신호가 일관적으로 한 방향을 가리킨다.",
              ha="center", fontsize=10.5, color=PRIMARY, weight="bold")
 
-    plt.subplots_adjust(left=0.20, right=0.95, top=0.88, bottom=0.13)
-    save(fig, "9_indirect_evidence")
+    plt.subplots_adjust(left=0.20, right=0.95, top=0.88, bottom=0.22)
+    save(fig, "9_indirect_evidence",
+         source="여성가족부 '2024년 전국 다문화가족 실태조사'")
 
 
 if __name__ == "__main__":
