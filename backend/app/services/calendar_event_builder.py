@@ -166,7 +166,7 @@ def _event_meta(item: SentenceListItem) -> tuple[str, str, str] | None:
     if item.role_hint in ROLE_EVENT_TYPE:
         return ROLE_EVENT_TYPE[item.role_hint]
     if "deadline" in item.contains_slots or "date" in item.contains_slots:
-        return "school_event", "일정", "gray"
+        return "school_event", "일정", "green"
     return None
 
 

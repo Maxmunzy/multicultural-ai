@@ -101,8 +101,9 @@ def is_nllb_skip_value(text: str, role_hint: RoleHint) -> bool:
 def _value_from_sentence(item: SentenceListItem) -> tuple[str, str]:
     """Return (label, value) for an info sentence."""
     label = INFO_ROLE_LABELS.get(item.role_hint, "")
-    # "★ 준비물: ..." 처럼 앞에 특수문자가 붙은 경우 split_header_value regex가 실패함 → 먼저 제거
+    # "★ 준비물: ..." 특수문자, "V 준비물: ..." 단일 알파벳 불릿 제거
     text = re.sub(r"^[^가-힣A-Za-z\d]+", "", (item.text or "").strip())
+    text = re.sub(r"^[A-Za-z]\s+(?=[가-힣])", "", text)
     header, value = split_header_value(text)
     if header:
         label = INFO_ROLE_LABELS.get(item.role_hint) or normalize_header(header)

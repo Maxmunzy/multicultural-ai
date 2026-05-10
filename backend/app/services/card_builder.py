@@ -51,7 +51,7 @@ def _stable_id(text: str) -> str:
 # 학년 나열을 의미 없는 단일 숫자 체크박스로 깨먹는 사고 방지). 세종님 우려 반영.
 _SPLIT_CHIPS: frozenset[str] = frozenset({
     Category.supplies.value,    # "준비물" — 알림장, 색종이, 연필 ...
-    Category.cost.value,        # "비용" — 23,000원, 버스 지원, 보험료 ...
+    # Category.cost 제외 — "23,000원" 천단위 쉼표에서 split되어 "23"/"000원"으로 깨짐
 })
 
 
