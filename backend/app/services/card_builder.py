@@ -209,8 +209,8 @@ def _build_checklist_from_card(card: SlotCard, target_lang: str) -> list[Checkli
 # 헤더 추정 실패 시 fallback
 _FALLBACK_HEADER = "기타"
 _FALLBACK_MAX_CARDS = 3
-_FALLBACK_MAX_KO_LEN = 80
-_FALLBACK_MAX_TRANSLATED_LEN = 120
+_FALLBACK_MAX_KO_LEN = 200
+_FALLBACK_MAX_TRANSLATED_LEN = 300
 
 # 정상 헤더(명시) 카드도 value 과도하게 길면 trim — 신청방법 등이 전체 안내문 흡수하는 문제 방지
 # translated는 translate_short_sentence 내부 MAX_TRANSLATE_CHARS=100으로 이미 제한됨
