@@ -206,7 +206,7 @@ def _expand_paren_supply_notes(
             result.append(ChecklistItem(
                 item_id=_stable_id(f"{cleaned}|"),
                 ko=cleaned,
-                note=None,
+                note="",
                 translated=tr,
                 checked=False,
             ))
