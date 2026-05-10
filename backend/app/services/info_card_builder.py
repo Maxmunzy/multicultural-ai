@@ -167,7 +167,50 @@ def _build_checklist_for_role(value: str, role_hint: RoleHint, target_lang: str)
             translated=translated,
             checked=False,
         ))
+    if role_hint in _INFO_SPLIT_ROLES:
+        out = _expand_paren_supply_notes(out, role_hint, target_lang)
     return out
+
+
+_SUPPLY_NOTE_NOISE_RE = re.compile(
+    r"\s*(하나하나|이름\s*스티커|스티커.*|붙여서|넣어서|담는.*|처리용|사람만).*$"
+)
+
+
+def _expand_paren_supply_notes(
+    items: list[ChecklistItem],
+    role_hint: RoleHint,
+    target_lang: str,
+) -> list[ChecklistItem]:
+    """준비물 항목 note 안에 콤마 나열된 개별 준비물을 추가 항목으로 확장.
+
+    '학용품(색연필, 싸인펜, 풀, 가위, 연필 하나하나에 이름 스티커를 붙여서)'
+    → [학용품, 색연필, 싸인펜, 풀, 가위, 연필]
+    """
+    seen = {item.ko for item in items}
+    result = []
+    for item in items:
+        result.append(item)
+        if not item.note:
+            continue
+        for raw in item.note.split(","):
+            cleaned = _SUPPLY_NOTE_NOISE_RE.sub("", raw).strip()
+            if not cleaned or len(cleaned) > 12 or cleaned in seen:
+                continue
+            if any(cleaned.endswith(e) for e in ("니다", "세요", "하여", "으로", "안에", "서서")):
+                continue
+            seen.add(cleaned)
+            tr = ""
+            if target_lang != "ko_easy" and not is_nllb_skip_value(cleaned, role_hint):
+                tr = translate_short_sentence(cleaned, target_lang) or ""
+            result.append(ChecklistItem(
+                item_id=_stable_id(f"{cleaned}|"),
+                ko=cleaned,
+                note=None,
+                translated=tr,
+                checked=False,
+            ))
+    return result
 
 
 def build_info_cards_from_sentence_document(
@@ -209,7 +252,11 @@ def build_info_cards_from_sentence_document(
                 _translate_info_value(value, item.role_hint, target_lang)
                 if translate_values else value
             ),
-            chip=Category.supplies.value if item.role_hint == "supplies" else None,
+            chip=(
+                Category.supplies.value if item.role_hint == "supplies"
+                else Category.submission.value if item.role_hint == "submit"
+                else None
+            ),
             importance=INFO_ROLE_IMPORTANCE.get(item.role_hint, 0.8),
             checklist=_build_checklist_for_role(value, item.role_hint, target_lang),
         ))

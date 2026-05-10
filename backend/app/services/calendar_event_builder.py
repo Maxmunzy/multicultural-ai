@@ -159,10 +159,16 @@ def _extract_urls(text: str) -> list[str]:
     return urls
 
 
+_EVENT_OVERRIDE_KEYWORDS = ("연수", "입학식", "수련회", "소풍", "운동회", "졸업식", "현장체험", "체험학습")
+
+
 def _event_meta(item: SentenceListItem) -> tuple[str, str, str] | None:
     text = item.text or ""
     if any(hint in text for hint in HOLIDAY_HINTS):
         return "holiday", "휴업/기념일", "red"
+    # 행사/연수 키워드가 있으면 submit 분류 override → event_datetime
+    if item.role_hint == "submit" and any(kw in text for kw in _EVENT_OVERRIDE_KEYWORDS):
+        return "event_datetime", "운영일시", "green"
     if item.role_hint in ROLE_EVENT_TYPE:
         return ROLE_EVENT_TYPE[item.role_hint]
     if "deadline" in item.contains_slots or "date" in item.contains_slots:
