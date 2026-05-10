@@ -63,27 +63,32 @@ def save(fig, name: str, source: str = ""):
 def chart_marriage_trend():
     years = [2014, 2015, 2016, 2017, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025]
     counts = [16152, 14677, 14822, 14869, 16608, 17687, 11100, 8985, 12007, 14710, 15624, 15610]
-    fig, ax = plt.subplots(figsize=(10, 5))
+    fig, ax = plt.subplots(figsize=(11, 5.5))
     ax.plot(years, counts, marker="o", linewidth=2.5, color=PRIMARY, markersize=7)
     ax.fill_between(years, counts, alpha=0.10, color=PRIMARY)
     # 코로나 변곡점 강조
     ax.scatter([2020, 2021], [11100, 8985], s=120, color=ACCENT, zorder=5)
-    ax.annotate("코로나 급감\n(-49%)", xy=(2021, 8985), xytext=(2021.3, 6500),
+    ax.annotate("코로나 급감\n(-49%)", xy=(2021, 8985), xytext=(2021.5, 5500),
                 fontsize=10, color=ACCENT,
                 arrowprops=dict(arrowstyle="->", color=ACCENT))
-    ax.annotate("회복", xy=(2024, 15624), xytext=(2023.3, 17500),
+    ax.annotate("회복", xy=(2024, 15624), xytext=(2022.7, 19000),
                 fontsize=10, color=GREEN,
                 arrowprops=dict(arrowstyle="->", color=GREEN))
-    ax.set_title("한국인 남편 × 외국인 아내 결혼 추이 (2014~2025)",
+    ax.set_title("한국인 남편 × 외국인 아내 결혼 추이 (2014~2025*)",
                  fontsize=14, weight="bold", pad=15)
-    ax.set_xlabel("연도")
+    ax.set_xlabel("연도", fontsize=10)
     ax.set_ylabel("결혼 건수")
     ax.set_xticks(years)
-    ax.set_xticklabels([str(y) for y in years], rotation=0)
-    ax.set_ylim(bottom=0)
+    xtick_labels = [f"{y}*" if y == 2025 else str(y) for y in years]
+    ax.set_xticklabels(xtick_labels, rotation=30, ha="right", fontsize=9)
+    ax.set_ylim(0, 21000)  # 위쪽 여유 (회복 annotation용)
     ax.grid(True, alpha=0.3)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
+    # 잠정치 안내 — 그래프 영역 우상단 작은 텍스트
+    ax.text(0.02, 0.97, "* 2025: 잠정치 (확정치는 2026년 8~9월 공표 예정)",
+            transform=ax.transAxes, ha="left", va="top",
+            fontsize=8, color="#888", style="italic")
     save(fig, "1_marriage_trend",
          source="통계청 KOSIS '한국인 남편의 혼인종류/외국인 아내의 국적별 혼인' (2014~2025)")
 
@@ -113,9 +118,9 @@ def chart_country_ranking():
     for bar, count in zip(bars, counts):
         ax.text(bar.get_width() + 50, bar.get_y() + bar.get_height()/2,
                 f"{count:,}", va="center", fontsize=10)
-    ax.set_title("외국인 아내 국적 순위 (2025) — 우리 9개 언어 커버 80%+",
+    ax.set_title("외국인 아내 국적 순위 (2025*) — 우리 9개 언어 커버 80%+",
                  fontsize=14, weight="bold", pad=15)
-    ax.set_xlabel("결혼 건수")
+    ax.set_xlabel("결혼 건수   (* 2025 잠정치 기준)", fontsize=9)
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     # 범례
@@ -238,71 +243,82 @@ def chart_region_distribution():
          source="한국교육개발원 KESS '행정구역별 다문화(유형별) 학생수' (초등학교, 2025)")
 
 
-# ── 6. TOP5 vs BOTTOM5 — 시군구 다문화 학생 격차 ────────────────
+# ── 6. TOP5 vs BOTTOM5 — 시군구 다문화 학생 격차 (표 형식) ───────
 def chart_hotspot_paradox():
-    fig, axes = plt.subplots(1, 2, figsize=(13, 5.5))
+    fig, ax = plt.subplots(figsize=(11, 5.8))
+    ax.set_xlim(0, 1)
+    ax.set_ylim(0, 1)
+    ax.axis("off")
 
-    # TOP 5 (많은 곳, 핫스팟)
+    # TOP 5 (많은 곳)
     top5 = [
-        ("경기 화성시", 2718),
-        ("경기 수원시", 2765),
-        ("경기 부천시", 2942),
-        ("경기 시흥시", 3368),
         ("경기 안산시", 5205),
+        ("경기 시흥시", 3368),
+        ("경기 부천시", 2942),
+        ("경기 수원시", 2765),
+        ("경기 화성시", 2718),
     ]
-    # BOTTOM 5 (적은 곳, 소외)
+    # BOTTOM 5 (적은 곳)
     bottom5 = [
-        ("강원 양양군", 45),
-        ("경기 과천시", 39),
-        ("대구 군위군", 38),
-        ("인천 옹진군", 13),
         ("경북 울릉군", 6),
+        ("인천 옹진군", 13),
+        ("대구 군위군", 38),
+        ("경기 과천시", 39),
+        ("강원 양양군", 45),
     ]
 
-    # 좌측 — TOP 5 (학생 많은 곳)
-    ax1 = axes[0]
-    labels1 = [d[0] for d in top5]
-    values1 = [d[1] for d in top5]
-    bars1 = ax1.barh(labels1, values1, color=ACCENT, edgecolor="white", linewidth=1.5)
-    for bar, val in zip(bars1, values1):
-        ax1.text(bar.get_width() + 80, bar.get_y() + bar.get_height()/2,
-                 f"{val:,}명", va="center", fontsize=11, weight="bold", color=ACCENT)
-    ax1.set_xlim(0, 6500)
-    ax1.set_title("다문화 학생 많은 곳 TOP 5",
-                  fontsize=13, weight="bold", color=ACCENT, pad=12, loc="left")
-    ax1.spines["top"].set_visible(False)
-    ax1.spines["right"].set_visible(False)
-    ax1.spines["bottom"].set_visible(False)
-    ax1.tick_params(axis="x", labelsize=9, colors="#666")
-    ax1.tick_params(axis="y", labelsize=10)
-    ax1.grid(True, alpha=0.3, axis="x")
+    # 상단 제목
+    ax.text(0.5, 0.95, "시군구별 다문화 초등학생 격차 (2025)",
+            ha="center", fontsize=15, weight="bold", color="#222")
 
-    # 우측 — BOTTOM 5 (학생 적은 곳)
-    ax2 = axes[1]
-    labels2 = [d[0] for d in bottom5]
-    values2 = [d[1] for d in bottom5]
-    bars2 = ax2.barh(labels2, values2, color=PRIMARY, edgecolor="white", linewidth=1.5)
-    for bar, val in zip(bars2, values2):
-        ax2.text(bar.get_width() + 80, bar.get_y() + bar.get_height()/2,
-                 f"{val}명", va="center", fontsize=11, weight="bold", color=PRIMARY)
-    ax2.set_xlim(0, 6500)
-    ax2.set_title("다문화 학생 적은 곳 BOTTOM 5",
-                  fontsize=13, weight="bold", color=PRIMARY, pad=12, loc="left")
-    ax2.spines["top"].set_visible(False)
-    ax2.spines["right"].set_visible(False)
-    ax2.spines["bottom"].set_visible(False)
-    ax2.tick_params(axis="x", labelsize=9, colors="#666")
-    ax2.tick_params(axis="y", labelsize=10)
-    ax2.grid(True, alpha=0.3, axis="x")
+    # 좌우 영역 동일 폭 (각 0.40, 가운데 0.10 여백)
+    # 좌측: x = 0.05 ~ 0.45 (헤더 가운데 0.25)
+    # 우측: x = 0.55 ~ 0.95 (헤더 가운데 0.75)
 
-    # 전체 제목 + 하단 메시지 (단순 데이터 사실만)
-    fig.suptitle("시군구별 다문화 초등학생 격차 (2025) — 안산 5,205명 vs 울릉 6명, 약 870배",
-                 fontsize=14, weight="bold", y=0.99)
-    fig.text(0.5, 0.08,
+    # 좌측 표 헤더 (TOP 5)
+    ax.text(0.25, 0.84, "다문화 학생 많은 곳 TOP 5",
+            ha="center", fontsize=12, weight="bold", color=ACCENT)
+    # 좌측 표 행
+    for i, (name, count) in enumerate(top5):
+        y = 0.74 - i * 0.085
+        ax.text(0.08, y, f"{i+1}", ha="center", fontsize=11, weight="bold", color="#999")
+        ax.text(0.13, y, name, ha="left", fontsize=11.5, color="#222")
+        ax.text(0.43, y, f"{count:,}명", ha="right", fontsize=12, weight="bold", color=ACCENT)
+    # 좌측 합계
+    top_sum = sum(c for _, c in top5)
+    ax.plot([0.05, 0.45], [0.30, 0.30], color="#CCC", linewidth=1)
+    ax.text(0.13, 0.24, "TOP 5 합계", ha="left", fontsize=10, color="#666")
+    ax.text(0.43, 0.24, f"{top_sum:,}명", ha="right", fontsize=11, weight="bold", color=ACCENT)
+
+    # 가운데 세로 분리선
+    ax.plot([0.50, 0.50], [0.20, 0.78], color="#DDD", linewidth=1, linestyle="--")
+
+    # 우측 표 헤더 (BOTTOM 5)
+    ax.text(0.75, 0.84, "다문화 학생 적은 곳 BOTTOM 5",
+            ha="center", fontsize=12, weight="bold", color=PRIMARY)
+    # 우측 표 행
+    for i, (name, count) in enumerate(bottom5):
+        y = 0.74 - i * 0.085
+        ax.text(0.58, y, f"{i+1}", ha="center", fontsize=11, weight="bold", color="#999")
+        ax.text(0.63, y, name, ha="left", fontsize=11.5, color="#222")
+        ax.text(0.93, y, f"{count}명", ha="right", fontsize=12, weight="bold", color=PRIMARY)
+    # 우측 합계
+    bot_sum = sum(c for _, c in bottom5)
+    ax.plot([0.55, 0.95], [0.30, 0.30], color="#CCC", linewidth=1)
+    ax.text(0.63, 0.24, "BOTTOM 5 합계", ha="left", fontsize=10, color="#666")
+    ax.text(0.93, 0.24, f"{bot_sum}명", ha="right", fontsize=11, weight="bold", color=PRIMARY)
+
+    # 하단 강조 — 격차 한 줄
+    fig.text(0.5, 0.13,
+             "안산 5,205명 vs 울릉 6명  →  약 870배 격차",
+             ha="center", fontsize=14, color="#222", weight="bold",
+             bbox=dict(boxstyle="round,pad=0.5", fc="#FFF5F0", ec=ACCENT, lw=1.5))
+    # 그 아래 — 조심스러운 보조 멘트
+    fig.text(0.5, 0.05,
              "전국 시군구 간 다문화 학생 분포 매우 불균등 — 작은 지역일수록 행정·교육 자원 격차 가능성",
-             ha="center", fontsize=10.5, color="#444", style="italic")
-
-    plt.subplots_adjust(left=0.10, right=0.97, top=0.85, bottom=0.22, wspace=0.45)
+             ha="center", fontsize=10, color="#666", style="italic")
+    # ax 영역을 figure 전체로 확장 — 출처(우하단)와 그래프 끝 정렬
+    plt.subplots_adjust(left=0.02, right=0.98, top=0.98, bottom=0.02)
     save(fig, "6_hotspot_paradox",
          source="한국교육개발원 KESS '행정구역별 다문화(유형별) 학생수' (초등학교, 2025) 시군구 단위")
 
@@ -329,8 +345,9 @@ def chart_korean_ability():
     ax.spines["top"].set_visible(False)
     ax.spines["right"].set_visible(False)
     # 강조 텍스트 — 막대 위 빈 공간(top-left)에 박스로 배치, 어두운 텍스트로 가독성 확보
+    # 화살표 target 은 막대의 좌측 모서리 (score 라벨이 막대 위 가운데에 있어서 가운데 가리키면 가림)
     ax.annotate("가정통신문은 '읽기' 영역\n→ 결혼이민자가 가장 약함",
-                xy=(2, 3.82), xytext=(0.0, 5.05),
+                xy=(1.7, 3.50), xytext=(0.0, 5.05),
                 fontsize=10.5, color="#222", weight="bold", ha="left",
                 arrowprops=dict(arrowstyle="->", color=ACCENT, lw=1.8),
                 bbox=dict(boxstyle="round,pad=0.45", fc="#FFF5F0",
