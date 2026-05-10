@@ -78,3 +78,6 @@ model/translation_tts/archive/
 android/app/google-services.json
 backend/*firebase-adminsdk*.json
 backend/firebase-admin-key.json
+
+# 발표 자료 작업 임시 폴더 (xlsx 풀어서 분석한 결과)
+tmp_extract/
