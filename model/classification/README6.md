@@ -47,7 +47,7 @@ C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\n
 C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\scripts\auto_label_from_new_data_20260504.py
 4. C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\scripts\auto_label_categories_v5_full.py
 5. C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\docs\devlog_2026-05-04_자동라벨링.md
-
+==> 수동 라벨링 보다 claude 자동 라벨링으로 진행.
 
 # 사용모델/구현 방식: - 핵심 기능:
 참고 파일: 
