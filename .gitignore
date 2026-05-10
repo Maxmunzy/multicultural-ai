@@ -20,10 +20,10 @@ ml/*/best_model/
 *.pt
 *.bin
 *.onnx
+*.safetensors
 
-# 경이 simple 분류기 자동 학습 결과 (random seed에 따라 달라져 git 충돌 유발)
-# 학습 코드 + 데이터(csv)는 git에 있어 컨테이너 첫 호출 시 재현 가능
-model/classification/checkpoints/*.pkl
+# 경이 분류 모델 체크포인트 (허깅페이스 허브에 별도 관리)
+model/classification/checkpoints/
 
 # 컨테이너 작업 영역 (학습 데이터·OCR·임시 변환물)
 backend/data/
