@@ -3177,6 +3177,18 @@ public class MainActivity extends Activity {
                 if (!val.isEmpty()) sb.append(val).append(". ");
             }
         }
+        if (sb.length() == 0 && currentInfoCards != null) {
+            for (int i = 0; i < currentInfoCards.length(); i++) {
+                JSONObject card = currentInfoCards.optJSONObject(i);
+                if (card == null) continue;
+                String chip = safeString(card, "chip");
+                if (!chip.contains(category)) continue;
+                String val = useKo
+                        ? safeString(card, "value_ko")
+                        : firstNonBlank(safeString(card, "value_translated"), safeString(card, "value_ko"));
+                if (!val.isEmpty()) sb.append(val).append(". ");
+            }
+        }
         if (sb.length() == 0 && currentAnalysisItems != null) {
             for (int i = 0; i < currentAnalysisItems.length(); i++) {
                 JSONObject item = currentAnalysisItems.optJSONObject(i);
