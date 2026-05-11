@@ -108,11 +108,75 @@ glossary injection / template-based / slot masking → 사실값 왜곡 방지
 
 ### Model A: 해야 할 일 추출
 
-- **담당자**: TODO
-- **역할**: 가정통신문에서 학부모 행동 문장(제출/신청/준비/납부/참석) 추출
-- **입력**: 문단 문장 또는 sentence_list
-- **출력**: action 후보 문장, is_todo 판별, confidence
-- **성능 지표**: TODO
+- **담당자**: 윤정
+- **역할**: 가정통신문 원문에서 학부모가 행동해야 할 문장만 이진 분류로 추출 (A단계)
+- **모델**: KoELECTRA-base-v3 discriminator 파인튜닝 (이진 분류: 할 일 / 노이즈)
+- **학습 데이터**: v3.1.3 + v4_clean 병합 (47,148개, 소프트 라벨)
+- **HF Hub**: `yunjeong116/koelectra-extractor` (main: v4_merged / base-v1: v3.1.3)
+
+#### 입력 / 처리 / 출력 구조
+
+```text
+[입력] Claude API 정제 텍스트 (str, \n 줄 단위)
+    ↓ _join_broken_lines()     PDF 줄 끊김 복원
+    ↓ split_sentences()        OCR 노이즈 차단 + 문장 분리
+    ↓ _clean_symbols()         특수기호 정제 (PUA·체크박스 변종 포함)
+    ↓ KoELECTRA 이진 분류     confidence(확률값) → 임계값(0.55) 이상만 통과
+    ↓ regex 구조 추출          due_date / amount / action_hint
+[출력] [{"text", "source", "due_date", "amount", "confidence", "action_hint"}, ...]
+       → Model B 입력 스키마와 1:1 대응
+```
+
+#### 핵심 구현 포인트
+
+- **PDF 줄 끊김 복원**: `_join_broken_lines()` — "다문화가정 학\n생" → "다문화가정 학생"
+- **OCR 노이즈 차단**: URL 전용 줄·전화번호 전용 줄·시간 범위만 있는 줄 조기 제거
+- **특수기호 정제**: `_NORMALIZE_TABLE` + whitelist regex — PUA·체크박스 변종까지 공백 치환
+- **임계값 기반 분류**: `BINARY_THRESHOLD=0.55` (predict.py 현재값)
+- **로드 전략**: HF Hub 우선(`yunjeong116/koelectra-extractor`) → 오프라인 시 로컬 fallback
+- **제목 추출**: `extract_title()` — koelectra-title 모델 or heuristic fallback (별도 호출)
+
+#### 성능 지표 — galsan unseen 테스트셋 (5,388문장 / 할 일 712 · 노이즈 4,676)
+
+| 모델 | Threshold | Accuracy | F1 (할 일) | Precision | Recall |
+| --- | --- | --- | --- | --- | --- |
+| base-v1 (v3.1.3 학습) | 0.60 | 72.03% | 0.4166 | 0.2875 | 0.7556 |
+| base (v4_merged 재학습) | 0.70 | 74.00% | 0.4687 | 0.3210 | 0.8680 |
+| **향상 폭** | | **+1.97%p** | **+0.0521** | **+0.0335** | **+0.1124** |
+
+> **해석**: 클래스 불균형(할 일:노이즈 ≈ 1:6.6)으로 F1 절대값은 낮으나,
+> 학부모가 해야 할 일을 놓치지 않는 것이 우선이므로 **Recall 중심으로 평가**.
+> v4_merged 재학습 후 Recall +11.2%p 향상 — 더 많은 행동 문장을 포착.
+
+#### 대표 성공 사례
+
+- "기한 내 신청하여 주시기 바랍니다" 류 명시적 행동 요청 문장 — 안정적으로 추출
+- "스쿨뱅킹계좌에서 자동으로 이체되니 잔액을 확인하시기 바랍니다" — 납부 관련 문장 포착
+- 납부·제출·신청·준비·확인 키워드 포함 문장 → action_hint 함께 출력
+
+#### 대표 실패 사례
+
+- "신청 기간: 2023. 3. 6. (월) ~ 3. 17. (금)" 형식 날짜 문장 — confidence 낮아 미추출
+  - 원인: 명시적 행동 요청 어구 없이 날짜만 나열된 패턴이 학습 데이터에 부족
+- 비용 항목 여러 줄 → 각각 별도 todo로 추출 → 카드 4개 생성 (트러블슈팅 §6)
+
+#### 현재 한계
+
+- 클래스 불균형(1:6.6)으로 Precision 낮음 (0.32) — 노이즈 문장도 일부 통과
+- 날짜·기간 형식 문장 미추출 — 정보성 문장 패턴 학습 데이터 부족
+- 비용 복수 항목 문장 분리 추출 → 파이프라인에서 카드 중복 생성
+
+#### 향후 개선점
+
+- 날짜+기간 형식 문장 `is_todo: true` 추가 라벨링 후 재학습
+- 비용 관련 문장 청크 병합 처리 (모델 단 or 파이프라인 단)
+- 클래스 불균형 완화를 위한 데이터 추가 수집 및 균형 보강
+
+#### Model A 발표에서 말할 핵심 문장
+
+- 단순 키워드 추출이 아니라, 가정통신문 도메인에 특화된 KoELECTRA를 파인튜닝해 학부모가 '행동해야 할 문장'과 '정보 문장'을 구별했습니다.
+- 학부모가 할 일을 놓치지 않는 것이 우선이므로 Precision보다 Recall을 핵심 지표로 설정했고, v4_merged 재학습 후 Recall이 11.2%p 향상됐습니다.
+- 모델 추출 결과는 날짜·금액·행동힌트 regex와 결합해 Model B의 입력 스키마로 그대로 연결됩니다.
 
 ### Model B: 카테고리·중요도 분류
 
@@ -167,7 +231,7 @@ glossary injection / template-based / slot masking → 사실값 왜곡 방지
 
 > ※ 실험에서 실패한 slot masking은 준비물 명사 자체를 마스킹한 방식입니다. 현재 적용한 slot protection은 날짜·시간·URL·전화번호처럼 번역하면 안 되는 사실값을 보호하는 구조로, 적용 대상이 다릅니다.
 
-#### 발표에서 말할 핵심 문장
+#### 번역·TTS 발표에서 말할 핵심 문장
 
 - NLLB를 그대로 쓰면 학교 용어가 오역됩니다. 어떤 방식이 왜 실패하는지 실험하고, 모델이 건드리면 안 되는 부분과 번역할 수 있는 부분을 분리했습니다.
 - 준비물 이름을 정확히 번역해도 실제 물건을 모를 수 있기 때문에, 이미지와 쉬운 설명을 체크리스트에 연결했습니다.
@@ -389,7 +453,7 @@ translation-tts-lab에는 준비물 용어 보존 실험 이전에 수행한 초
 
 ### Model A / Model B 성능 지표
 
-- Model A 성능: TODO (담당자 추후 작성)
+- Model A 성능: §6 Model A 섹션 참조 (galsan unseen 5,388문장 기준 — v4_merged Recall 0.8680, F1 0.4687)
 - Model B 성능: TODO (담당자 추후 작성)
 
 ---
@@ -507,7 +571,7 @@ translation-tts-lab은 단순 실험 노트가 아니라, 팀 백엔드와 연�
 | 이름 | 역할 | 주요 기여 |
 |---|---|---|
 | 태수 | Backend / API / 전체 파이프라인 / Android UI | FastAPI 분석 파이프라인 7단계 오케스트레이션 / Claude·Gemini Vision API 통합 + sentence_list 컨트랙트 / 도메인 특화 Prompt 엔지니어링 (verbatim 정책으로 할루시네이션 차단) / 체크리스트 시스템 (chip-based split + stable hash IDs + 통합 엔드포인트) / 안드로이드 UI 네이티브 재작성 + ChecklistActivity·NoticeChecklistDialog / 권한 시스템 + 단위 테스트 / HF Spaces·NCP Docker 배포 자동화 |
-| 윤정 | Model A / 해야 할 일 추출 | TODO |
+| 윤정 | Model A / 해야 할 일 추출 | KoELECTRA-base-v3 파인튜닝 (v3.1.3 → v4_merged 재학습) / predict.py 안정화 (PDF 줄 끊김·OCR 노이즈·특수기호 정제) / HF Hub 배포 (`yunjeong116/koelectra-extractor`) / galsan unseen 평가 — v4_merged Recall 0.8680, F1 0.4687 / 트러블슈팅 문서 6건 작성 |
 | 경이 | Model B / 카테고리 분류 | TODO |
 | 세종 | 번역·TTS / glossary / 준비물 이미지 / 서비스 연결 | NLLB 실험, 번역 안정화, template-based translation, TTS 연결, 준비물 이미지·설명 기능, vi_demo 시연 안정화, 발표 프레임 정리 |
 | 찬영 | Android UI | TODO |
@@ -530,4 +594,4 @@ translation-tts-lab은 단순 실험 노트가 아니라, 팀 백엔드와 연�
 
 ---
 
-*TODO 항목 목록: Model A 성능 지표, Model B 성능 지표, 태수 주요 기여, 윤정 주요 기여, 경이 주요 기여, 찬영 주요 기여*
+<!-- TODO: Model B 성능 지표, 경이 주요 기여, 찬영 주요 기여 -->
