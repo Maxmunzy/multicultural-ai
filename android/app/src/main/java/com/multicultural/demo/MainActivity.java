@@ -1063,7 +1063,7 @@ public class MainActivity extends Activity {
         b.setPadding(dp(14), dp(8), dp(14), dp(8));
         GradientDrawable bg = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[]{COLOR_PEACH_DEEP, Color.parseColor("#E07744")});
+                new int[]{COLOR_PEACH_DEEP, Color.parseColor("#2952CC")});
         bg.setCornerRadius(dp(999));
         b.setBackground(bg);
         b.setStateListAnimator(null);
@@ -2083,7 +2083,7 @@ public class MainActivity extends Activity {
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.WHITE);
         bg.setCornerRadius(dp(8));
-        bg.setStroke(dp(1), Color.parseColor("#F1E4D4"));
+        bg.setStroke(dp(1), Color.parseColor("#E5E7EB"));
         cell.setBackground(bg);
         return cell;
     }
@@ -2973,7 +2973,7 @@ public class MainActivity extends Activity {
         tipCard.setPadding(dp(16), dp(12), dp(16), dp(12));
         GradientDrawable tipBg = new GradientDrawable();
         tipBg.setCornerRadius(dp(12));
-        tipBg.setColor(Color.parseColor("#FFF3E6"));
+        tipBg.setColor(Color.parseColor("#EEF2FF"));
         tipBg.setStroke(dp(1), COLOR_LINE);
         tipCard.setBackground(tipBg);
 
@@ -3453,9 +3453,9 @@ public class MainActivity extends Activity {
     private GradientDrawable daonGradient() {
         return new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[]{Color.parseColor("#FFE8D4"),
-                          Color.parseColor("#D8F0E4"),
-                          Color.parseColor("#FFF5CC")});
+                new int[]{Color.parseColor("#EEF2FF"),
+                          Color.parseColor("#DBEAFE"),
+                          Color.parseColor("#E0E7FF")});
     }
 
     private LinearLayout makeBottomTabBar(int activeIndex, boolean isParent) {
@@ -3470,8 +3470,8 @@ public class MainActivity extends Activity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dp(8), dp(8), dp(8), dp(14));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.argb(235, 255, 250, 243));
-        bg.setStroke(dp(1), Color.argb(20, 0, 0, 0));
+        bg.setColor(Color.argb(242, 255, 255, 255));
+        bg.setStroke(dp(1), COLOR_LINE);
         bar.setBackground(bg);
 
         for (int i = 0; i < icons.length; i++) {
@@ -3593,7 +3593,7 @@ public class MainActivity extends Activity {
         button.setPadding(dp(14), dp(14), dp(14), dp(14));
         GradientDrawable bg = new GradientDrawable(
                 GradientDrawable.Orientation.TL_BR,
-                new int[]{COLOR_PEACH_DEEP, Color.parseColor("#E07744")});
+                new int[]{COLOR_PEACH_DEEP, Color.parseColor("#2952CC")});
         bg.setCornerRadius(dp(14));
         button.setBackground(bg);
         button.setStateListAnimator(null);
@@ -3613,7 +3613,7 @@ public class MainActivity extends Activity {
         button.setPadding(dp(14), dp(10), dp(14), dp(10));
         GradientDrawable bg = new GradientDrawable(
                 GradientDrawable.Orientation.LEFT_RIGHT,
-                new int[]{COLOR_PEACH_DEEP, Color.parseColor("#E07744")});
+                new int[]{COLOR_PEACH_DEEP, Color.parseColor("#2952CC")});
         bg.setCornerRadius(dp(18));
         button.setBackground(bg);
         button.setStateListAnimator(null);
