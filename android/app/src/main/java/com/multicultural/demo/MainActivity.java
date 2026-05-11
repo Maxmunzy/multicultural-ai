@@ -2200,8 +2200,8 @@ public class MainActivity extends Activity {
         if (!url.isEmpty()) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            Button open = outlineButton("바로가기", v -> openExternalUrl(url));
-            Button qr = outlineButton("QR 보기", v -> showQrDialog(url));
+            Button open = outlineButton(calLoc("바로가기","Mở liên kết","Open","打开","เปิด","Buka","Нээх","Открыть","開く"), v -> openExternalUrl(url));
+            Button qr = outlineButton(calLoc("QR 보기","Xem QR","QR","扫码","QR","QR","QR харах","QR-код","QR表示"), v -> showQrDialog(url));
             row.addView(open, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             row.addView(qr, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             block.addView(row);
