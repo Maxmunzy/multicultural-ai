@@ -64,12 +64,18 @@ public class NoticeChecklistDialog {
         {"클리어 화일", "supply_clear_file",         "종이를 넣어 보관하는 투명한 파일입니다."},
         {"유성매직",    "supply_permanent_marker",   "잘 지워지지 않는 진한 펜입니다. 이름 쓰기나 표시할 때 씁니다."},
         {"사인펜",      "supply_felt_pen",           "색칠하거나 글씨를 쓸 때 쓰는 색 펜입니다."},
+        {"싸인펜",      "supply_felt_pen",           "색칠하거나 글씨를 쓸 때 쓰는 색 펜입니다."},
         {"크레파스",    "supply_crayon",             "색칠할 때 쓰는 색깔 막대입니다."},
         {"도화지",      "supply_drawing_paper",      "그림을 그릴 때 쓰는 두꺼운 종이입니다."},
         {"찰흙",        "supply_clay",               "손으로 모양을 만들 수 있는 점토입니다."},
         {"붓",          "supply_brush",              "물감으로 그림을 그릴 때 쓰는 도구입니다."},
-        {"실내화",      "supply_indoor_shoes",       "교실이나 학교 건물 안에서 신는 신발입니다."},
+        {"실내화",      "supply_indoor_shoes",       "학교 안에서 신는 신발입니다."},
         {"물통",        "supply_water_bottle",       "물을 담아 가지고 다니는 개인 물병입니다."},
+        {"물병",        "supply_water_bottle",       "물을 담아 가지고 다니는 개인 물병입니다."},
+        {"풀",          "supply_glue",               "종이나 물건을 붙일 때 쓰는 접착제입니다."},
+        {"가위",        "supply_scissors",           "종이나 천 등을 자를 때 쓰는 도구입니다."},
+        {"연필",        "supply_pencil",             "글씨를 쓰거나 그림을 그릴 때 쓰는 필기도구입니다."},
+        {"필통",        "supply_pencil_case",        "연필, 펜 등 필기도구를 넣어 보관하는 통입니다."},
     };
 
     private NoticeChecklistDialog() {
@@ -231,7 +237,7 @@ public class NoticeChecklistDialog {
         String displayHeader = (!useKorean && !headerTranslated.isEmpty()) ? headerTranslated : headerKo;
         String dueDate = card.optString("due_date", "");
         TextView head = makeText(context, displayHeader, 15, COLOR_INK, true);
-        section.addView(head);
+        if (!"준비물".equals(cardChip)) section.addView(head);
 
         if (!dueDate.isEmpty() && !"null".equals(dueDate)) {
             TextView due = makeText(context, "⌛ " + dueDate, 11, COLOR_PEACH_INK, true);
