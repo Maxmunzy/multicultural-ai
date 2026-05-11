@@ -3159,7 +3159,7 @@ public class MainActivity extends Activity {
     }
 
     private String buildSpokenText(String category) {
-        boolean useKo = "vi_demo".equals(selectedLanguage);
+        boolean useKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage) || "vi_demo".equals(selectedLanguage);
         if ("주제".equals(category)) {
             if (!useKo && !currentNoticeTitleTranslated.isEmpty()) return currentNoticeTitleTranslated;
             return currentNoticeTitle.isEmpty() ? "" : currentNoticeTitle;
@@ -3169,11 +3169,17 @@ public class MainActivity extends Activity {
             for (int i = 0; i < currentCards.length(); i++) {
                 JSONObject card = currentCards.optJSONObject(i);
                 if (card == null) continue;
-                String chip = safeString(card, "chip");
-                if (!chip.contains(category)) continue;
-                String val = useKo
-                        ? safeString(card, "value_ko")
-                        : firstNonBlank(safeString(card, "value_translated"), safeString(card, "value_ko"));
+                if (!cardMatchesVoiceCategory(card, category)) continue;
+                String val = voiceCardText(card, useKo);
+                if (!val.isEmpty()) sb.append(val).append(". ");
+            }
+        }
+        if (sb.length() == 0 && currentInfoCards != null) {
+            for (int i = 0; i < currentInfoCards.length(); i++) {
+                JSONObject card = currentInfoCards.optJSONObject(i);
+                if (card == null) continue;
+                if (!cardMatchesVoiceCategory(card, category)) continue;
+                String val = voiceCardText(card, useKo);
                 if (!val.isEmpty()) sb.append(val).append(". ");
             }
         }
@@ -3190,6 +3196,36 @@ public class MainActivity extends Activity {
             }
         }
         return sb.toString().trim();
+    }
+
+    private boolean cardMatchesVoiceCategory(JSONObject card, String category) {
+        String needle = category == null ? "" : category;
+        if (needle.isEmpty()) return false;
+        String haystack = String.join(" ",
+                safeString(card, "chip"),
+                safeString(card, "category"),
+                safeString(card, "header_ko"),
+                safeString(card, "header_translated"),
+                safeString(card, "role"),
+                safeString(card, "type")
+        );
+        if (haystack.contains(needle)) return true;
+        String lower = haystack.toLowerCase(Locale.ROOT);
+        if ("준비물".equals(needle)) return lower.contains("suppl") || lower.contains("prepare") || lower.contains("bring");
+        if ("제출".equals(needle)) return lower.contains("submit") || lower.contains("submission");
+        if ("비용".equals(needle)) return lower.contains("cost") || lower.contains("fee") || lower.contains("amount") || lower.contains("payment");
+        if ("마감일순".equals(needle)) return lower.contains("deadline") || lower.contains("due");
+        return false;
+    }
+
+    private String voiceCardText(JSONObject card, boolean useKo) {
+        if (useKo) {
+            String value = firstNonBlank(safeString(card, "value_ko"), safeString(card, "display_text"), safeString(card, "source_text"));
+            return firstNonBlank(value, safeString(card, "title_ko"));
+        }
+        String translated = firstNonBlank(safeString(card, "value_translated"), safeString(card, "translated"), safeString(card, "value_ko"));
+        String original = firstNonBlank(safeString(card, "display_text"), safeString(card, "source_text"), safeString(card, "title_ko"));
+        return firstNonBlank(translated, original);
     }
 
     private void speakText(String text) {
