@@ -48,18 +48,18 @@ public class ChecklistActivity extends Activity {
 
     private static final String BASE_URL = BuildConfig.BASE_URL;
 
-    // MainActivity 디자인 토큰과 동일 (peach/mint/lemon 톤)
-    private static final int COLOR_PEACH       = Color.parseColor("#FFD9C2");
-    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#FF9D6E");
-    private static final int COLOR_PEACH_INK   = Color.parseColor("#B35A2B");
-    private static final int COLOR_PAPER       = Color.parseColor("#FFFAF3");
-    private static final int COLOR_PAPER2      = Color.parseColor("#FFF3E6");
-    private static final int COLOR_INK         = Color.parseColor("#2B2018");
-    private static final int COLOR_INK2        = Color.parseColor("#5A4A3D");
-    private static final int COLOR_INK3        = Color.parseColor("#8A7C70");
-    private static final int COLOR_LINE        = Color.parseColor("#EAD9C4");
-    private static final int COLOR_MINT_INK    = Color.parseColor("#2F7A55");
-    private static final int COLOR_LEMON_INK   = Color.parseColor("#8A6A14");
+    // HiClass 스타일 블루 팔레트
+    private static final int COLOR_PEACH       = Color.parseColor("#DBEAFE"); // light blue
+    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#3B67FF"); // primary blue
+    private static final int COLOR_PEACH_INK   = Color.parseColor("#1A237E"); // dark navy
+    private static final int COLOR_PAPER       = Color.parseColor("#EEF2FF"); // light blue bg
+    private static final int COLOR_PAPER2      = Color.parseColor("#FFFFFF"); // white
+    private static final int COLOR_INK         = Color.parseColor("#111827"); // near black
+    private static final int COLOR_INK2        = Color.parseColor("#374151"); // dark gray
+    private static final int COLOR_INK3        = Color.parseColor("#6B7280"); // medium gray
+    private static final int COLOR_LINE        = Color.parseColor("#E5E7EB"); // border gray
+    private static final int COLOR_MINT_INK    = Color.parseColor("#15803D"); // success green
+    private static final int COLOR_LEMON_INK   = Color.parseColor("#3B67FF"); // blue (진행중)
 
     // 탭 — chip 4개 + 마감일순 평면. by_chip의 키 그대로 사용.
     private static final String TAB_DUE = "__due__";
@@ -133,25 +133,42 @@ public class ChecklistActivity extends Activity {
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
-        topBar.setPadding(dp(16), dp(14), dp(16), dp(10));
+        topBar.setPadding(dp(16), dp(16), dp(16), dp(14));
+        topBar.setBackgroundColor(Color.WHITE);
 
-        TextView back = text("←", 22, COLOR_INK, true);
-        back.setPadding(dp(6), dp(2), dp(14), dp(2));
+        TextView back = text("←", 20, COLOR_PEACH_INK, true);
+        back.setPadding(dp(4), dp(2), dp(12), dp(2));
         back.setOnClickListener(v -> finish());
         topBar.addView(back);
 
         TextView title = text("📋  이번 주 할 일", 18, COLOR_INK, true);
         topBar.addView(title);
+
+        // bottom border on topBar
+        View divider = new View(this);
+        divider.setBackgroundColor(COLOR_LINE);
+        divider.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
         root.addView(topBar);
+        root.addView(divider);
 
         // tab bar — horizontal scroll for chips
         HorizontalScrollView tabScroll = new HorizontalScrollView(this);
         tabScroll.setHorizontalScrollBarEnabled(false);
+        tabScroll.setBackgroundColor(Color.WHITE);
         tabBar = new LinearLayout(this);
         tabBar.setOrientation(LinearLayout.HORIZONTAL);
-        tabBar.setPadding(dp(12), 0, dp(12), dp(8));
+        tabBar.setPadding(dp(12), dp(10), dp(12), dp(10));
         tabScroll.addView(tabBar);
+
+        View tabDivider = new View(this);
+        tabDivider.setBackgroundColor(COLOR_LINE);
+        tabDivider.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
         root.addView(tabScroll);
+        root.addView(tabDivider);
 
         // status (loading / empty)
         statusText = text("불러오는 중…", 14, COLOR_INK3, false);
@@ -188,11 +205,11 @@ public class ChecklistActivity extends Activity {
         t.setText(label);
         t.setTextSize(13);
         t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        t.setTextColor(active ? COLOR_PEACH_INK : COLOR_INK2);
-        t.setPadding(dp(14), dp(8), dp(14), dp(8));
+        t.setTextColor(active ? Color.WHITE : COLOR_INK3);
+        t.setPadding(dp(16), dp(8), dp(16), dp(8));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(active ? Color.WHITE : COLOR_PAPER2);
-        bg.setStroke(dp(active ? 2 : 1), active ? COLOR_PEACH_DEEP : COLOR_LINE);
+        bg.setColor(active ? COLOR_PEACH_DEEP : Color.WHITE);
+        bg.setStroke(dp(1), active ? COLOR_PEACH_DEEP : COLOR_LINE);
         bg.setCornerRadius(dp(999));
         t.setBackground(bg);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
@@ -354,10 +371,10 @@ public class ChecklistActivity extends Activity {
         card.setOrientation(LinearLayout.VERTICAL);
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.WHITE);
-        bg.setCornerRadius(dp(14));
+        bg.setCornerRadius(dp(16));
         bg.setStroke(dp(1), COLOR_LINE);
         card.setBackground(bg);
-        card.setPadding(dp(16), dp(14), dp(16), dp(14));
+        card.setPadding(dp(16), dp(14), dp(16), dp(16));
         LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         cp.bottomMargin = dp(10);
@@ -377,10 +394,21 @@ public class ChecklistActivity extends Activity {
         titleTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
         topRow.addView(titleTv);
 
+        // progress — topRow 우측 (카드 추가 전에 미리 추가)
+        JSONArray cl = entry.optJSONArray("checklist");
+        TextView progress = text("", 11, COLOR_MINT_INK, true);
+        progress.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        topRow.addView(progress);
+
         String dueDate = entry.optString("due_date", "");
         if (!dueDate.isEmpty() && !"null".equals(dueDate)) {
             TextView dueChip = text("⌛ " + dueDate, 11, COLOR_PEACH_INK, true);
             dueChip.setPadding(dp(8), dp(3), dp(8), dp(3));
+            LinearLayout.LayoutParams dclp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dclp.leftMargin = dp(6);
+            dueChip.setLayoutParams(dclp);
             GradientDrawable dueBg = new GradientDrawable();
             dueBg.setColor(COLOR_PEACH);
             dueBg.setCornerRadius(dp(999));
@@ -402,6 +430,8 @@ public class ChecklistActivity extends Activity {
         String displayHeader = (!isKoreanMode() && !headerTranslated.isEmpty())
                 ? headerTranslated : headerKo;
         TextView header = text(displayHeader, 16, COLOR_INK, true);
+        header.setMaxLines(2);
+        header.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hlp.topMargin = dp(4);
@@ -422,14 +452,7 @@ public class ChecklistActivity extends Activity {
             card.addView(val);
         }
 
-        // progress
-        JSONArray cl = entry.optJSONArray("checklist");
-        TextView progress = text("", 12, COLOR_MINT_INK, true);
-        LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        plp.topMargin = dp(8);
-        progress.setLayoutParams(plp);
-        card.addView(progress);
+        // (progress는 topRow에 이미 추가됨)
 
         // checkbox list
         if (cl != null) {
@@ -452,10 +475,11 @@ public class ChecklistActivity extends Activity {
                 cb.setText(label);
                 cb.setTextSize(14);
                 cb.setTextColor(COLOR_INK);
+                cb.setLineSpacing(0, 1.3f);
                 cb.setChecked(item.optBoolean("checked", false));
                 LinearLayout.LayoutParams cblp = new LinearLayout.LayoutParams(
                         ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                cblp.topMargin = dp(2);
+                cblp.topMargin = dp(6);
                 cb.setLayoutParams(cblp);
 
                 String itemId = item.optString("item_id");
@@ -554,7 +578,7 @@ public class ChecklistActivity extends Activity {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             GradientDrawable rowBg = new GradientDrawable();
-            rowBg.setColor(Color.parseColor("#F5F0EA"));
+            rowBg.setColor(Color.parseColor("#F8FAFF"));
             rowBg.setCornerRadius(dp(10));
             row.setBackground(rowBg);
             row.setPadding(dp(10), dp(8), dp(10), dp(8));
@@ -563,7 +587,7 @@ public class ChecklistActivity extends Activity {
             if (count > 0) rlp.topMargin = dp(4);
             row.setLayoutParams(rlp);
 
-            int imgSize = dp(56);
+            int imgSize = dp(40);
             int resId = getResources().getIdentifier(
                     s[1], "drawable", getPackageName());
             if (resId != 0) {
@@ -603,7 +627,7 @@ public class ChecklistActivity extends Activity {
 
             textCol.addView(text(s[0], 13, COLOR_INK, true));
 
-            TextView descTv = text(s[2], 12, COLOR_INK3, false);
+            TextView descTv = text(s[2], 11, COLOR_INK3, false);
             LinearLayout.LayoutParams dtlp = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
             dtlp.topMargin = dp(2);
