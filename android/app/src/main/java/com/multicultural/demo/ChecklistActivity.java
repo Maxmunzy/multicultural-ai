@@ -578,9 +578,8 @@ public class ChecklistActivity extends Activity {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             GradientDrawable rowBg = new GradientDrawable();
-            rowBg.setColor(Color.parseColor("#F5F0EA"));
-            rowBg.setCornerRadius(dp(10));
             rowBg.setColor(Color.parseColor("#F8FAFF"));
+            rowBg.setCornerRadius(dp(10));
             row.setBackground(rowBg);
             row.setPadding(dp(10), dp(8), dp(10), dp(8));
             LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
