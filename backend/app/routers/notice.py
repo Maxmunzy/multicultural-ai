@@ -45,6 +45,7 @@ from app.services.sentence_skeleton import (
 )
 from app.models.schemas import OcrCorrectionEntry
 from app.services.mock import MOCK_TODOS
+from app.services.unknown_terms import get_unknown_terms, clear_unknown_terms
 
 logger = logging.getLogger(__name__)
 
@@ -611,6 +612,35 @@ async def clear_inbox(
     return ApiResponse.success(
         data={"deleted": len(targets)},
         message=f"{parent_id} 수신함 {len(targets)}개 삭제",
+    )
+
+
+@router.get("/glossary/unknown", response_model=ApiResponse)
+async def get_glossary_unknown(
+    user: UserProfile = Depends(require_teacher),
+):
+    """번역 중 글로사리 미등록 용어 목록 조회 — 선생님/관리자 전용.
+
+    translate_term()에서 glossary 매칭 실패한 용어를 언어별로 수집.
+    이 목록을 검수 후 term_glossary.csv에 추가하면 다음 번역부터 자동 보정.
+    서버 재시작 시 초기화 (시연용 인메모리).
+    """
+    terms = get_unknown_terms()
+    return ApiResponse.success(
+        data={"unknown_terms": terms, "count": len(terms)},
+        message=f"미등록 용어 {len(terms)}개",
+    )
+
+
+@router.delete("/glossary/unknown", response_model=ApiResponse)
+async def clear_glossary_unknown(
+    user: UserProfile = Depends(require_teacher),
+):
+    """미등록 용어 목록 초기화 — 검수 완료 후 호출."""
+    count = clear_unknown_terms()
+    return ApiResponse.success(
+        data={"cleared": count},
+        message=f"{count}개 초기화 완료",
     )
 
 

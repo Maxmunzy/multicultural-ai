@@ -19,6 +19,7 @@ from pathlib import Path
 import torch
 from transformers import AutoModelForSeq2SeqLM, AutoTokenizer
 
+from app.services.unknown_terms import log_unknown
 from app.services.slot_extractor import (
     _PHONE,
     _URL,
@@ -574,6 +575,7 @@ def translate_term(text: str, target_lang: str) -> str:
             translated = row.get(f"preferred_{lang_key}", "").strip()
             if translated:
                 return translated
+    log_unknown(text, target_lang)
     return text  # Korean passthrough
 
 
