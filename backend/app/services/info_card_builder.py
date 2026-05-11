@@ -52,6 +52,7 @@ INFO_ROLE_LABELS: dict[RoleHint, str] = {
     "location": "장소",
     "fee": "비용",
     "supplies": "준비물",
+    "submit": "제출",
     # 활동/체험 내용 보존 — 현장체험학습·창의활동 통신문에서 학부모가 알아야 할
     # "무엇을 하는지" 정보를 info_card로 노출. 체크리스트 아님(행동 불필요).
     "content": "활동 내용",
