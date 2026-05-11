@@ -2110,14 +2110,44 @@ public class MainActivity extends Activity {
     }
 
     private String calEventLabel(String ko) {
-        switch (ko) {
-            case "운영일시":  return calLoc("운영일시","Ngày và giờ","Date & Time","日期与时间","วันและเวลา","Tarikh & Masa","Огноо цаг","Дата и время","日時");
-            case "신청기간":  return calLoc("신청기간","Thời hạn đăng ký","Registration","报名期间","ช่วงสมัคร","Tempoh daftar","Бүртгэлийн хугацаа","Период записи","申込期間");
-            case "제출기한":  return calLoc("제출기한","Hạn nộp","Submission deadline","提交截止","กำหนดส่ง","Tarikh hantar","Хүргэх хугацаа","Срок сдачи","提出期限");
-            case "납부기한":  return calLoc("납부기한","Hạn thanh toán","Payment deadline","缴费截止","กำหนดชำระ","Tarikh bayar","Төлбөрийн хугацаа","Срок оплаты","納付期限");
-            case "일정":     return calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程");
-            case "휴업/기념일": return calLoc("휴업/기념일","Nghỉ lễ","Holiday","休假/纪念日","วันหยุด","Cuti","Амралт","Праздник","休日");
-            default:         return ko;
+        String key = (ko == null ? "" : ko).replaceAll("\\s+", "");
+        switch (key) {
+            case "운영일시":
+            case "운영일자":
+            case "행사일시":
+            case "행사일":
+            case "체험일":
+            case "일시":
+                return calLoc("운영일시","Thời gian hoạt động","Event time","活动时间","วันและเวลา","Masa aktiviti","Үйл ажиллагааны цаг","Время мероприятия","実施日時");
+            case "신청기간":
+            case "접수기간":
+            case "모집기간":
+                return calLoc("신청기간","Thời gian đăng ký","Registration period","报名期间","ช่วงสมัคร","Tempoh daftar","Бүртгэлийн хугацаа","Период записи","申込期間");
+            case "제출기한":
+            case "제출마감":
+            case "마감일":
+            case "마감":
+                return calLoc("제출기한","Hạn nộp","Submission deadline","提交截止","กำหนดส่ง","Tarikh hantar","Хүргэх хугацаа","Срок сдачи","提出期限");
+            case "납부기한":
+            case "납부마감":
+            case "비용":
+                return calLoc("납부기한","Hạn thanh toán","Payment deadline","缴费截止","กำหนดชำระ","Tarikh bayar","Төлбөрийн хугацаа","Срок оплаты","納付期限");
+            case "일정":
+            case "기타":
+                return calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程");
+            case "휴업/기념일":
+            case "휴일":
+            case "재량휴업일":
+            case "기념일":
+                return calLoc("휴업/기념일","Ngày nghỉ","Holiday","休假/纪念日","วันหยุด","Cuti","Амралт","Праздник","休日");
+            case "신청URL":
+            case "URL":
+            case "신청링크":
+                return calLoc("신청 URL","URL đăng ký","Registration URL","报名链接","URL สมัคร","URL pendaftaran","Бүртгэлийн URL","Ссылка записи","申込URL");
+            default:
+                return ("ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage))
+                        ? ko
+                        : calLoc(ko, "Thông tin", "Info", "信息", "ข้อมูล", "Maklumat", "Мэдээлэл", "Информация", "情報");
         }
     }
 
@@ -2171,7 +2201,9 @@ public class MainActivity extends Activity {
             if (event == null) continue;
             box.addView(calendarEventBlock(event));
         }
-        String calTitle = isoDate + " " + calLoc("일정","lịch","schedule","日程","ตาราง","jadual","хуваарь","расписание","日程");
+        String calTitle = ("ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage) || "vi_demo".equals(selectedLanguage))
+                ? isoDate + " " + calLoc("일정","lịch","schedule","日程","ตาราง","jadual","хуваарь","расписание","日程")
+                : calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程") + ": " + isoDate;
         String calClose = calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる");
         new AlertDialog.Builder(this)
                 .setTitle(calTitle)
@@ -2186,7 +2218,7 @@ public class MainActivity extends Activity {
         block.setPadding(0, 0, 0, dp(12));
         String rawLabel = firstNonBlank(safeString(event, "label"), safeString(event, "type"));
         TextView label = text("● " + calEventLabel(rawLabel), 13, calendarColor(safeString(event, "color")), true);
-        boolean isKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage);
+        boolean isKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage) || "vi_demo".equals(selectedLanguage);
         String bodyStr = isKo
                 ? firstNonBlank(safeString(event, "display_text"), safeString(event, "source_text"))
                 : firstNonBlank(safeString(event, "translated"), safeString(event, "display_text"), safeString(event, "source_text"));
