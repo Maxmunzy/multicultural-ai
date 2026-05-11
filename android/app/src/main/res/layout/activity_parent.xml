@@ -2,85 +2,48 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#F8FAFC"
+    android:background="#EEF2FF"
     android:fillViewport="true">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingBottom="28dp">
+        android:paddingBottom="32dp">
 
         <!-- Header -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
             android:paddingStart="20dp"
-            android:paddingTop="38dp"
+            android:paddingTop="16dp"
             android:paddingEnd="20dp"
-            android:paddingBottom="22dp"
+            android:paddingBottom="16dp"
             android:background="@drawable/bg_header">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="학부모 화면"
-                    android:textColor="#FFFFFF"
-                    android:textSize="28sp"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="VI"
-                    android:textColor="#FFFFFF"
-                    android:textSize="12sp"
-                    android:textStyle="bold"
-                    android:paddingStart="12dp"
-                    android:paddingTop="6dp"
-                    android:paddingEnd="12dp"
-                    android:paddingBottom="6dp"
-                    android:background="@drawable/bg_badge" />
-            </LinearLayout>
+                android:layout_weight="1"
+                android:text="학교 소식"
+                android:textColor="#1A237E"
+                android:textSize="20sp"
+                android:textStyle="bold" />
 
             <TextView
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="수신함 + 분석 결과"
-                android:textColor="#DDFFFFFF"
-                android:textSize="16sp"
-                android:paddingTop="6dp" />
-        </LinearLayout>
-
-        <!-- Status pill -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:paddingStart="18dp"
-            android:paddingTop="14dp"
-            android:paddingEnd="18dp">
-
-            <TextView
-                android:id="@+id/tvStatus"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text=""
-                android:textColor="#1E40AF"
+                android:text="VI"
+                android:textColor="#3B67FF"
                 android:textSize="12sp"
                 android:textStyle="bold"
-                android:paddingStart="12dp"
-                android:paddingTop="6dp"
-                android:paddingEnd="12dp"
-                android:paddingBottom="6dp"
-                android:background="@drawable/bg_status_pill" />
+                android:paddingStart="10dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="10dp"
+                android:paddingBottom="5dp"
+                android:background="@drawable/bg_badge" />
         </LinearLayout>
 
         <!-- Content -->
@@ -88,56 +51,27 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingStart="18dp"
-            android:paddingTop="4dp"
-            android:paddingEnd="18dp">
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp">
 
-            <EditText
-                android:id="@+id/etParentId"
-                android:layout_width="match_parent"
+            <!-- 상태 표시 -->
+            <TextView
+                android:id="@+id/tvStatus"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:hint="parent_id"
-                android:text="parent_001"
-                android:singleLine="true"
-                android:textSize="16sp"
-                android:textColor="#1E2937"
-                android:paddingStart="14dp"
-                android:paddingTop="10dp"
-                android:paddingEnd="14dp"
-                android:paddingBottom="10dp"
-                android:background="@drawable/bg_input"
-                android:layout_marginTop="8dp"
-                android:layout_marginBottom="12dp" />
-
-            <Button
-                android:id="@+id/btnLoadInbox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="수신함 불러오기"
-                android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:text=""
+                android:textColor="#3B67FF"
+                android:textSize="12sp"
                 android:textStyle="bold"
-                android:textAllCaps="false"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
-                android:background="@drawable/bg_btn_primary"
+                android:paddingStart="12dp"
+                android:paddingTop="5dp"
+                android:paddingEnd="12dp"
+                android:paddingBottom="5dp"
+                android:background="@drawable/bg_status_pill"
                 android:layout_marginBottom="12dp" />
 
-            <Button
-                android:id="@+id/btnDemo"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="서버 응답 없을 때 데모 결과 보기"
-                android:textColor="#1E40AF"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textAllCaps="false"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
-                android:background="@drawable/bg_btn_outline"
-                android:layout_marginBottom="12dp" />
-
-            <!-- Inbox list card -->
+            <!-- 학부모 ID 입력 카드 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -149,20 +83,95 @@
                 <TextView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="가정통신문 목록"
-                    android:textColor="#64748B"
-                    android:textSize="13sp"
+                    android:text="학부모 ID"
+                    android:textColor="#6B7280"
+                    android:textSize="12sp"
                     android:textStyle="bold"
-                    android:paddingBottom="10dp" />
+                    android:paddingBottom="8dp" />
+
+                <EditText
+                    android:id="@+id/etParentId"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="parent_id 입력"
+                    android:text="parent_001"
+                    android:singleLine="true"
+                    android:textSize="15sp"
+                    android:textColor="#1F2937"
+                    android:paddingStart="14dp"
+                    android:paddingTop="11dp"
+                    android:paddingEnd="14dp"
+                    android:paddingBottom="11dp"
+                    android:background="@drawable/bg_input"
+                    android:layout_marginBottom="12dp" />
+
+                <Button
+                    android:id="@+id/btnLoadInbox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="수신함 불러오기"
+                    android:textColor="#FFFFFF"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    android:paddingTop="13dp"
+                    android:paddingBottom="13dp"
+                    android:background="@drawable/bg_btn_primary"
+                    android:layout_marginBottom="8dp" />
+
+                <Button
+                    android:id="@+id/btnDemo"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="서버 응답 없을 때 데모 보기"
+                    android:textColor="#3B67FF"
+                    android:textSize="15sp"
+                    android:textStyle="bold"
+                    android:textAllCaps="false"
+                    android:paddingTop="13dp"
+                    android:paddingBottom="13dp"
+                    android:background="@drawable/bg_btn_outline" />
+            </LinearLayout>
+
+            <!-- 가정통신문 목록 카드 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp"
+                android:background="@drawable/bg_card_white"
+                android:layout_marginBottom="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingBottom="12dp">
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="18dp"
+                        android:background="#3B67FF"
+                        android:layout_marginEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="가정통신문 목록"
+                        android:textColor="#1A237E"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvInboxList"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="수신함을 불러오세요."
-                    android:textColor="#475569"
-                    android:textSize="16sp"
-                    android:lineSpacingMultiplier="1.25" />
+                    android:textColor="#9CA3AF"
+                    android:textSize="14sp"
+                    android:lineSpacingMultiplier="1.4" />
 
                 <LinearLayout
                     android:id="@+id/lvInboxList"
@@ -171,7 +180,7 @@
                     android:orientation="vertical" />
             </LinearLayout>
 
-            <!-- Selected notice card -->
+            <!-- 선택한 통신문 카드 -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -180,25 +189,39 @@
                 android:background="@drawable/bg_card_blue"
                 android:layout_marginBottom="12dp">
 
-                <TextView
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="선택한 가정통신문"
-                    android:textColor="#64748B"
-                    android:textSize="13sp"
-                    android:textStyle="bold"
-                    android:paddingBottom="10dp" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:paddingBottom="12dp">
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="18dp"
+                        android:background="#3B67FF"
+                        android:layout_marginEnd="8dp" />
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="선택한 가정통신문"
+                        android:textColor="#1A237E"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
 
                 <TextView
                     android:id="@+id/tvSelectedNotice"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="선택된 가정통신문이 없습니다."
-                    android:textColor="#475569"
-                    android:textSize="16sp"
-                    android:lineSpacingMultiplier="1.25" />
+                    android:textColor="#6B7280"
+                    android:textSize="14sp"
+                    android:lineSpacingMultiplier="1.4" />
             </LinearLayout>
 
+            <!-- 분석하기 버튼 -->
             <Button
                 android:id="@+id/btnAnalyze"
                 android:layout_width="match_parent"
@@ -208,47 +231,54 @@
                 android:textSize="16sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
                 android:background="@drawable/bg_btn_primary"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="16dp" />
 
-            <!-- 탭 버튼 -->
+            <!-- 탭 (언더라인 스타일) -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:layout_marginBottom="8dp">
+                android:background="#FFFFFF"
+                android:layout_marginBottom="2dp">
 
                 <Button
                     android:id="@+id/btnTabAnalysis"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:text="분석 결과"
-                    android:textColor="#FFFFFF"
-                    android:textSize="16sp"
+                    android:textColor="#3B67FF"
+                    android:textSize="14sp"
                     android:textStyle="bold"
                     android:textAllCaps="false"
-                    android:paddingTop="10dp"
-                    android:paddingBottom="10dp"
-                    android:background="@drawable/bg_btn_primary"
-                    android:layout_marginEnd="6dp" />
+                    android:background="@null"
+                    android:paddingTop="0dp"
+                    android:paddingBottom="0dp" />
 
                 <Button
                     android:id="@+id/btnTabFeedback"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="44dp"
                     android:layout_weight="1"
                     android:text="피드백"
-                    android:textColor="#1E40AF"
-                    android:textSize="16sp"
+                    android:textColor="#9CA3AF"
+                    android:textSize="14sp"
                     android:textStyle="bold"
                     android:textAllCaps="false"
-                    android:paddingTop="10dp"
-                    android:paddingBottom="10dp"
-                    android:background="@drawable/bg_btn_outline" />
+                    android:background="@null"
+                    android:paddingTop="0dp"
+                    android:paddingBottom="0dp" />
             </LinearLayout>
+
+            <!-- 탭 언더라인 -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:background="#E5E7EB"
+                android:layout_marginBottom="12dp" />
 
             <!-- 분석 결과 탭 -->
             <LinearLayout
@@ -265,24 +295,30 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingBottom="10dp">
+                    android:paddingBottom="12dp">
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="18dp"
+                        android:background="#3B67FF"
+                        android:layout_marginEnd="8dp" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="분석 결과"
-                        android:textColor="#64748B"
-                        android:textSize="13sp"
+                        android:textColor="#1A237E"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <Button
                         android:id="@+id/btnZoomOut"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:text="A-"
-                        android:textColor="#1E40AF"
-                        android:textSize="12sp"
+                        android:textColor="#3B67FF"
+                        android:textSize="11sp"
                         android:textAllCaps="false"
                         android:padding="0dp"
                         android:background="@drawable/bg_btn_outline"
@@ -290,11 +326,11 @@
 
                     <Button
                         android:id="@+id/btnZoomIn"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:text="A+"
-                        android:textColor="#1E40AF"
-                        android:textSize="12sp"
+                        android:textColor="#3B67FF"
+                        android:textSize="11sp"
                         android:textAllCaps="false"
                         android:padding="0dp"
                         android:background="@drawable/bg_btn_outline" />
@@ -305,9 +341,9 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="분석 결과가 없습니다."
-                    android:textColor="#1E2937"
-                    android:textSize="16sp"
-                    android:lineSpacingMultiplier="1.25" />
+                    android:textColor="#374151"
+                    android:textSize="15sp"
+                    android:lineSpacingMultiplier="1.5" />
             </LinearLayout>
 
             <!-- 피드백 탭 -->
@@ -326,24 +362,30 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:paddingBottom="10dp">
+                    android:paddingBottom="12dp">
+
+                    <View
+                        android:layout_width="4dp"
+                        android:layout_height="18dp"
+                        android:background="#3B67FF"
+                        android:layout_marginEnd="8dp" />
 
                     <TextView
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:text="피드백 (용어 검수)"
-                        android:textColor="#64748B"
-                        android:textSize="13sp"
+                        android:textColor="#1A237E"
+                        android:textSize="15sp"
                         android:textStyle="bold" />
 
                     <Button
                         android:id="@+id/btnZoomOutFeedback"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:text="A-"
-                        android:textColor="#1E40AF"
-                        android:textSize="12sp"
+                        android:textColor="#3B67FF"
+                        android:textSize="11sp"
                         android:textAllCaps="false"
                         android:padding="0dp"
                         android:background="@drawable/bg_btn_outline"
@@ -351,11 +393,11 @@
 
                     <Button
                         android:id="@+id/btnZoomInFeedback"
-                        android:layout_width="36dp"
-                        android:layout_height="36dp"
+                        android:layout_width="34dp"
+                        android:layout_height="34dp"
                         android:text="A+"
-                        android:textColor="#1E40AF"
-                        android:textSize="12sp"
+                        android:textColor="#3B67FF"
+                        android:textSize="11sp"
                         android:textAllCaps="false"
                         android:padding="0dp"
                         android:background="@drawable/bg_btn_outline" />
@@ -366,24 +408,25 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:text="분석 후 피드백이 표시됩니다."
-                    android:textColor="#1E2937"
-                    android:textSize="16sp"
-                    android:lineSpacingMultiplier="1.25" />
+                    android:textColor="#374151"
+                    android:textSize="15sp"
+                    android:lineSpacingMultiplier="1.5" />
             </LinearLayout>
 
+            <!-- 하단 액션 버튼 -->
             <Button
                 android:id="@+id/btnPlay"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="베트남어로 듣기"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
                 android:background="@drawable/bg_btn_primary"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="10dp" />
 
             <Button
                 android:id="@+id/btnAiAssistant"
@@ -391,27 +434,26 @@
                 android:layout_height="wrap_content"
                 android:text="✨ AI 어시스턴트에게 물어보기"
                 android:textColor="#FFFFFF"
-                android:textSize="16sp"
+                android:textSize="15sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
                 android:background="@drawable/bg_btn_ai"
-                android:layout_marginBottom="12dp" />
+                android:layout_marginBottom="10dp" />
 
             <Button
                 android:id="@+id/btnBack"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="처음으로"
-                android:textColor="#1E40AF"
-                android:textSize="16sp"
+                android:textColor="#3B67FF"
+                android:textSize="15sp"
                 android:textStyle="bold"
                 android:textAllCaps="false"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
-                android:background="@drawable/bg_btn_outline"
-                android:layout_marginBottom="12dp" />
+                android:paddingTop="14dp"
+                android:paddingBottom="14dp"
+                android:background="@drawable/bg_btn_outline" />
 
         </LinearLayout>
     </LinearLayout>

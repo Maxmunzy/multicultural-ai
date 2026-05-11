@@ -193,12 +193,12 @@ public class OcrActivity extends Activity {
         rootLayout = new LinearLayout(this);
         rootLayout.setOrientation(LinearLayout.VERTICAL);
         rootLayout.setPadding(dp(20), dp(24), dp(20), dp(24));
-        rootLayout.setBackgroundColor(Color.parseColor("#FFFAF3"));
+        rootLayout.setBackgroundColor(Color.parseColor("#EEF2FF"));
 
         TextView title = new TextView(this);
         title.setText("📷  사진 OCR");
         title.setTextSize(20);
-        title.setTextColor(Color.parseColor("#2B2018"));
+        title.setTextColor(Color.parseColor("#111827"));
         title.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         title.setPadding(0, 0, 0, dp(4));
         rootLayout.addView(title);
@@ -206,14 +206,14 @@ public class OcrActivity extends Activity {
         TextView subtitle = new TextView(this);
         subtitle.setText("가정통신문 사진을 찍으면 AI가 텍스트를 인식합니다.");
         subtitle.setTextSize(13);
-        subtitle.setTextColor(Color.parseColor("#8A7C70"));
+        subtitle.setTextColor(Color.parseColor("#6B7280"));
         subtitle.setPadding(0, 0, 0, dp(20));
         rootLayout.addView(subtitle);
 
         statusText = new TextView(this);
         statusText.setText("카메라를 준비 중입니다…");
         statusText.setTextSize(14);
-        statusText.setTextColor(Color.parseColor("#5A4A3D"));
+        statusText.setTextColor(Color.parseColor("#374151"));
         statusText.setPadding(0, 0, 0, dp(12));
         rootLayout.addView(statusText);
 
@@ -234,23 +234,23 @@ public class OcrActivity extends Activity {
         resultScroll.setLayoutParams(rsp);
         resultText = new TextView(this);
         resultText.setTextSize(12);
-        resultText.setTextColor(Color.parseColor("#2B2018"));
+        resultText.setTextColor(Color.parseColor("#111827"));
         resultText.setPadding(dp(12), dp(12), dp(12), dp(12));
-        resultText.setBackgroundColor(Color.parseColor("#F5EDE0"));
+        resultText.setBackgroundColor(Color.parseColor("#F0F4FF"));
         resultScroll.addView(resultText);
         rootLayout.addView(resultScroll);
 
-        retryButton = makeButton("🔄  다시 촬영", Color.parseColor("#FF9D6E"), Color.WHITE);
+        retryButton = makeButton("🔄  다시 촬영", Color.parseColor("#3B67FF"), Color.WHITE);
         retryButton.setVisibility(android.view.View.GONE);
         retryButton.setOnClickListener(v -> launchCamera());
         rootLayout.addView(retryButton);
 
-        proceedButton = makeButton("📤  그래도 전송", Color.parseColor("#6FCFA1"), Color.WHITE);
+        proceedButton = makeButton("📤  그래도 전송", Color.parseColor("#22C55E"), Color.WHITE);
         proceedButton.setVisibility(android.view.View.GONE);
         proceedButton.setOnClickListener(v -> uploadOcrText(bestOcrText));
         rootLayout.addView(proceedButton);
 
-        Button cancelButton = makeButton("← 취소", Color.parseColor("#EAD9C4"), Color.parseColor("#5A4A3D"));
+        Button cancelButton = makeButton("← 취소", Color.parseColor("#E5E7EB"), Color.parseColor("#374151"));
         cancelButton.setOnClickListener(v -> finish());
         rootLayout.addView(cancelButton);
 

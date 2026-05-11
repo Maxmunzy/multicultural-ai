@@ -103,24 +103,24 @@ public class MainActivity extends Activity {
     private static final int REQUEST_PICK_FILE_PARENT = 1003;
 
     // ── Daon design tokens ──
-    private static final int COLOR_PEACH        = Color.parseColor("#FFD9C2");
-    private static final int COLOR_PEACH_DEEP   = Color.parseColor("#FF9D6E");
-    private static final int COLOR_PEACH_INK    = Color.parseColor("#B35A2B");
-    private static final int COLOR_MINT         = Color.parseColor("#C8ECD9");
-    private static final int COLOR_MINT_DEEP    = Color.parseColor("#6FCFA1");
-    private static final int COLOR_MINT_INK     = Color.parseColor("#2F7A55");
-    private static final int COLOR_LEMON        = Color.parseColor("#FFEAA3");
-    private static final int COLOR_LEMON_INK    = Color.parseColor("#8A6A14");
-    private static final int COLOR_LAVENDER     = Color.parseColor("#E3DCFB");
-    private static final int COLOR_LAVENDER_INK = Color.parseColor("#5A4A99");
-    private static final int COLOR_SKY          = Color.parseColor("#D4EBFF");
-    private static final int COLOR_PAPER        = Color.parseColor("#FFFAF3");
-    private static final int COLOR_PAPER2       = Color.parseColor("#FFF3E6");
-    private static final int COLOR_INK          = Color.parseColor("#2B2018");
-    private static final int COLOR_INK2         = Color.parseColor("#5A4A3D");
-    private static final int COLOR_INK3         = Color.parseColor("#8A7C70");
-    private static final int COLOR_INK4         = Color.parseColor("#C4B6A8");
-    private static final int COLOR_LINE         = Color.parseColor("#EAD9C4");
+    private static final int COLOR_PEACH        = Color.parseColor("#DBEAFE"); // light blue
+    private static final int COLOR_PEACH_DEEP   = Color.parseColor("#3B67FF"); // primary blue
+    private static final int COLOR_PEACH_INK    = Color.parseColor("#1A237E"); // dark navy
+    private static final int COLOR_MINT         = Color.parseColor("#DCFCE7"); // light green
+    private static final int COLOR_MINT_DEEP    = Color.parseColor("#22C55E"); // success green
+    private static final int COLOR_MINT_INK     = Color.parseColor("#15803D"); // dark green
+    private static final int COLOR_LEMON        = Color.parseColor("#FEF9C3"); // light yellow
+    private static final int COLOR_LEMON_INK    = Color.parseColor("#854D0E"); // amber
+    private static final int COLOR_LAVENDER     = Color.parseColor("#EEF2FF"); // light indigo
+    private static final int COLOR_LAVENDER_INK = Color.parseColor("#3B67FF"); // primary blue
+    private static final int COLOR_SKY          = Color.parseColor("#DBEAFE"); // light blue
+    private static final int COLOR_PAPER        = Color.parseColor("#FFFFFF"); // white
+    private static final int COLOR_PAPER2       = Color.parseColor("#EEF2FF"); // very light blue
+    private static final int COLOR_INK          = Color.parseColor("#111827"); // near black
+    private static final int COLOR_INK2         = Color.parseColor("#374151"); // dark gray
+    private static final int COLOR_INK3         = Color.parseColor("#6B7280"); // medium gray
+    private static final int COLOR_INK4         = Color.parseColor("#9CA3AF"); // light gray
+    private static final int COLOR_LINE         = Color.parseColor("#E5E7EB"); // border gray
 
     private static final String[] LANG_CODES  = {"vi_demo", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
     private static final String[] LANG_LABELS = {"🇻🇳 Tiếng Việt (시연용)", "🇺🇸 English", "🇷🇺 Русский", "🇲🇾 Bahasa Melayu", "🇲🇳 Монгол", "🇻🇳 Tiếng Việt", "🇨🇳 中文", "🇹🇭 ไทย", "🇯🇵 日本語"};
