@@ -1,4 +1,4 @@
-"""세종님 NLLB 번역 + 용어 검수 wrapper.
+﻿"""세종님 NLLB 번역 + 용어 검수 wrapper.
 
 run_mvp_pipeline.py의 가벼운 함수들(easy_korean, glossary)은 직접 호출.
 NLLB 번역은 매번 모델 새로 로드하지 않게 캐싱.
@@ -542,6 +542,36 @@ _TERM_OVERRIDES: dict[str, dict[str, str]] = {
         "ms": "Tarikh & Masa",
         "mn": "Огноо ба цаг",
         "ru": "Дата и время",
+    },
+    "제출": {
+        "vi": "Nộp tài liệu",
+        "en": "Submission",
+        "zh": "提交",
+        "ja": "提出",
+        "th": "การส่งเอกสาร",
+        "ms": "Penghantaran",
+        "mn": "Илгээх",
+        "ru": "Сдача документов",
+    },
+    "활동내용": {
+        "vi": "Nội dung hoạt động",
+        "en": "Activity",
+        "zh": "活动内容",
+        "ja": "活動内容",
+        "th": "กิจกรรม",
+        "ms": "Kandungan aktiviti",
+        "mn": "Үйл ажиллагааны агуулга",
+        "ru": "Содержание мероприятия",
+    },
+    "프로그램": {
+        "vi": "Chương trình",
+        "en": "Program",
+        "zh": "项目",
+        "ja": "プログラム",
+        "th": "โปรแกรม",
+        "ms": "Program",
+        "mn": "Хөтөлбөр",
+        "ru": "Программа",
     },
 }
 
