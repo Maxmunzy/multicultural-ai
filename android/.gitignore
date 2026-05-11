@@ -6,6 +6,10 @@ app/build/
 # 로컬 환경 설정
 local.properties
 
+# Firebase — API 키 포함, git에 올리면 안 됨
+google-services.json
+app/google-services.json
+
 # IDE
 .idea/
 *.iml

@@ -44,16 +44,16 @@ import java.util.concurrent.Executors;
  */
 public class NoticeChecklistDialog {
 
-    private static final int COLOR_PEACH       = Color.parseColor("#FFD9C2");
-    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#FF9D6E");
-    private static final int COLOR_PEACH_INK   = Color.parseColor("#B35A2B");
-    private static final int COLOR_PAPER       = Color.parseColor("#FFFAF3");
-    private static final int COLOR_INK         = Color.parseColor("#2B2018");
-    private static final int COLOR_INK2        = Color.parseColor("#5A4A3D");
-    private static final int COLOR_INK3        = Color.parseColor("#8A7C70");
-    private static final int COLOR_LINE        = Color.parseColor("#EAD9C4");
-    private static final int COLOR_MINT_INK    = Color.parseColor("#2F7A55");
-    private static final int COLOR_LEMON_INK   = Color.parseColor("#8A6A14");
+    private static final int COLOR_PEACH       = Color.parseColor("#DBEAFE");
+    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#3B67FF");
+    private static final int COLOR_PEACH_INK   = Color.parseColor("#1A237E");
+    private static final int COLOR_PAPER       = Color.parseColor("#EEF2FF");
+    private static final int COLOR_INK         = Color.parseColor("#111827");
+    private static final int COLOR_INK2        = Color.parseColor("#374151");
+    private static final int COLOR_INK3        = Color.parseColor("#6B7280");
+    private static final int COLOR_LINE        = Color.parseColor("#E5E7EB");
+    private static final int COLOR_MINT_INK    = Color.parseColor("#15803D");
+    private static final int COLOR_LEMON_INK   = Color.parseColor("#3B67FF");
 
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
@@ -385,7 +385,7 @@ public class NoticeChecklistDialog {
             row.setOrientation(LinearLayout.HORIZONTAL);
             row.setGravity(Gravity.CENTER_VERTICAL);
             GradientDrawable rowBg = new GradientDrawable();
-            rowBg.setColor(Color.parseColor("#F5F0EA"));
+            rowBg.setColor(Color.parseColor("#F8FAFF"));
             rowBg.setCornerRadius(dp(context, 10));
             row.setBackground(rowBg);
             row.setPadding(dp(context, 10), dp(context, 8), dp(context, 10), dp(context, 8));
@@ -415,7 +415,7 @@ public class NoticeChecklistDialog {
                 ph.setOrientation(LinearLayout.VERTICAL);
                 ph.setGravity(Gravity.CENTER);
                 GradientDrawable phBg = new GradientDrawable();
-                phBg.setColor(Color.parseColor("#DDD5CA"));
+                phBg.setColor(Color.parseColor("#D1D5DB"));
                 phBg.setCornerRadius(dp(context, 8));
                 ph.setBackground(phBg);
                 LinearLayout.LayoutParams plp = new LinearLayout.LayoutParams(imgSize, imgSize);
