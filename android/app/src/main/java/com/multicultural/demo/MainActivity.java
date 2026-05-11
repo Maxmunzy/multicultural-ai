@@ -2009,17 +2009,17 @@ public class MainActivity extends Activity {
         LinearLayout legend = new LinearLayout(this);
         legend.setOrientation(LinearLayout.HORIZONTAL);
         legend.setGravity(Gravity.CENTER);
-        legend.addView(calendarLegend("신청", calendarColor("blue")));
-        legend.addView(calendarLegend("행사", calendarColor("green")));
-        legend.addView(calendarLegend("제출", calendarColor("orange")));
-        legend.addView(calendarLegend("비용/납부", calendarColor("gold")));
-        legend.addView(calendarLegend("휴업/기념일", calendarColor("red")));
+        legend.addView(calendarLegend(calLoc("신청","Đăng ký","Register","报名","การสมัคร","Daftar","Бүртгэл","Запись","申込"), calendarColor("blue")));
+        legend.addView(calendarLegend(calLoc("행사","Sự kiện","Event","活动","กิจกรรม","Acara","Арга хэмжээ","Мероприятие","行事"), calendarColor("green")));
+        legend.addView(calendarLegend(calLoc("제출","Nộp","Submit","提交","ส่งเอกสาร","Hantar","Илгээх","Сдача","提出"), calendarColor("orange")));
+        legend.addView(calendarLegend(calLoc("비용/납부","Chi phí","Fee","费用","ค่าใช้จ่าย","Yuran","Төлбөр","Оплата","費用"), calendarColor("gold")));
+        legend.addView(calendarLegend(calLoc("휴업/기념일","Nghỉ lễ","Holiday","休假","วันหยุด","Cuti","Амралт","Праздник","休日"), calendarColor("red")));
         box.addView(legend);
 
         // ── 요일 헤더 ──
         LinearLayout weekHeader = new LinearLayout(this);
         weekHeader.setOrientation(LinearLayout.HORIZONTAL);
-        String[] days = {"일", "월", "화", "수", "목", "금", "토"};
+        String[] days = calDays();
         for (String d : days) {
             TextView day = text(d, 11, "일".equals(d) ? calendarColor("red") : COLOR_INK3, true);
             day.setGravity(Gravity.CENTER);
@@ -2094,6 +2094,31 @@ public class MainActivity extends Activity {
         return view;
     }
 
+    private String calLoc(String ko, String vi, String en, String zh,
+                          String th, String ms, String mn, String ru, String ja) {
+        switch (selectedLanguage) {
+            case "vi": return vi;
+            case "en": return en;
+            case "zh": return zh;
+            case "th": return th;
+            case "ms": return ms;
+            case "mn": return mn;
+            case "ru": return ru;
+            case "ja": return ja;
+            default:   return ko;
+        }
+    }
+
+    private String[] calDays() {
+        switch (selectedLanguage) {
+            case "vi": return new String[]{"CN","T2","T3","T4","T5","T6","T7"};
+            case "en": return new String[]{"Su","Mo","Tu","We","Th","Fr","Sa"};
+            case "zh": return new String[]{"日","一","二","三","四","五","六"};
+            case "ja": return new String[]{"日","月","火","水","木","金","土"};
+            default:   return new String[]{"일","월","화","수","목","금","토"};
+        }
+    }
+
     private void addCalendarMarkers(LinearLayout cell, JSONArray events) {
         int added = 0;
         for (int i = 0; i < events.length() && added < 3; i++) {
@@ -2134,10 +2159,12 @@ public class MainActivity extends Activity {
             if (event == null) continue;
             box.addView(calendarEventBlock(event));
         }
+        String calTitle = isoDate + " " + calLoc("일정","lịch","schedule","日程","ตาราง","jadual","хуваарь","расписание","日程");
+        String calClose = calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる");
         new AlertDialog.Builder(this)
-                .setTitle(isoDate + " 일정")
+                .setTitle(calTitle)
                 .setView(box)
-                .setNegativeButton("닫기", null)
+                .setNegativeButton(calClose, null)
                 .show();
     }
 
@@ -2147,8 +2174,11 @@ public class MainActivity extends Activity {
         block.setPadding(0, 0, 0, dp(12));
         TextView label = text("● " + firstNonBlank(safeString(event, "label"), safeString(event, "type")),
                 13, calendarColor(safeString(event, "color")), true);
-        TextView body = text(firstNonBlank(safeString(event, "display_text"), safeString(event, "source_text")),
-                13, COLOR_INK, false);
+        boolean isKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage);
+        String bodyStr = isKo
+                ? firstNonBlank(safeString(event, "display_text"), safeString(event, "source_text"))
+                : firstNonBlank(safeString(event, "translated"), safeString(event, "display_text"), safeString(event, "source_text"));
+        TextView body = text(bodyStr, 13, COLOR_INK, false);
         body.setLineSpacing(0, 1.35f);
         block.addView(label);
         block.addView(body);
@@ -4310,6 +4340,12 @@ public class MainActivity extends Activity {
 
     private String firstNonBlank(String first, String second) {
         return first != null && !first.trim().isEmpty() ? first.trim() : safe(second);
+    }
+
+    private String firstNonBlank(String first, String second, String third) {
+        if (first != null && !first.trim().isEmpty()) return first.trim();
+        if (second != null && !second.trim().isEmpty()) return second.trim();
+        return safe(third);
     }
 
     private String shorten(String value, int max) {

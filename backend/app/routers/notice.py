@@ -1097,6 +1097,7 @@ async def analyze_notice(
         sentence_doc,
         notice_id=notice_id,
         title=title_ko,
+        target_lang=target_lang,
     )
     calendar_events = merge_with_holidays(calendar_events, 2026)
 

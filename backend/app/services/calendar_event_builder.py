@@ -11,6 +11,7 @@ from typing import Iterable
 
 from app.models.schemas import CalendarAction, CalendarEvent
 from app.services.sentence_skeleton import SentenceListDocument, SentenceListItem
+from app.services.translator import translate_short_sentence
 
 
 FULL_DATE_RE = re.compile(
@@ -199,6 +200,7 @@ def build_calendar_events_from_sentence_document(
     *,
     notice_id: str = "",
     title: str = "",
+    target_lang: str = "ko",
 ) -> list[CalendarEvent]:
     """Build calendar events from hard-fact sentence-list items."""
     texts = [item.text for item in document.sentence_list]
@@ -250,6 +252,10 @@ def build_calendar_events_from_sentence_document(
             if content_hint and content_hint not in display:
                 display += f"\n활동: {content_hint}"
 
+        translated_display = ""
+        if target_lang not in ("ko", "ko_easy"):
+            translated_display = translate_short_sentence(display, target_lang) or ""
+
         events.append(CalendarEvent(
             event_id=f"{notice_id or 'notice'}_{item.sentence_id}_{len(events) + 1}",
             notice_id=notice_id,
@@ -262,7 +268,7 @@ def build_calendar_events_from_sentence_document(
             display_text=display,
             color=color,
             source_text=item.text.strip(),
-            translated="",
+            translated=translated_display,
             actions=_actions(urls, start_date),
         ))
 
