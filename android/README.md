@@ -69,9 +69,15 @@ ipconfig  # PC 내부 IP 확인 (예: 192.168.0.23)
 
 주의: Android 실기기에서 `localhost`/`127.0.0.1`은 PC가 아니라 휴대폰 자기 자신을 의미합니다. 로컬 모드에선 반드시 PC IPv4 주소를 사용하세요.
 
-## 3. URL 전환 시 주의사항
+## 3. clean 빌드가 필요한 경우
 
-`-Pschoolbridge.baseUrl` 값을 바꿀 때는 반드시 **`clean`** 을 포함해야 이전 캐시가 날아갑니다:
+다음 상황에서는 반드시 **`clean`** 을 포함해 빌드해야 합니다:
+
+- `-Pschoolbridge.baseUrl` 값(서버 IP)을 바꿀 때
+- `drawable/` 에 새 이미지 파일을 추가했을 때
+- Java 코드 변경이 반영되지 않는 것 같을 때
+
+`clean` 없이 하면 이전 캐시가 남아 변경사항이 적용되지 않을 수 있습니다.
 
 ```powershell
 # NCP 실서버로 전환
