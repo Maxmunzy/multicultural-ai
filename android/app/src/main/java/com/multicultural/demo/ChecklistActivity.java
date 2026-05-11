@@ -469,7 +469,7 @@ public class ChecklistActivity extends Activity {
                 String label = (!isKoreanMode() && !translatedLabel.isEmpty())
                         ? translatedLabel : ko;
                 String note = item.optString("note", "");
-                if (!note.isEmpty() && !"null".equals(note)) {
+                if (!note.isEmpty() && !"null".equals(note) && isKoreanMode()) {
                     label += "  (" + note + ")";
                 }
                 cb.setText(label);
@@ -627,12 +627,14 @@ public class ChecklistActivity extends Activity {
 
             textCol.addView(text(s[0], 13, COLOR_INK, true));
 
-            TextView descTv = text(s[2], 11, COLOR_INK3, false);
-            LinearLayout.LayoutParams dtlp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dtlp.topMargin = dp(2);
-            descTv.setLayoutParams(dtlp);
-            textCol.addView(descTv);
+            if (isKoreanMode()) {
+                TextView descTv = text(s[2], 11, COLOR_INK3, false);
+                LinearLayout.LayoutParams dtlp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                dtlp.topMargin = dp(2);
+                descTv.setLayoutParams(dtlp);
+                textCol.addView(descTv);
+            }
 
             row.addView(textCol);
             box.addView(row);

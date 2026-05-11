@@ -1511,14 +1511,14 @@ public class MainActivity extends Activity {
         bottomActionsBar.setVisibility(View.VISIBLE);  // 이번 주 할 일은 항상 표시
         bottomActionsBar.setPadding(0, 0, 0, 0);
         // 이번 주 할 일 — 항상 표시
-        Button weeklyBtn = bottomLinkButton("📅  이번 주 할 일", v -> {
+        Button weeklyBtn = bottomLinkButton("📅  " + calLoc("이번 주 할 일","Việc tuần này","This week","本周任务","งานสัปดาห์นี้","Tugas minggu ini","Энэ долоо хоногийн даалгавар","Задачи недели","今週のタスク"), v -> {
             Intent wi = new Intent(this, ChecklistActivity.class);
             wi.putExtra(ChecklistActivity.EXTRA_PARENT_ID,
                     currentUserId.isEmpty() ? DEFAULT_PARENT_ID : currentUserId);
             wi.putExtra(ChecklistActivity.EXTRA_TARGET_LANG, selectedLanguage);
             startActivity(wi);
         });
-        calendarActionButton = bottomLinkButton("🗓  미니 달력", v -> showMiniCalendarDialog());
+        calendarActionButton = bottomLinkButton("🗓  " + calLoc("미니 달력","Lịch nhỏ","Mini Calendar","小日历","ปฏิทินขนาดเล็ก","Kalendar Mini","Жижиг хуанли","Мини-календарь","ミニカレンダー"), v -> showMiniCalendarDialog());
         calendarActionButton.setVisibility(View.GONE);  // 이벤트 있을 때만 표시
         LinearLayout.LayoutParams weeklyLp = new LinearLayout.LayoutParams(0, dp(56), 1);
         weeklyLp.setMargins(0, 0, dp(6), 0);
@@ -2069,9 +2069,9 @@ public class MainActivity extends Activity {
         box.addView(guide);
 
         holder[0] = new AlertDialog.Builder(this)
-                .setTitle("미니 달력")
+                .setTitle(calLoc("미니 달력","Lịch nhỏ","Mini Calendar","小日历","ปฏิทินขนาดเล็ก","Kalendar Mini","Жижиг хуанли","Мини-календарь","ミニカレンダー"))
                 .setView(scroll)
-                .setNegativeButton("닫기", null)
+                .setNegativeButton(calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる"), null)
                 .show();
     }
 
@@ -2106,6 +2106,18 @@ public class MainActivity extends Activity {
             case "ru": return ru;
             case "ja": return ja;
             default:   return ko;
+        }
+    }
+
+    private String calEventLabel(String ko) {
+        switch (ko) {
+            case "운영일시":  return calLoc("운영일시","Ngày và giờ","Date & Time","日期与时间","วันและเวลา","Tarikh & Masa","Огноо цаг","Дата и время","日時");
+            case "신청기간":  return calLoc("신청기간","Thời hạn đăng ký","Registration","报名期间","ช่วงสมัคร","Tempoh daftar","Бүртгэлийн хугацаа","Период записи","申込期間");
+            case "제출기한":  return calLoc("제출기한","Hạn nộp","Submission deadline","提交截止","กำหนดส่ง","Tarikh hantar","Хүргэх хугацаа","Срок сдачи","提出期限");
+            case "납부기한":  return calLoc("납부기한","Hạn thanh toán","Payment deadline","缴费截止","กำหนดชำระ","Tarikh bayar","Төлбөрийн хугацаа","Срок оплаты","納付期限");
+            case "일정":     return calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程");
+            case "휴업/기념일": return calLoc("휴업/기념일","Nghỉ lễ","Holiday","休假/纪念日","วันหยุด","Cuti","Амралт","Праздник","休日");
+            default:         return ko;
         }
     }
 
@@ -2172,8 +2184,8 @@ public class MainActivity extends Activity {
         LinearLayout block = new LinearLayout(this);
         block.setOrientation(LinearLayout.VERTICAL);
         block.setPadding(0, 0, 0, dp(12));
-        TextView label = text("● " + firstNonBlank(safeString(event, "label"), safeString(event, "type")),
-                13, calendarColor(safeString(event, "color")), true);
+        String rawLabel = firstNonBlank(safeString(event, "label"), safeString(event, "type"));
+        TextView label = text("● " + calEventLabel(rawLabel), 13, calendarColor(safeString(event, "color")), true);
         boolean isKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage);
         String bodyStr = isKo
                 ? firstNonBlank(safeString(event, "display_text"), safeString(event, "source_text"))
