@@ -270,7 +270,7 @@ public class NoticeChecklistDialog {
             // vi_demo(시연용)는 한국어 표시
             String label = (!useKorean && !translated.isEmpty()) ? translated : ko;
             String note = item.optString("note", "");
-            if (!note.isEmpty() && !"null".equals(note)) {
+            if (!note.isEmpty() && !"null".equals(note) && useKorean) {
                 label += "  (" + note + ")";
             }
             cb.setText(label);
@@ -291,7 +291,7 @@ public class NoticeChecklistDialog {
             });
             section.addView(cb);
             if ("준비물".equals(cardChip)) {
-                View hint = buildSuppliesHint(context, ko);
+                View hint = buildSuppliesHint(context, ko, useKorean);
                 if (hint != null) section.addView(hint);
             }
         }
@@ -365,7 +365,7 @@ public class NoticeChecklistDialog {
         });
     }
 
-    private static View buildSuppliesHint(Context context, String itemText) {
+    private static View buildSuppliesHint(Context context, String itemText, boolean showDesc) {
         if (itemText == null || itemText.isEmpty()) return null;
         String normText = itemText.replaceAll("\\s+", "");
         LinearLayout box = null;
@@ -437,12 +437,14 @@ public class NoticeChecklistDialog {
             TextView nameTv = makeText(context, s[0], 13, COLOR_INK, true);
             textCol.addView(nameTv);
 
-            TextView descTv = makeText(context, s[2], 12, COLOR_INK3, false);
-            LinearLayout.LayoutParams dtlp = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            dtlp.topMargin = dp(context, 2);
-            descTv.setLayoutParams(dtlp);
-            textCol.addView(descTv);
+            if (showDesc) {
+                TextView descTv = makeText(context, s[2], 12, COLOR_INK3, false);
+                LinearLayout.LayoutParams dtlp = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                dtlp.topMargin = dp(context, 2);
+                descTv.setLayoutParams(dtlp);
+                textCol.addView(descTv);
+            }
 
             row.addView(textCol);
             box.addView(row);

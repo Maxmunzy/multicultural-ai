@@ -203,7 +203,9 @@ def _expand_paren_supply_notes(
             seen.add(cleaned)
             tr = ""
             if target_lang != "ko_easy" and not is_nllb_skip_value(cleaned, role_hint):
-                tr = translate_short_sentence(cleaned, target_lang) or ""
+                tr = translate_term(cleaned, target_lang)
+                if tr == cleaned:  # glossary miss → NLLB로 단어 번역하면 오역 위험, Korean 폴백
+                    tr = ""
             result.append(ChecklistItem(
                 item_id=_stable_id(f"{cleaned}|"),
                 ko=cleaned,
