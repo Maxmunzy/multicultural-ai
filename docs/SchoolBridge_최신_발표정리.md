@@ -108,11 +108,24 @@ glossary injection / template-based / slot masking → 사실값 왜곡 방지
 
 ### Model A: 해야 할 일 추출
 
-- **담당자**: TODO
+- **담당자**: 윤정
 - **역할**: 가정통신문에서 학부모 행동 문장(제출/신청/준비/납부/참석) 추출
+- **모델**: KoELECTRA-base-v3 discriminator 파인튜닝 (이진 분류: 할 일 / 노이즈)
 - **입력**: 문단 문장 또는 sentence_list
-- **출력**: action 후보 문장, is_todo 판별, confidence
-- **성능 지표**: TODO
+- **출력**: action 후보 문장, is_todo 판별, confidence(확률값) → 임계값 기반 분류
+- **HF Hub**: `yunjeong116/koelectra-extractor` (main: v4_merged / base-v1: v3.1.3)
+
+#### 성능 지표 — galsan unseen 테스트셋 (5,388문장 / 할 일 712 · 노이즈 4,676)
+
+| 모델 | Threshold | Accuracy | F1 (할 일) | Precision | Recall |
+| --- | --- | --- | --- | --- | --- |
+| base-v1 (v3.1.3 학습) | 0.60 | 72.03% | 0.4166 | 0.2875 | 0.7556 |
+| base (v4_merged 재학습) | 0.70 | 74.00% | 0.4687 | 0.3210 | 0.8680 |
+| **향상 폭** | | **+1.97%p** | **+0.0521** | **+0.0335** | **+0.1124** |
+
+> **해석**: 클래스 불균형(할 일:노이즈 ≈ 1:6.6)으로 F1 절대값은 낮으나,
+> 학부모가 해야 할 일을 놓치지 않는 것이 우선이므로 **Recall 중심으로 평가**.
+> v4_merged 재학습 후 Recall +11.2%p 향상 — 더 많은 행동 문장을 포착.
 
 ### Model B: 카테고리·중요도 분류
 
