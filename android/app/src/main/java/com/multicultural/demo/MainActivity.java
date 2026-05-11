@@ -3440,8 +3440,8 @@ public class MainActivity extends Activity {
         bar.setGravity(Gravity.CENTER_VERTICAL);
         bar.setPadding(dp(8), dp(8), dp(8), dp(14));
         GradientDrawable bg = new GradientDrawable();
-        bg.setColor(Color.argb(235, 255, 250, 243));
-        bg.setStroke(dp(1), Color.argb(20, 0, 0, 0));
+        bg.setColor(Color.argb(242, 255, 255, 255));
+        bg.setStroke(dp(1), COLOR_LINE);
         bar.setBackground(bg);
 
         for (int i = 0; i < icons.length; i++) {
