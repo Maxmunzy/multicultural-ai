@@ -141,7 +141,7 @@ public class ChecklistActivity extends Activity {
         back.setOnClickListener(v -> finish());
         topBar.addView(back);
 
-        TextView title = text("이번 구 할 일", 18, COLOR_INK, true);
+        TextView title = text("📋  이번 주 할 일", 18, COLOR_INK, true);
         topBar.addView(title);
 
         // bottom border on topBar
@@ -156,11 +156,19 @@ public class ChecklistActivity extends Activity {
         // tab bar — horizontal scroll for chips
         HorizontalScrollView tabScroll = new HorizontalScrollView(this);
         tabScroll.setHorizontalScrollBarEnabled(false);
+        tabScroll.setBackgroundColor(Color.WHITE);
         tabBar = new LinearLayout(this);
         tabBar.setOrientation(LinearLayout.HORIZONTAL);
-        tabBar.setPadding(dp(12), 0, dp(12), dp(8));
+        tabBar.setPadding(dp(12), dp(10), dp(12), dp(10));
         tabScroll.addView(tabBar);
+
+        View tabDivider = new View(this);
+        tabDivider.setBackgroundColor(COLOR_LINE);
+        tabDivider.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(1)));
+
         root.addView(tabScroll);
+        root.addView(tabDivider);
 
         // status (loading / empty)
         statusText = text("불러오는 중…", 14, COLOR_INK3, false);
@@ -386,10 +394,21 @@ public class ChecklistActivity extends Activity {
         titleTv.setEllipsize(android.text.TextUtils.TruncateAt.END);
         topRow.addView(titleTv);
 
+        // progress — topRow 우측 (카드 추가 전에 미리 추가)
+        JSONArray cl = entry.optJSONArray("checklist");
+        TextView progress = text("", 11, COLOR_MINT_INK, true);
+        progress.setLayoutParams(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        topRow.addView(progress);
+
         String dueDate = entry.optString("due_date", "");
         if (!dueDate.isEmpty() && !"null".equals(dueDate)) {
             TextView dueChip = text("⌛ " + dueDate, 11, COLOR_PEACH_INK, true);
             dueChip.setPadding(dp(8), dp(3), dp(8), dp(3));
+            LinearLayout.LayoutParams dclp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            dclp.leftMargin = dp(6);
+            dueChip.setLayoutParams(dclp);
             GradientDrawable dueBg = new GradientDrawable();
             dueBg.setColor(COLOR_PEACH);
             dueBg.setCornerRadius(dp(999));
@@ -411,6 +430,8 @@ public class ChecklistActivity extends Activity {
         String displayHeader = (!isKoreanMode() && !headerTranslated.isEmpty())
                 ? headerTranslated : headerKo;
         TextView header = text(displayHeader, 16, COLOR_INK, true);
+        header.setMaxLines(2);
+        header.setEllipsize(android.text.TextUtils.TruncateAt.END);
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hlp.topMargin = dp(4);
@@ -431,12 +452,7 @@ public class ChecklistActivity extends Activity {
             card.addView(val);
         }
 
-        // progress — topRow 우측에 배치
-        JSONArray cl = entry.optJSONArray("checklist");
-        TextView progress = text("", 11, COLOR_MINT_INK, true);
-        progress.setLayoutParams(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        topRow.addView(progress);
+        // (progress는 topRow에 이미 추가됨)
 
         // checkbox list
         if (cl != null) {
