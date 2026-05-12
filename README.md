@@ -2,6 +2,8 @@
 
 > 학교에서 온 가정통신문에서 "엄마가 오늘·내일 해야 할 일"을 뽑아 체크리스트로 정리하고,
 > 쉬운 한국어 + 8개국어(베트남어/영어/러시아어/말레이시아어/몽골어/중국어/태국어/일본어) 번역과 음성 안내까지 제공하는 탑재형 AI 모듈 & TTS 서비스
+>
+> **SchoolBridge** — 2026년 5월 기준 NCP Seoul VM(101.79.17.196:8000) 실서버 운영 중
 
 ---
 
@@ -40,12 +42,17 @@
     │ 통신문 상세 → ✨ AI 번역 버튼
     ▼ POST /notice/analyze/{notice_id}  (target_language)
 [FastAPI 서버 + 모델 파이프라인]
-    │ 할 일 추출(윤정) → 카테고리 분류·중요도(경이)
-    │ → 쉬운 한국어 + 선택 언어 번역(세종 NLLB)
-    │ → 학교 용어사전(176개) 검수 → Edge-TTS 음성 생성
+    │ [1] Claude Haiku 4.5 — sentence_list 정제 + role_hint 태깅 (13종)
+    │ [2] 윤정 KoELECTRA — 행동 문장(is_todo) 추출
+    │ [3] 경이 KcELECTRA — 6개 카테고리 분류
+    │ [4] 세종 NLLB-200 + 글로사리(340+) — 9개 언어 번역
+    │       → info_cards (준비물·비용·제출 체크리스트)
+    │       → calendar_events (일정·기한·신청기간 달력 표시)
+    │       → Edge-TTS 음성 생성
     ▼
 [학부모 Android 앱]
-    체크리스트 + 쉬운 한국어 + 모국어 번역(9개 중 선택) + 음성 재생
+    체크리스트 카드 + info_cards + 달력/미니달력
+    + 모국어 번역(9개 중 선택) + TTS 재생 + STT 음성 질문(6카테고리)
 ```
 
 Android 앱은 모델을 직접 실행하지 않습니다.  
@@ -89,12 +96,12 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 
 ## 진도 현황
 
-- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **NCP Seoul VM 실서버 배포 (2vCPU 8GB, 실 IP는 팀 디스코)** + **원본 가정통신문 PDF/이미지 표시 기능 (HWP→PDF 자동 변환 포함)**
-- [x] 윤정: KoELECTRA 하이브리드 추출 모델 구현 + HuggingFace Hub 배포
-- [x] 경이: 6개 카테고리 분류 + 중요도 모델 구현 + **KcELECTRA v3 파인튜닝 (Macro F1 0.8545, Simple 베이스라인 0.8116 대비 +4.29%p)** + HF Hub 배포
-- [x] 세종: NLLB 다국어 번역(8개 언어) + 용어사전(176개) 검수 루프 + Edge-TTS 음성 출력 + TTS 속도 조절(단어별/천천히/오리지날) + STT 음성 질문(9개 언어×6카테고리) + 카메라 OCR (ML Kit Korean + OpenCV + Quality Gate)
-- [x] 찬영: Android 선생님/학부모 화면 및 실기기 데모 1차 구현
-- [x] 팀 공통: 모델 A·B·C 백엔드 연결 및 E2E 파이프라인 실기기 검증 완료 + **분류 모델 v3 학습 데이터 v5_clean_full 4,992행으로 확장 (이전 v4 695행 대비 7.2배)**
+- [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **NCP Seoul VM 실서버 배포 (101.79.17.196:8000)** + 원본 가정통신문 PDF/이미지 풀화면 표시 + FCM 푸시 알림
+- [x] 윤정: KoELECTRA 추출 모델 — 학습 데이터 **47,148행** · 테스트 Recall **0.868** (v1 대비 +11.2%p) · HF Hub 배포
+- [x] 경이: KcELECTRA v3 6분류 — 학습 데이터 **15,948행** · Macro F1 **0.8374** (Simple 베이스라인 0.7590 대비 +10.3%) · HF Hub 배포
+- [x] 세종: NLLB + 글로사리 **340+ 항목**(9개 언어) + 용어 보존 검수 루프 + Edge-TTS 9보이스 + TTS 속도 조절 + STT 음성 질문(9언어×6카테고리) + 카메라 OCR (ML Kit + OpenCV) + **info_cards 파이프라인(준비물/비용/제출 체크리스트)** + **calendar_events(달력/미니달력 다국어)** + **미등록 용어 자동 감지 API**
+- [x] 찬영: 가정통신문 **3,300장 이상** 수집(8개 초등학교) + 발표 자료
+- [x] 팀 공통: E2E 파이프라인 실기기 검증 완료 + self_test **125+ ALL PASS** + Claude Haiku 4.5 sentence_list 정제 통합
 
 ---
 
@@ -118,11 +125,11 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 
 | 이름 | 기술 스택 |
 | --- | --- |
-| 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, docker-compose, REST API, X-User-Id 헤더 인증 |
-| 윤정 | KoELECTRA-base-v3, HuggingFace Hub, PyTorch, Regex, Transformers |
-| 경이 | numpy TF-IDF, scikit-learn LR, SBERT + LightGBM, Ridge 회귀, FastAPI |
-| 세종 | Python, Hugging Face Transformers, facebook/nllb-200-distilled-600M, Pandas/CSV, Edge-TTS, 학교 용어사전, ML Kit Korean OCR, OpenCV 4.9, Android SpeechRecognizer, Android TextToSpeech |
-| 찬영 | 발표자료 |
+| 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, NCP Seoul VM, FCM, REST API, X-User-Id 인증 |
+| 윤정 | KoELECTRA-base-v3, HuggingFace Hub, PyTorch, Transformers (47,148행 학습) |
+| 경이 | KcELECTRA v3, TF-IDF+LR 베이스라인, scikit-learn, HF Hub (15,948행 학습) |
+| 세종 | facebook/nllb-200-distilled-600M, 글로사리 CSV 340+항목, Edge-TTS, ML Kit Korean OCR, OpenCV 4.9, Android SpeechRecognizer, Android TextToSpeech, Claude Haiku 4.5 (sentence_list 정제) |
+| 찬영 | 가정통신문 3,300장 수집, 발표자료 |
 
 ---
 
