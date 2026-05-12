@@ -2110,14 +2110,44 @@ public class MainActivity extends Activity {
     }
 
     private String calEventLabel(String ko) {
-        switch (ko) {
-            case "운영일시":  return calLoc("운영일시","Ngày và giờ","Date & Time","日期与时间","วันและเวลา","Tarikh & Masa","Огноо цаг","Дата и время","日時");
-            case "신청기간":  return calLoc("신청기간","Thời hạn đăng ký","Registration","报名期间","ช่วงสมัคร","Tempoh daftar","Бүртгэлийн хугацаа","Период записи","申込期間");
-            case "제출기한":  return calLoc("제출기한","Hạn nộp","Submission deadline","提交截止","กำหนดส่ง","Tarikh hantar","Хүргэх хугацаа","Срок сдачи","提出期限");
-            case "납부기한":  return calLoc("납부기한","Hạn thanh toán","Payment deadline","缴费截止","กำหนดชำระ","Tarikh bayar","Төлбөрийн хугацаа","Срок оплаты","納付期限");
-            case "일정":     return calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程");
-            case "휴업/기념일": return calLoc("휴업/기념일","Nghỉ lễ","Holiday","休假/纪念日","วันหยุด","Cuti","Амралт","Праздник","休日");
-            default:         return ko;
+        String key = (ko == null ? "" : ko).replaceAll("\\s+", "");
+        switch (key) {
+            case "운영일시":
+            case "운영일자":
+            case "행사일시":
+            case "행사일":
+            case "체험일":
+            case "일시":
+                return calLoc("운영일시","Thời gian hoạt động","Event time","活动时间","วันและเวลา","Masa aktiviti","Үйл ажиллагааны цаг","Время мероприятия","実施日時");
+            case "신청기간":
+            case "접수기간":
+            case "모집기간":
+                return calLoc("신청기간","Thời gian đăng ký","Registration period","报名期间","ช่วงสมัคร","Tempoh daftar","Бүртгэлийн хугацаа","Период записи","申込期間");
+            case "제출기한":
+            case "제출마감":
+            case "마감일":
+            case "마감":
+                return calLoc("제출기한","Hạn nộp","Submission deadline","提交截止","กำหนดส่ง","Tarikh hantar","Хүргэх хугацаа","Срок сдачи","提出期限");
+            case "납부기한":
+            case "납부마감":
+            case "비용":
+                return calLoc("납부기한","Hạn thanh toán","Payment deadline","缴费截止","กำหนดชำระ","Tarikh bayar","Төлбөрийн хугацаа","Срок оплаты","納付期限");
+            case "일정":
+            case "기타":
+                return calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程");
+            case "휴업/기념일":
+            case "휴일":
+            case "재량휴업일":
+            case "기념일":
+                return calLoc("휴업/기념일","Ngày nghỉ","Holiday","休假/纪念日","วันหยุด","Cuti","Амралт","Праздник","休日");
+            case "신청URL":
+            case "URL":
+            case "신청링크":
+                return calLoc("신청 URL","URL đăng ký","Registration URL","报名链接","URL สมัคร","URL pendaftaran","Бүртгэлийн URL","Ссылка записи","申込URL");
+            default:
+                return ("ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage))
+                        ? ko
+                        : calLoc(ko, "Thông tin", "Info", "信息", "ข้อมูล", "Maklumat", "Мэдээлэл", "Информация", "情報");
         }
     }
 
@@ -2171,7 +2201,9 @@ public class MainActivity extends Activity {
             if (event == null) continue;
             box.addView(calendarEventBlock(event));
         }
-        String calTitle = isoDate + " " + calLoc("일정","lịch","schedule","日程","ตาราง","jadual","хуваарь","расписание","日程");
+        String calTitle = ("ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage) || "vi_demo".equals(selectedLanguage))
+                ? isoDate + " " + calLoc("일정","lịch","schedule","日程","ตาราง","jadual","хуваарь","расписание","日程")
+                : calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程") + ": " + isoDate;
         String calClose = calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる");
         new AlertDialog.Builder(this)
                 .setTitle(calTitle)
@@ -2186,7 +2218,7 @@ public class MainActivity extends Activity {
         block.setPadding(0, 0, 0, dp(12));
         String rawLabel = firstNonBlank(safeString(event, "label"), safeString(event, "type"));
         TextView label = text("● " + calEventLabel(rawLabel), 13, calendarColor(safeString(event, "color")), true);
-        boolean isKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage);
+        boolean isKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage) || "vi_demo".equals(selectedLanguage);
         String bodyStr = isKo
                 ? firstNonBlank(safeString(event, "display_text"), safeString(event, "source_text"))
                 : firstNonBlank(safeString(event, "translated"), safeString(event, "display_text"), safeString(event, "source_text"));
@@ -2200,8 +2232,8 @@ public class MainActivity extends Activity {
         if (!url.isEmpty()) {
             LinearLayout row = new LinearLayout(this);
             row.setOrientation(LinearLayout.HORIZONTAL);
-            Button open = outlineButton("바로가기", v -> openExternalUrl(url));
-            Button qr = outlineButton("QR 보기", v -> showQrDialog(url));
+            Button open = outlineButton(calLoc("바로가기","Mở liên kết","Open","打开","เปิด","Buka","Нээх","Открыть","開く"), v -> openExternalUrl(url));
+            Button qr = outlineButton(calLoc("QR 보기","Xem QR","QR","扫码","QR","QR","QR харах","QR-код","QR表示"), v -> showQrDialog(url));
             row.addView(open, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             row.addView(qr, new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
             block.addView(row);
@@ -3127,7 +3159,7 @@ public class MainActivity extends Activity {
     }
 
     private String buildSpokenText(String category) {
-        boolean useKo = "vi_demo".equals(selectedLanguage);
+        boolean useKo = "ko".equals(selectedLanguage) || "ko_easy".equals(selectedLanguage) || "vi_demo".equals(selectedLanguage);
         if ("주제".equals(category)) {
             if (!useKo && !currentNoticeTitleTranslated.isEmpty()) return currentNoticeTitleTranslated;
             return currentNoticeTitle.isEmpty() ? "" : currentNoticeTitle;
@@ -3137,11 +3169,17 @@ public class MainActivity extends Activity {
             for (int i = 0; i < currentCards.length(); i++) {
                 JSONObject card = currentCards.optJSONObject(i);
                 if (card == null) continue;
-                String chip = safeString(card, "chip");
-                if (!chip.contains(category)) continue;
-                String val = useKo
-                        ? safeString(card, "value_ko")
-                        : firstNonBlank(safeString(card, "value_translated"), safeString(card, "value_ko"));
+                if (!cardMatchesVoiceCategory(card, category)) continue;
+                String val = voiceCardText(card, useKo);
+                if (!val.isEmpty()) sb.append(val).append(". ");
+            }
+        }
+        if (sb.length() == 0 && currentInfoCards != null) {
+            for (int i = 0; i < currentInfoCards.length(); i++) {
+                JSONObject card = currentInfoCards.optJSONObject(i);
+                if (card == null) continue;
+                if (!cardMatchesVoiceCategory(card, category)) continue;
+                String val = voiceCardText(card, useKo);
                 if (!val.isEmpty()) sb.append(val).append(". ");
             }
         }
@@ -3158,6 +3196,36 @@ public class MainActivity extends Activity {
             }
         }
         return sb.toString().trim();
+    }
+
+    private boolean cardMatchesVoiceCategory(JSONObject card, String category) {
+        String needle = category == null ? "" : category;
+        if (needle.isEmpty()) return false;
+        String haystack = String.join(" ",
+                safeString(card, "chip"),
+                safeString(card, "category"),
+                safeString(card, "header_ko"),
+                safeString(card, "header_translated"),
+                safeString(card, "role"),
+                safeString(card, "type")
+        );
+        if (haystack.contains(needle)) return true;
+        String lower = haystack.toLowerCase(Locale.ROOT);
+        if ("준비물".equals(needle)) return lower.contains("suppl") || lower.contains("prepare") || lower.contains("bring");
+        if ("제출".equals(needle)) return lower.contains("submit") || lower.contains("submission");
+        if ("비용".equals(needle)) return lower.contains("cost") || lower.contains("fee") || lower.contains("amount") || lower.contains("payment");
+        if ("마감일순".equals(needle)) return lower.contains("deadline") || lower.contains("due");
+        return false;
+    }
+
+    private String voiceCardText(JSONObject card, boolean useKo) {
+        if (useKo) {
+            String value = firstNonBlank(safeString(card, "value_ko"), safeString(card, "display_text"), safeString(card, "source_text"));
+            return firstNonBlank(value, safeString(card, "title_ko"));
+        }
+        String translated = firstNonBlank(safeString(card, "value_translated"), safeString(card, "translated"), safeString(card, "value_ko"));
+        String original = firstNonBlank(safeString(card, "display_text"), safeString(card, "source_text"), safeString(card, "title_ko"));
+        return firstNonBlank(translated, original);
     }
 
     private void speakText(String text) {
