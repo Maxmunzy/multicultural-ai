@@ -87,21 +87,28 @@
 
 ## 모델 성능
 
-### A단계 이진 분류기 — v2 베이스라인 (2026-04-30 확정)
+### A단계 이진 분류기 — 현재 모델 (base v4_merged, 2026-05-08)
 
-평가 기준: `data/train/v2.1_notices_galsan.jsonl` (갈산초 데이터 분포)
+**평가 기준**: galsan unseen 5,388문장 (할 일 712 / 노이즈 4,676 · 클래스비 1:6.6)  
+전 버전 학습에 미포함 — 가장 공정한 실전 기준.
 
-| 지표 | 값 |
+| 모델 | Accuracy | F1 | Precision | **Recall** |
+| --- | --- | --- | --- | --- |
+| base-v1 (v3.1.3) | 72.03% | 0.4166 | 0.2875 | 0.7556 |
+| **base (v4_merged)** | **74.00%** | **0.4687** | **0.3210** | **0.8680** |
+| 향상 폭 | +1.97%p | +0.0521 | +0.0335 | **+0.1124** |
+
+| 항목 | 값 |
 | --- | --- |
-| Precision | 0.9067 |
-| Recall | 0.9589 |
-| **F1** | **0.9321** |
-| FN (놓침) | 30개 |
-| FP (오탐) | 72개 |
-| BINARY_THRESHOLD | **0.65** (최적값 적용) |
+| 백본 | `monologg/koelectra-base-v3-discriminator` (110M) |
+| 학습 데이터 | v3.1.3 + v4_clean 병합 — **47,148행** |
+| BINARY_THRESHOLD | **0.55** |
+| 손실 함수 | KL Divergence (소프트 라벨) |
+| HF Hub | `yunjeong116/koelectra-extractor` |
 
-> 신청기간/운영시간 패턴이 학습·평가 데이터 모두에 없어 수치 높게 측정됨.  
-> v3 고정 테스트셋(`data/draft/todo_test_500.jsonl`) 기준 재평가 시 변동 예상.
+> F1 절대값이 낮은 이유: 클래스 불균형(노이즈 6.6배) — 정상 범위.  
+> Recall 중심 평가: 학부모가 놓치면 안 되는 정보 우선.  
+> 버전별 상세 비교: `docs/eval-history.md`
 
 ### B단계 카테고리 분류기 — v2 (2026-04-28 · 15 epoch · cosine LR · WeightedCrossEntropy)
 

@@ -320,16 +320,33 @@ v3.1.1에서 no_match로 False 처리된 케이스 중 문맥상 학부모가 �
 
 ## 모델 성능 이력
 
-| 모델 | 백본 | 학습 데이터 | Threshold | Accuracy | F1 (val) | Precision | Recall |
+### val split 기준 (5,650개 — 학습 분포와 동일)
+
+| 모델 | 백본 | 학습 데이터 | Threshold | Accuracy | F1 | Precision | Recall |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | v3 Small | koelectra-small | v3_dual_labeled_clean (27,799) | 0.65 | 89.58% | 0.8225 | 0.8149 | 0.8303 |
 | v3.1 Small | koelectra-small | v3.1_dual_labeled (28,247) | 0.55 | 89.40% | 0.8223 | 0.8025 | 0.8431 |
 | Base (v3.1.3) | koelectra-base | v3.1.3_dual_labeled (22,523) | 0.40 | 90.69% | 0.8387 | 0.8459 | 0.8315 |
 | **Base (v4_merged)** | **koelectra-base** | **v3.1.3 + v4_clean (47,148)** | **0.55** | **94.74%** | **0.9003** | **0.8945** | **0.9061** |
 
-> - Base (v4_merged): v3.1.3 + v4_clean 병합, 소프트 라벨(KL Divergence), val split 기준
-> - ⚠️ val split이 v4_merged(True 26.2%) 기반 — galsan unseen 평가로 일반화 검증 필요
-> - 상세 비교: `docs/eval-base-vs-small-2026-05-07.md`
+### galsan unseen 기준 (5,388개 — 실전 기준 ★)
+
+> 갈산초 통신문 — 전 버전 학습에 미포함. 가장 공정한 비교 기준.
+
+| 모델 | Threshold | Accuracy | F1 | Precision | Recall |
+| --- | --- | --- | --- | --- | --- |
+| v2 Small (갈산 전용) | 0.65 | 76.82%† | 0.3905† | 0.7362† | 0.2658† |
+| v3 Small | 0.65 | 70.69% | 0.4184 | 0.2836 | 0.7978 |
+| v3.1 Small | 0.55 | 68.73% | 0.4168 | 0.2765 | 0.8455 |
+| Base (v3.1.3) | 0.40 | 72.03% | 0.4166 | 0.2875 | 0.7556 |
+| **Base (v4_merged)** | **0.55** | **74.00%** | **0.4687** | **0.3210** | **0.8680** |
+| 향상 폭 (v3.1.3 → v4) | | +1.97%p | +0.0521 | +0.0335 | **+0.1124** |
+
+† v2는 galsan이 학습 데이터에 포함 — v3 val split 기준값 사용.
+
+> - F1 절대값이 낮은 이유: 클래스 불균형(노이즈 6.6배) — 정상 범위
+> - Recall 중심 평가: 학부모가 놓치면 안 되는 정보 우선
+> - 상세 비교: `docs/eval-history.md`
 
 ---
 
