@@ -13,7 +13,7 @@
 
 → 동일 가정통신문 원본 19건 중 TODO 문장이 있는 18건에 대해 시나리오 A(원문 전체를 NLLB에 입력)와 B(추출된 TODO 문장만 NLLB에 입력) 양쪽을 측정해 속도 차이를 정량화.
 
-품질 비교는 `2026-04-28-translation-glossary-quality.md`와 `../roundtrip-full-eval-2026-04-28.md`에 정리한다.
+품질 비교는 `2026-04-28-translation-glossary-quality.md`와 `../../../docs/roundtrip-full-eval-2026-04-28.md`에 정리한다.
 
 ---
 
