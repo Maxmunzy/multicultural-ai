@@ -1,6 +1,6 @@
 # Translation/TTS MVP
 
-![세종 파트 현재 상태](../../docs/assets/translation_tts_status.png)
+![세종 파트 현재 상태](../../OLD/docs/assets/translation_tts_status.png)
 
 ## 현재 상태
 

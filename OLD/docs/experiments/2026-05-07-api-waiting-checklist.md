@@ -75,7 +75,7 @@ OCR 메인 전략은 드랍하되, 연구 기록은 삭제하지 않는다.
 
 팀 레포:
 
-- `docs/experiments/2026-05-07-ocr-drop-highlight-strategy.md`
+- `OLD/docs/experiments/2026-05-07-ocr-drop-highlight-strategy.md`
 
 개인 레포:
 
@@ -112,4 +112,3 @@ API 연결 후 최소 통과 기준:
 ## 팀 공유 한 줄
 
 Gemini API가 들어오기 전까지는 호출부를 억지로 만들지 않고, sentence_list 계약과 slot/info_cards 안전망을 먼저 고정한다.
-

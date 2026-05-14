@@ -113,7 +113,7 @@
 | 파일 | 용도 |
 |---|---|
 | `docs/share-summary-2026-04-28-quality-eval.md` | 팀 공유/PR/발표용 요약 |
-| `docs/worklog-2026-04-28-gemini-quality-length.md` | 상세 작업 로그 |
+| `OLD/docs/worklogs/worklog-2026-04-28-gemini-quality-length.md` | 상세 작업 로그 |
 | `model/translation_tts/run_ab_compare.py` | A/B 속도 및 입력 단축 측정 |
 | `model/translation_tts/run_ab_quality_eval.py` | A/B 품질평가 + Round-trip 검사 |
 | `model/translation_tts/run_quality_eval.py` | 용어사전 전/후 품질평가 |

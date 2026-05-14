@@ -41,8 +41,8 @@ backend/app/services/ocr_slot_corrector.py
 backend/tests/test_ocr_slot_corrector.py
 data/ocr_slot_correction_eval_sample.csv
 scripts/evaluate_ocr_slot_correction.py
-outputs/ocr_slot_correction_eval.csv
-outputs/ocr_slot_correction_eval.md
+OLD/outputs/ocr_slot_correction_eval.csv
+OLD/outputs/ocr_slot_correction_eval.md
 ```
 
 ### ocr_slot_corrector.py
@@ -112,8 +112,8 @@ OCR slot correction eval: raw=1/7, corrected=7/7
 출력:
 
 ```text
-outputs/ocr_slot_correction_eval.csv
-outputs/ocr_slot_correction_eval.md
+OLD/outputs/ocr_slot_correction_eval.csv
+OLD/outputs/ocr_slot_correction_eval.md
 ```
 
 직접 smoke assertion:

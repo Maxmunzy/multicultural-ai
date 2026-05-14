@@ -1,9 +1,39 @@
-# 가정통신문 AI 도우미 - 다문화 가정 학부모용
+# 가정통신문 AI 도우미 - SchoolBridge
 
-> 학교에서 온 가정통신문에서 "엄마가 오늘·내일 해야 할 일"을 뽑아 체크리스트로 정리하고,
-> 쉬운 한국어 + 8개국어(베트남어/영어/러시아어/말레이시아어/몽골어/중국어/태국어/일본어) 번역과 음성 안내까지 제공하는 탑재형 AI 모듈 & TTS 서비스
+> 다문화 가정 학부모가 학교 가정통신문에서 오늘 해야 할 일을 놓치지 않도록, 핵심 문장 추출·카테고리 분류·다국어 번역·TTS 음성 안내를 하나의 흐름으로 연결한 AI 서비스입니다.
 >
-> **SchoolBridge** — 2026년 5월 기준 NCP Seoul VM(101.79.17.196:8000) 실서버 운영 중
+> **SchoolBridge** — 2026년 5월 기준 NCP Seoul VM 실서버 운영 및 Android 실기기 데모 검증 완료
+
+## 먼저 볼 것
+
+| 목적 | 위치 | 설명 |
+| --- | --- | --- |
+| 전체 서비스 개요 | `README.md` | 문제 정의, 팀 역할, API, 실행 방법 |
+| 문서 목차 | `docs/README.md` | 최신 발표/공유/검증 문서 인덱스 |
+| 발표용 요약 | `docs/team-brief.md` | 프로젝트 배경과 팀 단위 핵심 정리 |
+| 최종 발표자료 | `docs/5팀 SchoolBridge 발표자료.pdf` | 최종 발표 PDF |
+| 번역/TTS 파트 | `model/translation_tts/README.md` | NLLB, glossary, Edge-TTS, 검수 루프 |
+| 백엔드 API | `backend/` | FastAPI 서버와 notice/user API |
+| Android 앱 | `android/` | 선생님/학부모 실기기 데모 앱 |
+| 과거 실험/초안 | `OLD/README.md` | 오래된 작업 로그, 실험 노트, 발표 초안 보관 위치 |
+
+## 현재 레포 구조
+
+```text
+backend/              FastAPI 서버, API, 테스트
+android/              Android 실기기 데모 앱
+data/                 샘플/가공 데이터
+model/extraction/     할 일 문장 추출 모델
+model/classification/ 카테고리 분류 모델
+model/translation_tts/ 번역, glossary, TTS, OCR/STT 관련 파트
+demo/                 고정 데모 산출물
+docs/                 최신 발표/공유 문서
+scripts/              데이터 라벨링 및 평가 보조 스크립트
+sentence_extraction/  문장 추출 관련 실험/구성
+OLD/                  과거 실험 기록과 구버전 산출물 보관
+```
+
+> `OLD/`는 삭제 대상이 아니라 보관 폴더입니다. 현재 실행 흐름에서 바로 쓰지 않는 과거 실험 기록, 발표 초안, 구버전 모델 산출물을 분리해 최신 구조를 읽기 쉽게 만들었습니다.
 
 ---
 
@@ -107,15 +137,15 @@ Android 앱은 모델을 직접 실행하지 않습니다.
 
 ## 정량 검증 현황
 
-2026-04-28 기준, 강사 피드백에 맞춰 모델·번역 파이프라인의 주요 실험을 `docs/experiments/`에 정리했습니다.
+2026-04-28 기준, 강사 피드백에 맞춰 모델·번역 파이프라인의 주요 실험을 `OLD/docs/experiments/`에 정리했습니다.
 
 | 항목 | 결과 | 문서 |
 | --- | --- | --- |
-| TODO 피처 추출 번역 속도 | 청크 보정 후 평균 ×1.84, 입력 -30.1% | `docs/experiments/2026-04-28-translation-feature-extraction-speed.md` |
-| 용어사전 전/후 품질 | 엄격 재평가 NLLB 39.0점 → 사전 적용 89.6점 | `docs/experiments/2026-04-28-translation-glossary-quality.md` |
+| TODO 피처 추출 번역 속도 | 청크 보정 후 평균 ×1.84, 입력 -30.1% | `OLD/docs/experiments/2026-04-28-translation-feature-extraction-speed.md` |
+| 용어사전 전/후 품질 | 엄격 재평가 NLLB 39.0점 → 사전 적용 89.6점 | `OLD/docs/experiments/2026-04-28-translation-glossary-quality.md` |
 | Round-trip 의미 검증 | 18개 공지 A 50.1점 / B 54.1점, 반복 왜곡 유형 도출 | `docs/roundtrip-full-eval-2026-04-28.md` |
 | 데이터/권한/사전 자동 테스트 | backend pytest 27개 + GitHub Actions PR 게이트 | `backend/tests/`, `.github/workflows/backend-tests.yml` |
-| OCR 모델 비교 · 전처리 실험 | ML Kit Korean F1 0.95~0.97, CER 28.2% (정면 BEST) — EasyOCR·Tesseract 한국어 실패(CER 97%) | `docs/experiments/2026-05-01-ocr-mlkit-korean-results.md` |
+| OCR 모델 비교 · 전처리 실험 | ML Kit Korean F1 0.95~0.97, CER 28.2% (정면 BEST) — EasyOCR·Tesseract 한국어 실패(CER 97%) | `OLD/docs/experiments/2026-05-01-ocr-mlkit-korean-results.md` |
 
 번역 품질평가는 단순 용어 포함 여부가 아니라 현지 상용 표현, 학교 문맥, 정보 보존, 한국어 의미 역번역(Round-trip)을 함께 봅니다.
 
@@ -178,17 +208,17 @@ http://localhost:8000/docs
 
 ---
 
-## 데모 산출물
+## 문서와 산출물
 
 | 구분 | 위치 | 설명 |
 | --- | --- | --- |
 | 번역/TTS 고정 데모 | `demo/translation_tts/demo_case_01/` | 번역, 용어사전 검수, TTS 결과 샘플 |
 | 번역/TTS 상세 설명 | `model/translation_tts/README.md` | 번역/TTS 실행 구조와 검수 루프 설명 |
-| 실험 노트 인덱스 | `docs/experiments/README.md` | 모델·번역·데이터 정량 실험 모음 |
+| 실험 노트 인덱스 | `OLD/docs/experiments/README.md` | 모델·번역·데이터 정량 실험 모음 |
 | 번역 품질 공유 요약 | `docs/share-summary-2026-04-28-quality-eval.md` | Gemini 평가 강화, 청크 번역, Round-trip 검사 요약 |
 | Android 데모 | `android/` | 선생님/학부모 실기기 데모 앱 |
 | 디자인 핸드오프 | `android/design_reference/` | UI 디자인 시안 HTML/CSS 산출물 — APK 빌드 미포함 |
-| 이미지 자료 | `docs/assets/` | 발표/공유용 이미지 자료 |
+| 이미지 자료 | `OLD/docs/assets/` | 발표/공유용 이미지 자료 |
 
 ---
 

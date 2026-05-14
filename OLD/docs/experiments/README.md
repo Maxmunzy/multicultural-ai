@@ -17,7 +17,7 @@
 | 2026-05-07 | pipeline | bbox 머지 후 버그 수정 평가 | 스쿨뱅킹 중복·발송일 오추출·카드 trim 등 8/8 통과 | 세종 | [link](2026-05-07-bugfix-postmerge-eval.md) |
 | 2026-04-28 | 번역 파이프라인 | 피처 추출 효과 (속도) | 청크 보정 후 ×1.84, 입력 -30.1% | 세종 | [link](2026-04-28-translation-feature-extraction-speed.md) |
 | 2026-04-28 | 번역 파이프라인 | 사전 적용 전후 품질 | 엄격 재평가 NLLB 39.0 → 사전 89.6 (+50.6) | 세종 | [link](2026-04-28-translation-glossary-quality.md) |
-| 2026-04-28 | 번역 파이프라인 | Round-trip 전수 검사 | 18건 A 50.1 / B 54.1, 왜곡 유형 도출 | 세종 | [link](../roundtrip-full-eval-2026-04-28.md) |
+| 2026-04-28 | 번역 파이프라인 | Round-trip 전수 검사 | 18건 A 50.1 / B 54.1, 왜곡 유형 도출 | 세종 | [link](../../../docs/roundtrip-full-eval-2026-04-28.md) |
 
 ## 영역 분류
 

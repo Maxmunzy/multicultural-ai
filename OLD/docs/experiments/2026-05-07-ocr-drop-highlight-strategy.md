@@ -39,11 +39,11 @@ OCR 실험은 실패 기록이 아니라 의사결정 근거로 보존한다.
 
 관련 기록:
 
-- `docs/experiments/2026-05-01-ocr-mlkit-korean-results.md`
-- `docs/worklog-2026-05-06-ocr-pivot-bbox.md`
-- `docs/worklog-2026-05-07-android-ocr-smoke.md`
-- `docs/worklog-2026-05-07-ocr-slot-correction.md`
-- `docs/experiments/2026-05-07-ocr-slot-correction-eval.md`
+- `OLD/docs/experiments/2026-05-01-ocr-mlkit-korean-results.md`
+- `OLD/docs/worklogs/worklog-2026-05-06-ocr-pivot-bbox.md`
+- `OLD/docs/worklogs/worklog-2026-05-07-android-ocr-smoke.md`
+- `OLD/docs/worklogs/worklog-2026-05-07-ocr-slot-correction.md`
+- `OLD/docs/experiments/2026-05-07-ocr-slot-correction-eval.md`
 
 이 기록들은 다음 내용을 증명한다.
 
@@ -162,4 +162,3 @@ OCR 메인 전략은 정확도와 일정 리스크가 커서 드랍합니다. �
 3. 신청기간 / 운영일시 / URL / 문의 / 대상 role 분리 검증
 4. PDF text-layer bbox와 sentence_list 매칭 PoC 별도 검토
 5. OCR 관련 기능은 fallback 또는 연구 기록으로 문서상 분리
-

@@ -138,6 +138,6 @@
 | 파일 | 용도 |
 |---|---|
 | `docs/roundtrip-full-eval-2026-04-28.md` | 18건 Round-trip 전수 평가 요약 |
-| `docs/experiments/2026-04-28-translation-glossary-quality.md` | 사전 전후 품질 및 A/B 품질 재평가 |
-| `docs/experiments/2026-04-28-translation-feature-extraction-speed.md` | A/B 입력 단축 및 속도 비교 |
+| `OLD/docs/experiments/2026-04-28-translation-glossary-quality.md` | 사전 전후 품질 및 A/B 품질 재평가 |
+| `OLD/docs/experiments/2026-04-28-translation-feature-extraction-speed.md` | A/B 입력 단축 및 속도 비교 |
 | `model/translation_tts/outputs/ab_quality_eval/vi/summary.md` | A/B 품질평가 원본 요약 |
