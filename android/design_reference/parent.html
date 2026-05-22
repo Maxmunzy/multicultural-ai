@@ -14,6 +14,19 @@
    (daon-shared.css에 없는 이 파일 전용 패턴)
 ──────────────────────────────────────── */
 
+/* parent.html 전용 (공통 유틸: daon-shared.css) */
+.chip.ai-pill             { gap: 3px; }
+.btn.hero-cta             { margin-top:12px; background:rgba(255,255,255,.95); color:var(--brand); }
+.card.p12                 { padding: 12px; }
+.card.notice-body         { margin-top: 10px; padding: 14px; }
+.card.notice.p14          { padding: 14px; }
+.bar.mb12                 { margin-bottom: 12px; }
+.btn.action-cal           { flex:1; font-size:12px; padding:10px 8px; gap:5px; }
+.btn.action-reply         { flex:1.3; font-size:13px; padding:10px; }
+.btn.btn-send             { padding:14px; gap:7px; }
+.reply-option.selected .ro-icon svg { color: white; }
+.capture-btn.featured .cb-icon svg  { color: white; }
+
 /* 통신문 상세 — 배지 행 */
 .notice-badges { display:flex; align-items:center; gap:5px; margin-top:7px; flex-wrap:wrap; }
 
@@ -117,28 +130,6 @@
 .cb-label { font-size:13px; font-weight:700; color:var(--ink); }
 .cb-desc  { font-size:10px; color:var(--ink3); margin-top:-6px; }
 
-/* ── Dual TTS (tts_url + tts_url_easy_ko) ── */
-.tts-dual {
-  margin-top:10px;
-  background:var(--surface); border:1px solid var(--line);
-  border-radius:var(--radius-sm); overflow:hidden;
-}
-.tts-tab-row {
-  display:flex; background:var(--surface3); padding:3px; gap:3px;
-}
-.tts-tab {
-  flex:1; padding:5px; text-align:center;
-  font-size:10px; font-weight:600; color:var(--ink3);
-  border-radius:6px; cursor:pointer;
-  display:flex; align-items:center; justify-content:center; gap:4px;
-}
-.tts-tab.active {
-  background:var(--surface); color:var(--ai); box-shadow:var(--shadow-sm);
-}
-.tts-tab.active.easy { color:var(--brand); }
-.tts-player-row {
-  display:flex; align-items:center; gap:8px; padding:9px 12px;
-}
 
 /* ── 통합 체크리스트 항목 (inbox/checklist 엔드포인트) ── */
 .agg-check-item {
@@ -206,7 +197,7 @@
 </div>
 
 <!-- SVG 심볼 (아이콘 스프라이트) -->
-<svg style="display:none">
+<svg class="icon-sprite">
   <symbol id="ic-home" viewBox="0 0 24 24" fill="none">
     <path d="M3 12L12 3l9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"
       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -344,7 +335,7 @@
         <div class="hero-content">
           <div class="hero-chips">
             <span class="chip danger">회신 필요 · D-2</span>
-            <span class="chip white" style="gap:3px;">
+            <span class="chip white ai-pill">
               <svg width="7" height="7" viewBox="0 0 8 8">
                 <circle cx="4" cy="4" r="4" fill="#7C3AED"/>
               </svg>
@@ -354,7 +345,7 @@
           <div class="title-md hero-title">Dã ngoại học tập</div>
           <div class="hero-sub">현장체험학습 안내 · 5/16 · 서울초 3-2</div>
           <div class="hero-body">Lớp 3-2 đến Bảo tàng Khoa học Seoul. Phản hồi trước 14/5.</div>
-          <button class="btn sm" style="margin-top:12px; background:rgba(255,255,255,.95); color:var(--brand);">
+          <button type="button" class="btn sm hero-cta">
             지금 회신하기 →
           </button>
         </div>
@@ -398,7 +389,7 @@
 
       <div class="section-label">다가오는 일정</div>
 
-      <div class="card row row-gap12" style="padding:12px;">
+      <div class="card row row-gap12 p12">
         <div class="date-box lg brand">
           <span class="dbx-mon">5월</span>
           <span class="dbx-num">16</span>
@@ -441,7 +432,7 @@
       </div>
 
       <!-- 서비스 현황 통계 (심사: AI 서비스 완결성) -->
-      <div class="stat-row" style="margin-top:14px;">
+      <div class="stat-row">
         <div class="stat-item">
           <div class="si-num">47<span class="si-unit">건</span></div>
           <div class="si-label">받은 통신문</div>
@@ -589,15 +580,15 @@
       </div>
 
       <!-- 번역 본문 -->
-      <div class="card" style="margin-top:10px; padding:14px;">
+      <div class="card notice-body">
         <div class="title-sm">Kính gửi quý phụ huynh,</div>
-        <p class="body" style="margin-top:8px; line-height:1.6;">
+        <p class="body mt8">
           Lớp 3-2 sẽ tổ chức chuyến
           <span class="hl-supply">dã ngoại học tập</span>
           đến Bảo tàng Khoa học Seoul vào ngày
           <span class="hl-schedule">16/5 (Thứ Năm)</span>.
         </p>
-        <p class="body" style="margin-top:6px; line-height:1.6;">
+        <p class="body mt6">
           Vui lòng chuẩn bị cơm hộp, nước uống và mũ.
           Phản hồi đồng ý trước <span class="hl-deadline">14/5</span>.
         </p>
@@ -610,44 +601,26 @@
         <span class="cat-chip submit">5/14 회신</span>
       </div>
 
-      <!-- Dual TTS: tts_url (번역어) + tts_url_easy_ko (쉬운한국어) -->
-      <div class="tts-dual">
-        <div class="tts-tab-row">
-          <div class="tts-tab active">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
-              <path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-              <path d="M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
-            </svg>
-            Tiếng Việt 음성
-          </div>
-          <div class="tts-tab easy">
-            <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
-              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
-              <path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            </svg>
-            쉬운 한국어
-          </div>
+      <!-- TTS 음성 안내 -->
+      <div class="tts-bar">
+        <button type="button" class="play-btn" aria-label="음성 재생">
+          <svg width="12" height="12"><use href="#ic-play"/></svg>
+        </button>
+        <div class="track">
+          <div class="track-bar"><div class="track-fill"></div></div>
+          <div class="track-time"><span>0:14</span><span>0:40</span></div>
         </div>
-        <div class="tts-player-row">
-          <button type="button" class="play-btn" aria-label="음성 재생">
-            <svg width="12" height="12"><use href="#ic-play"/></svg>
-          </button>
-          <div class="track">
-            <div class="track-bar"><div class="track-fill"></div></div>
-            <div class="track-time"><span>0:14</span><span>0:40</span></div>
-          </div>
-          <span class="speed-chip">1.0×</span>
-        </div>
+        <span class="speed-chip">1.0×</span>
       </div>
     </div>
 
     <div class="action-bar">
       <div class="action-row">
-        <button class="btn outline" style="flex:1; font-size:12px; padding:10px 8px; gap:5px;">
+        <button type="button" class="btn outline action-cal">
           <svg width="14" height="14"><use href="#ic-calendar"/></svg>
           일정 추가
         </button>
-        <button class="btn primary" style="flex:1.3; font-size:13px; padding:10px;">
+        <button type="button" class="btn primary action-reply">
           회신하기 →
         </button>
       </div>
@@ -701,13 +674,13 @@
       </div>
 
       <div class="title-lg">Trả lời cô Kim</div>
-      <div class="caption" style="margin-top:3px;">김선생님께 · 현장체험학습 동의서</div>
+      <div class="caption mt3">김선생님께 · 현장체험학습 동의서</div>
 
       <div class="section-label">빠른 답변 선택</div>
 
       <div class="reply-option selected">
         <div class="ro-icon">
-          <svg width="14" height="14" style="color:white;"><use href="#ic-check-bold"/></svg>
+          <svg width="14" height="14"><use href="#ic-check-bold"/></svg>
         </div>
         <div class="ro-body">
           <div class="ro-title">Đồng ý tham gia</div>
@@ -752,7 +725,7 @@
     </div>
 
     <div class="action-bar">
-      <button class="btn primary full" style="padding:14px; gap:7px;">
+      <button type="button" class="btn primary full btn-send">
         <svg width="15" height="15"><use href="#ic-send"/></svg>
         김선생님께 전송하기
       </button>
@@ -815,11 +788,11 @@
       <div class="section-label">5월 16일 · 목요일</div>
 
       <!-- 이벤트 카드 (왼쪽 보더 = 일정 카테고리 색) -->
-      <div class="card notice schedule" style="padding:14px;">
+      <div class="card notice schedule p14">
         <div class="evt-header">
           <div>
             <div class="evt-time">09:00 — 15:00</div>
-            <div class="title-md" style="margin-top:2px;">Dã ngoại học tập</div>
+            <div class="title-md mt2">Dã ngoại học tập</div>
             <div class="caption">현장체험학습 · Bảo tàng Khoa học Seoul</div>
           </div>
           <span class="chip warning">D-2</span>
@@ -829,7 +802,7 @@
           <span class="chk-label">준비물 체크리스트</span>
           <span class="chk-count">2 / 4</span>
         </div>
-        <div class="bar" style="margin-bottom:12px;"><div style="width:50%;"></div></div>
+        <div class="bar mb12"><div class="fill-50"></div></div>
 
         <div class="check-item done">
           <div class="checkbox"></div>
@@ -863,7 +836,7 @@
 
       <div class="section-label">다음 주</div>
 
-      <div class="card notice row row-gap12" style="padding:12px;">
+      <div class="card notice row row-gap12 p12">
         <div class="date-box md ai">
           <span class="dbx-mon">5월</span>
           <span class="dbx-num">22</span>
@@ -930,7 +903,7 @@
       <div class="capture-grid">
         <div class="capture-btn featured">
           <div class="cb-icon">
-            <svg width="17" height="17" style="color:white;"><use href="#ic-camera"/></svg>
+            <svg width="17" height="17"><use href="#ic-camera"/></svg>
           </div>
           <span class="cb-label">사진 찍기</span>
           <span class="cb-desc">자동 OCR 인식</span>

@@ -13,7 +13,45 @@
    teacher.html 로컬 컴포넌트
 ──────────────────────────────────────── */
 
-/* (back-nav, back-btn은 daon-shared.css로 이동) */
+/* teacher.html 전용 (공통 유틸: daon-shared.css) */
+
+/* SVG 아이콘 컨텍스트 색상 */
+.ai-assist-icon svg  { color: white; }
+.fab svg             { color: white; }
+
+/* 파일 업로드 미리보기 여백 */
+.file-preview.mt6    { margin-top: 6px; }
+.section-label.mt10  { margin-top: 10px; }
+
+/* AI 분석 버튼 변형 */
+.btn.analyze-btn     { flex:1.6; padding:13px; font-size:13px; gap:6px; }
+
+/* 분석 결과 모델 배지 행 */
+.model-badges        { display:flex; align-items:center; gap:5px; margin-top:6px; flex-wrap:wrap; }
+
+/* 문장 분석 카드 */
+.card.analysis       { padding: 10px; }
+
+/* extract-item 내부 레이아웃 */
+.extract-item .cat-chip { flex-shrink: 0; }
+.ei-body             { flex: 1; }
+
+/* 번역/발송 액션 버튼 */
+.btn.action-back     { flex:1; padding:12px; font-size:12px; gap:5px; }
+.btn.action-send     { flex:1.6; padding:12px; font-size:13px; gap:6px; }
+
+/* 번역 미리보기 화면 버튼 */
+.btn.action-edit     { flex:1; padding:12px; font-size:12px; }
+.btn.action-dispatch { flex:1.6; padding:12px; font-size:13px; gap:6px; }
+
+/* 번역 결과 카드 */
+.card.trans-body     { margin-top: 10px; padding: 14px; }
+
+/* 번역 품질 확인 아이콘 */
+.quality-icon        { flex-shrink: 0; color: var(--cat-submit); }
+
+/* 알림 버튼 (미회신 학생 행) */
+.btn.notify-btn      { gap:4px; font-size:11px; }
 
 /* ── 4단계 스텝바 ── */
 .step-bar {
@@ -227,6 +265,13 @@
 .action-row { display:flex; gap:8px; }
 
 /* (hero-chips, hero-title, hero-sub, row 유틸은 daon-shared.css로 이동) */
+
+/* 진행 바 fill 고정값 */
+.fill-92 { width: 92%; }
+
+/* 히어로 카드 내부 진행 바 (흰 배경 위의 흰 fill) */
+.bar.hero-bar          { margin-top: 14px; background: rgba(255,255,255,.2); }
+.bar.hero-bar > div    { background: white; }
 .row-gap10 { gap:10px; }
 .row-sb    { justify-content:space-between; align-items:flex-end; }
 
@@ -336,7 +381,7 @@
 </div>
 
 <!-- SVG 아이콘 스프라이트 -->
-<svg style="display:none">
+<svg class="icon-sprite">
   <symbol id="ic-group" viewBox="0 0 24 24" fill="none">
     <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
@@ -619,7 +664,7 @@
       </div>
 
       <!-- 업로드 완료 상태 (HWP 파일 선택 후) -->
-      <div class="file-preview" style="margin-top:6px;">
+      <div class="file-preview mt6">
         <div class="fp-icon hwp">HWP</div>
         <div class="fp-body">
           <div class="fp-name">현장체험학습_안내문.hwp</div>
@@ -631,7 +676,7 @@
       </div>
 
       <!-- ② 추출된 텍스트 확인 (수정 가능) -->
-      <div class="section-label" style="margin-top:10px;">추출된 텍스트 확인</div>
+      <div class="section-label mt10">추출된 텍스트 확인</div>
       <div class="compose-field">
         <div class="compose-field-label">내용 (한국어) · 수정 가능</div>
         <div class="compose-field-content">
@@ -644,7 +689,7 @@
       <!-- AI 어시스트 배너 -->
       <div class="ai-assist">
         <div class="ai-assist-icon">
-          <svg width="15" height="15" style="color:white;"><use href="#ic-spark"/></svg>
+          <svg width="15" height="15"><use href="#ic-spark"/></svg>
         </div>
         <div class="aa-body">
           <div class="aa-title">텍스트를 확인하고 AI 분석을 시작하세요</div>
@@ -656,7 +701,7 @@
     <div class="action-bar">
       <div class="action-row">
         <button class="btn ghost sm">임시 저장</button>
-        <button class="btn ai" style="flex:1.6; padding:13px; font-size:13px; gap:6px;">
+        <button class="btn ai analyze-btn">
           <svg width="14" height="14"><use href="#ic-spark"/></svg>
           AI 분석하기 →
         </button>
@@ -738,7 +783,7 @@
 
       <!-- 제목 + 모델 배지 -->
       <div class="title-lg">AI 분석 완료</div>
-      <div style="display:flex; align-items:center; gap:5px; margin-top:6px; flex-wrap:wrap;">
+      <div class="model-badges">
         <span class="ai-badge">KoELECTRA 추출</span>
         <span class="ai-badge">KcELECTRA 분류</span>
         <span class="data-badge">공공데이터</span>
@@ -747,7 +792,7 @@
       <!-- ★ 문장별 카테고리 분석 (핵심 시각화) ★ -->
       <div class="section-label">원문 문장 분석 · 4문장</div>
 
-      <div class="card" style="padding:10px;">
+      <div class="card analysis">
 
         <!-- 분석 대상 외 문장 (회색) -->
         <div class="sentence-mark unmarked">
@@ -785,24 +830,24 @@
       <div class="section-label">추출된 핵심 정보</div>
 
       <div class="extract-item">
-        <span class="cat-chip schedule" style="flex-shrink:0;">일정</span>
-        <div style="flex:1;">
+        <span class="cat-chip schedule">일정</span>
+        <div class="ei-body">
           <div class="ei-value">5/16 (목) 09:00 — 15:00</div>
           <div class="ei-sub">현장체험학습 · 국립과천과학관</div>
         </div>
       </div>
 
       <div class="extract-item">
-        <span class="cat-chip submit" style="flex-shrink:0;">제출</span>
-        <div style="flex:1;">
+        <span class="cat-chip submit">제출</span>
+        <div class="ei-body">
           <div class="ei-value">5/14 마감</div>
           <div class="ei-sub">참여 동의 회신</div>
         </div>
       </div>
 
       <div class="extract-item">
-        <span class="cat-chip supply" style="flex-shrink:0;">준비물</span>
-        <div style="flex:1;">
+        <span class="cat-chip supply">준비물</span>
+        <div class="ei-body">
           <div class="ei-value">도시락, 물, 모자, 명찰</div>
           <div class="ei-sub">4개 항목</div>
         </div>
@@ -858,11 +903,11 @@
 
     <div class="action-bar">
       <div class="action-row">
-        <button type="button" class="btn ghost" style="flex:1; padding:12px; font-size:12px; gap:5px;">
+        <button type="button" class="btn ghost action-back">
           <svg width="14" height="14"><use href="#ic-back"/></svg>
           원문 수정
         </button>
-        <button type="button" class="btn primary" style="flex:1.6; padding:12px; font-size:13px; gap:6px;">
+        <button type="button" class="btn primary action-send">
           <svg width="14" height="14"><use href="#ic-globe"/></svg>
           9개 언어로 번역 →
         </button>
@@ -943,7 +988,7 @@
       </div>
 
       <div class="title-lg">번역 미리보기</div>
-      <div class="caption" style="margin-top:3px;">학부모가 받게 될 화면</div>
+      <div class="caption mt3">학부모가 받게 될 화면</div>
 
       <!-- 언어 탭 스크롤 -->
       <div class="lang-tab-row">
@@ -970,21 +1015,21 @@
       </div>
 
       <!-- 번역 결과 카드 -->
-      <div class="card" style="margin-top:10px; padding:14px;">
+      <div class="card trans-body">
         <div class="title-sm">Thông báo dã ngoại học tập</div>
-        <p class="body" style="margin-top:8px; line-height:1.6;">
+        <p class="body mt8">
           Kính gửi quý phụ huynh, lớp 3-2 sẽ đi
           <b>dã ngoại học tập</b> đến <b>Bảo tàng Khoa học Quốc gia Gwacheon</b>
           vào <b>thứ Năm, ngày 16/5</b>.
         </p>
-        <p class="body" style="margin-top:6px; line-height:1.6;">
+        <p class="body mt6">
           Phản hồi đồng ý <b>trước ngày 14/5</b>. Xin cảm ơn.
         </p>
       </div>
 
       <!-- 번역 품질 + 용어사전 적용 (공공데이터 심사 포인트) -->
       <div class="quality-row">
-        <svg width="14" height="14" style="color:var(--cat-submit); flex-shrink:0;"><use href="#ic-check-circle"/></svg>
+        <svg width="14" height="14" class="quality-icon"><use href="#ic-check-circle"/></svg>
         <span class="quality-label">자연스러운 번역 확인됨</span>
         <span class="data-badge">학교용어사전 적용</span>
       </div>
@@ -1007,8 +1052,8 @@
 
     <div class="action-bar">
       <div class="action-row">
-        <button class="btn ghost" style="flex:1; padding:12px; font-size:12px;">수정</button>
-        <button class="btn primary" style="flex:1.6; padding:12px; font-size:13px; gap:6px;">
+        <button class="btn ghost action-edit">수정</button>
+        <button class="btn primary action-dispatch">
           <svg width="14" height="14"><use href="#ic-send"/></svg>
           24명에게 발송
         </button>
@@ -1060,7 +1105,7 @@
       <!-- 진행 히어로 카드 -->
       <div class="card hero">
         <div class="hero-content">
-          <div class="row row-sb" style="align-items:flex-end;">
+          <div class="row row-sb align-end">
             <div>
               <div class="hero-caption">전체 24명 중</div>
               <div class="progress-hero-num">
@@ -1070,8 +1115,8 @@
             </div>
             <span class="chip white">D-2</span>
           </div>
-          <div class="bar" style="margin-top:14px; background:rgba(255,255,255,.2);">
-            <div style="width:92%; background:white;"></div>
+          <div class="bar hero-bar">
+            <div class="fill-92"></div>
           </div>
         </div>
       </div>
@@ -1096,34 +1141,34 @@
       <div class="section-label">미회신 · 2명</div>
 
       <div class="student-row">
-        <div class="avatar sm" style="background:var(--ai-light); color:var(--ai);">박</div>
+        <div class="avatar sm ai-color">박</div>
         <div class="student-body">
           <div class="student-name">박서연 학생 학부모</div>
           <div class="student-meta">
-            <span class="lang-tag" style="display:inline-flex; padding:2px 6px 2px 2px; font-size:10px;">
+            <span class="lang-tag compact">
               <span class="flag-circle">VN</span>베트남어
             </span>
             · 읽음 1시간 전
           </div>
         </div>
-        <button class="btn sm ghost" style="gap:4px; font-size:11px;">
+        <button class="btn sm ghost notify-btn">
           <svg width="11" height="11"><use href="#ic-bell"/></svg>
           알림
         </button>
       </div>
 
       <div class="student-row">
-        <div class="avatar sm" style="background:var(--ai-light); color:var(--ai);">왕</div>
+        <div class="avatar sm ai-color">왕</div>
         <div class="student-body">
           <div class="student-name">왕민호 학생 학부모</div>
           <div class="student-meta">
-            <span class="lang-tag" style="display:inline-flex; padding:2px 6px 2px 2px; font-size:10px;">
+            <span class="lang-tag compact">
               <span class="flag-circle">CN</span>중국어
             </span>
             · 어제 읽음
           </div>
         </div>
-        <button class="btn sm ghost" style="gap:4px; font-size:11px;">
+        <button class="btn sm ghost notify-btn">
           <svg width="11" height="11"><use href="#ic-bell"/></svg>
           알림
         </button>
@@ -1138,7 +1183,7 @@
           <div class="student-name">이민준 학생 학부모</div>
           <div class="student-meta">베트남어 · 동의 · 5분 전</div>
         </div>
-        <span class="chip success" style="font-size:10px;">동의</span>
+        <span class="chip success xs">동의</span>
       </div>
 
       <div class="student-row">
@@ -1147,7 +1192,7 @@
           <div class="student-name">김예린 학생 학부모</div>
           <div class="student-meta">한국어 · 동의 · 12분 전</div>
         </div>
-        <span class="chip success" style="font-size:10px;">동의</span>
+        <span class="chip success xs">동의</span>
       </div>
 
     </div><!-- /body-area -->
