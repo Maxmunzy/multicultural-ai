@@ -438,7 +438,8 @@ html, body {
   width: 6px; height: 6px; border-radius: 50%;
   background: var(--brand); flex-shrink: 0;
 }
-.notice-row.read .nr-dot { background: transparent; border: 1.5px solid var(--ink4); }
+.notice-row.read .nr-dot   { background: transparent; border: 1.5px solid var(--ink4); }
+.notice-row.read .nr-title { color: var(--ink3); }
 .notice-row .nr-body { flex: 1; min-width: 0; }
 .notice-row .nr-title { font-size: 13px; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .notice-row .nr-meta  { font-size: 11px; color: var(--ink3); margin-top: 2px; }
