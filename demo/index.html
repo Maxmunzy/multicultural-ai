@@ -572,6 +572,68 @@ textarea::placeholder { color: var(--ink4); }
   text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
 }
 
+/* ── 파일 업로드 존 ── */
+.upload-zone {
+  border: 1.5px dashed var(--brand-mid);
+  border-radius: var(--radius-sm); padding: 20px 14px;
+  text-align: center; background: var(--brand-light);
+  cursor: pointer; transition: border-color .15s;
+}
+.upload-zone:hover { border-color: var(--brand); }
+.uz-icon {
+  width: 40px; height: 40px; border-radius: 12px;
+  background: var(--brand); color: white;
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 10px;
+}
+.uz-title  { font-size: 14px; font-weight: 700; color: var(--brand-deep); }
+.uz-sub    { font-size: 11px; color: var(--ink3); margin-top: 3px; }
+.uz-types  { display: flex; gap: 5px; justify-content: center; margin-top: 12px; }
+.uz-type   {
+  font-size: 10px; font-weight: 700; padding: 3px 8px;
+  background: white; border: 1px solid var(--brand-mid);
+  border-radius: 6px; color: var(--brand-deep);
+}
+
+.input-divider {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: var(--ink4); font-weight: 600;
+  margin: 8px 0;
+}
+.input-divider::before, .input-divider::after {
+  content: ''; flex: 1; height: 1px; background: var(--line);
+}
+
+/* 파일 업로드 완료 프리뷰 */
+.file-preview {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); animation: fadeUp .25s ease;
+}
+.fp-icon {
+  width: 34px; height: 38px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 10px; font-weight: 800;
+  letter-spacing: -.02em;
+}
+.fp-icon.hwp { background: #DBEAFE; color: #1D4ED8; }
+.fp-icon.pdf { background: #FFE4E6; color: #9F1239; }
+.fp-icon.img { background: #FEF3C7; color: #92400E; }
+.fp-body { flex: 1; min-width: 0; }
+.fp-name { font-size: 13px; font-weight: 700; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fp-meta { font-size: 11px; color: var(--ink3); margin-top: 3px; display: flex; align-items: center; gap: 6px; }
+.fp-remove {
+  background: none; border: none; cursor: pointer;
+  color: var(--ink4); font-size: 14px; padding: 4px; flex-shrink: 0;
+}
+
+.extract-label {
+  font-size: 11px; font-weight: 700; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: .05em;
+  margin: 10px 0 6px;
+}
+
 .sample-link-row  { display: flex; justify-content: flex-end; }
 .card-header-row  { display: flex; align-items: center; justify-content: space-between; }
 
@@ -793,19 +855,19 @@ hr.section-sep {
   ══════════════════════════════ -->
   <main class="main" id="teacherPanel">
 
-    <!-- STEP 1: 작성 -->
+    <!-- STEP 1: 통신문 입력 -->
     <div id="t-step1">
       <div class="card">
         <div class="card-label">
           <svg width="14" height="14"><use href="#ic-teacher"/></svg>
-          통신문 작성
+          통신문 입력
         </div>
 
         <!-- 4단계 스텝바 -->
         <div class="step-bar" id="teacherStepBar">
           <div class="step-node">
             <div class="step-circle current" id="ts1">1</div>
-            <div class="step-label current" id="tl1">작성</div>
+            <div class="step-label current" id="tl1">입력</div>
           </div>
           <div class="step-connector" id="tc1"></div>
           <div class="step-node">
@@ -824,13 +886,59 @@ hr.section-sep {
           </div>
         </div>
 
+        <!-- 파일 업로드 존 (PRIMARY: HWP/PDF/이미지) -->
+        <input type="file" id="fileInput" accept=".hwp,.hwpx,.pdf,.jpg,.jpeg,.png,.txt"
+          style="display:none" onchange="handleFileUpload(event)">
+
+        <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+          <div class="uz-icon">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+          <div class="uz-title">HWP · PDF · 이미지 올리기</div>
+          <div class="uz-sub">탭하여 파일 선택 · 서버에서 자동 변환</div>
+          <div class="uz-types">
+            <span class="uz-type">HWP</span>
+            <span class="uz-type">HWPX</span>
+            <span class="uz-type">PDF</span>
+            <span class="uz-type">JPG</span>
+            <span class="uz-type">PNG</span>
+          </div>
+        </div>
+
+        <!-- 파일 선택 후 로딩 -->
+        <div class="loading-row" id="fileLoading">
+          <div class="spinner"></div>
+          <span id="fileLoadingText">서버에서 텍스트 추출 중...</span>
+        </div>
+
+        <!-- 파일 선택 후 프리뷰 -->
+        <div class="file-preview hidden" id="filePreview">
+          <div class="fp-icon hwp" id="fpIcon">HWP</div>
+          <div class="fp-body">
+            <div class="fp-name" id="fpName">파일명</div>
+            <div class="fp-meta">
+              <span class="ai-badge">텍스트 추출 완료</span>
+              <span id="fpConvertLabel">LibreOffice 변환</span>
+            </div>
+          </div>
+          <button type="button" class="fp-remove" onclick="resetUpload()" aria-label="파일 제거">✕</button>
+        </div>
+
+        <!-- 구분선 -->
+        <div class="input-divider">또는 텍스트 직접 입력</div>
+
+        <!-- 추출된 텍스트 / 직접 입력 -->
+        <div class="extract-label" id="extractLabel">직접 입력</div>
         <div class="textarea-wrap">
           <textarea id="noticeInput"
-            placeholder="가정통신문 내용을 한국어로 입력하세요..."></textarea>
+            placeholder="가정통신문 내용을 한국어로 입력하세요...&#10;&#10;예) 4월 25일 봄 소풍이 있습니다."></textarea>
         </div>
 
         <div class="sample-link-row">
-          <button class="sample-link" onclick="fillSample()">샘플 텍스트 사용 →</button>
+          <button class="sample-link" onclick="fillSample()">샘플 HWP 파일 사용 →</button>
         </div>
 
         <div class="loading-row" id="analyzeLoading">
@@ -1263,7 +1371,22 @@ function switchRole(role) {
    Teacher: Sample
 ══════════════════════════════════ */
 function fillSample() {
-  document.getElementById('noticeInput').value = SAMPLE_TEXT;
+  // 샘플 = HWP 파일 업로드 시뮬레이션
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('fileLoading').classList.add('show');
+  document.getElementById('fileLoadingText').textContent = 'LibreOffice에서 HWP → PDF 변환 중...';
+
+  setTimeout(() => {
+    document.getElementById('fileLoading').classList.remove('show');
+    const preview = document.getElementById('filePreview');
+    preview.classList.remove('hidden');
+    document.getElementById('fpName').textContent = '현장체험학습_안내문.hwp';
+    document.getElementById('fpIcon').textContent = 'HWP';
+    document.getElementById('fpIcon').className = 'fp-icon hwp';
+    document.getElementById('fpConvertLabel').textContent = 'LibreOffice → PDF 변환';
+    document.getElementById('extractLabel').textContent = '추출된 텍스트 확인 · 수정 가능';
+    document.getElementById('noticeInput').value = SAMPLE_TEXT;
+  }, 1200);
 }
 
 /* ══════════════════════════════════
@@ -1591,6 +1714,52 @@ function toggleTTS() {
       document.getElementById('ttsIcon').innerHTML = '<use href="#ic-play"/>';
     }, 9000);
   }
+}
+
+/* ══════════════════════════════════
+   File Upload Simulation
+══════════════════════════════════ */
+function handleFileUpload(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  const ext = file.name.split('.').pop().toLowerCase();
+
+  // 업로드 존 숨기기 + 로딩 표시
+  document.getElementById('uploadZone').style.display = 'none';
+  document.getElementById('fileLoading').classList.add('show');
+  document.getElementById('fileLoadingText').textContent =
+    ext === 'hwp' || ext === 'hwpx'
+      ? 'LibreOffice에서 HWP → PDF 변환 중...'
+      : ext === 'pdf' ? 'PDF 텍스트 추출 중...' : 'OCR 인식 중...';
+
+  // 서버 처리 시뮬레이션 (1.5초)
+  setTimeout(() => {
+    document.getElementById('fileLoading').classList.remove('show');
+
+    // 파일 프리뷰 표시
+    const preview = document.getElementById('filePreview');
+    preview.classList.remove('hidden');
+    document.getElementById('fpName').textContent = file.name;
+    document.getElementById('fpIcon').textContent = ext.toUpperCase().slice(0, 4);
+    document.getElementById('fpIcon').className =
+      'fp-icon ' + (['hwp','hwpx'].includes(ext) ? 'hwp' : ext === 'pdf' ? 'pdf' : 'img');
+    document.getElementById('fpConvertLabel').textContent =
+      ext === 'hwp' || ext === 'hwpx' ? 'LibreOffice → PDF 변환' :
+      ext === 'pdf' ? 'pdfplumber 추출' : 'ML Kit OCR';
+
+    // 추출 레이블 + 텍스트 채우기
+    document.getElementById('extractLabel').textContent = '추출된 텍스트 확인 · 수정 가능';
+    document.getElementById('noticeInput').value = SAMPLE_TEXT;
+  }, 1500);
+}
+
+function resetUpload() {
+  document.getElementById('fileInput').value = '';
+  document.getElementById('filePreview').classList.add('hidden');
+  document.getElementById('uploadZone').style.display = '';
+  document.getElementById('noticeInput').value = '';
+  document.getElementById('extractLabel').textContent = '직접 입력';
 }
 
 /* Init */

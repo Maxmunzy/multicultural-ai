@@ -257,6 +257,48 @@
 }
 .quality-label { font-size:12px; font-weight:600; color:#065F46; flex:1; }
 
+/* ── 파일 업로드 존 ── */
+.upload-zone {
+  border:1.5px dashed var(--brand-mid);
+  border-radius:var(--radius-sm);
+  padding:16px 14px; text-align:center;
+  background:var(--brand-light); cursor:pointer;
+  transition:border-color .15s;
+}
+.uz-icon {
+  width:34px; height:34px; border-radius:9px;
+  background:var(--brand); color:white;
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 8px;
+}
+.uz-title { font-size:13px; font-weight:700; color:var(--brand-deep); }
+.uz-sub   { font-size:10px; color:var(--ink3); margin-top:2px; }
+.uz-types { display:flex; gap:4px; justify-content:center; margin-top:10px; }
+.uz-type  {
+  font-size:9px; font-weight:700; padding:2px 6px;
+  background:white; border:1px solid var(--brand-mid);
+  border-radius:5px; color:var(--brand-deep);
+}
+
+/* 파일 업로드 완료 프리뷰 */
+.file-preview {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+}
+.fp-icon {
+  width:32px; height:36px; border-radius:7px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; font-size:10px; font-weight:800;
+}
+.fp-icon.hwp { background:#DBEAFE; color:#1D4ED8; }
+.fp-icon.pdf { background:#FFE4E6; color:#9F1239; }
+.fp-icon.img { background:var(--cat-supply-bg); color:#92400E; }
+.fp-body { flex:1; min-width:0; }
+.fp-name   { font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fp-status { font-size:10px; color:var(--ink3); margin-top:3px; display:flex; align-items:center; gap:5px; }
+
 /* 통신문 작성 — 입력 영역 */
 .compose-field {
   background:var(--surface); border:1.5px solid var(--line);
@@ -554,27 +596,44 @@
         </div>
       </div>
 
-      <div class="title-lg">통신문 작성</div>
+      <div class="title-lg">통신문 입력</div>
 
-      <!-- 템플릿 선택 -->
-      <div class="section-label">템플릿</div>
-      <div class="template-row">
-        <span class="chip brand" style="padding:7px 12px; font-size:11px;">현장학습</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">상담</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">급식</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">평가</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">+ 직접</span>
+      <!-- ① 파일 업로드 (주요 입력 방법: HWP/PDF/이미지) -->
+      <div class="section-label">파일로 가져오기</div>
+      <div class="upload-zone">
+        <div class="uz-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+              stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="uz-title">HWP · PDF · 이미지 올리기</div>
+        <div class="uz-sub">탭하여 파일 선택 / 서버에서 자동 변환</div>
+        <div class="uz-types">
+          <span class="uz-type">HWP</span>
+          <span class="uz-type">HWPX</span>
+          <span class="uz-type">PDF</span>
+          <span class="uz-type">JPG</span>
+          <span class="uz-type">PNG</span>
+        </div>
       </div>
 
-      <!-- 제목 입력 -->
-      <div class="compose-field" style="margin-top:12px;">
-        <div class="compose-field-label">제목</div>
-        <div class="title-sm compose-field-content">현장체험학습 안내</div>
+      <!-- 업로드 완료 상태 (HWP 파일 선택 후) -->
+      <div class="file-preview" style="margin-top:6px;">
+        <div class="fp-icon hwp">HWP</div>
+        <div class="fp-body">
+          <div class="fp-name">현장체험학습_안내문.hwp</div>
+          <div class="fp-status">
+            <span class="ai-badge">텍스트 추출 완료</span>
+            <span>LibreOffice → PDF 변환</span>
+          </div>
+        </div>
       </div>
 
-      <!-- 본문 입력 -->
+      <!-- ② 추출된 텍스트 확인 (수정 가능) -->
+      <div class="section-label" style="margin-top:10px;">추출된 텍스트 확인</div>
       <div class="compose-field">
-        <div class="compose-field-label">내용 (한국어)</div>
+        <div class="compose-field-label">내용 (한국어) · 수정 가능</div>
         <div class="compose-field-content">
           안녕하십니까. 5월 16일(목) 3-2반은 <b>국립과천과학관</b>으로 현장체험학습을 갑니다.
           9시까지 등교, 도시락·물·모자·명찰을 준비해 주세요.
@@ -588,8 +647,8 @@
           <svg width="15" height="15" style="color:white;"><use href="#ic-spark"/></svg>
         </div>
         <div class="aa-body">
-          <div class="aa-title">AI가 분석할 준비가 됐어요</div>
-          <div class="aa-sub">일정·준비물·마감일 자동 추출 · 9개국어 번역</div>
+          <div class="aa-title">텍스트를 확인하고 AI 분석을 시작하세요</div>
+          <div class="aa-sub">일정·준비물·마감일 추출 · 9개국어 번역 · TTS 음성</div>
         </div>
       </div>
     </div>
