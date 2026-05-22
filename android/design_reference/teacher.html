@@ -13,7 +13,45 @@
    teacher.html 로컬 컴포넌트
 ──────────────────────────────────────── */
 
-/* (back-nav, back-btn은 daon-shared.css로 이동) */
+/* teacher.html 전용 (공통 유틸: daon-shared.css) */
+
+/* SVG 아이콘 컨텍스트 색상 */
+.ai-assist-icon svg  { color: white; }
+.fab svg             { color: white; }
+
+/* 파일 업로드 미리보기 여백 */
+.file-preview.mt6    { margin-top: 6px; }
+.section-label.mt10  { margin-top: 10px; }
+
+/* AI 분석 버튼 변형 */
+.btn.analyze-btn     { flex:1.6; padding:13px; font-size:13px; gap:6px; }
+
+/* 분석 결과 모델 배지 행 */
+.model-badges        { display:flex; align-items:center; gap:5px; margin-top:6px; flex-wrap:wrap; }
+
+/* 문장 분석 카드 */
+.card.analysis       { padding: 10px; }
+
+/* extract-item 내부 레이아웃 */
+.extract-item .cat-chip { flex-shrink: 0; }
+.ei-body             { flex: 1; }
+
+/* 번역/발송 액션 버튼 */
+.btn.action-back     { flex:1; padding:12px; font-size:12px; gap:5px; }
+.btn.action-send     { flex:1.6; padding:12px; font-size:13px; gap:6px; }
+
+/* 번역 미리보기 화면 버튼 */
+.btn.action-edit     { flex:1; padding:12px; font-size:12px; }
+.btn.action-dispatch { flex:1.6; padding:12px; font-size:13px; gap:6px; }
+
+/* 번역 결과 카드 */
+.card.trans-body     { margin-top: 10px; padding: 14px; }
+
+/* 번역 품질 확인 아이콘 */
+.quality-icon        { flex-shrink: 0; color: var(--cat-submit); }
+
+/* 알림 버튼 (미회신 학생 행) */
+.btn.notify-btn      { gap:4px; font-size:11px; }
 
 /* ── 4단계 스텝바 ── */
 .step-bar {
@@ -155,6 +193,25 @@
 .bubble-out-ko   { font-weight:600; color:var(--brand-deep); }
 .bubble-out-tr   { font-style:italic; color:var(--brand-deep); opacity:.7; font-size:12px; }
 
+/* ── 정규식 추출 슬롯 (extract_summary_regex_slots) ── */
+.regex-slot-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+.regex-slot {
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+}
+.rs-icon {
+  width:26px; height:26px; border-radius:7px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+}
+.rs-icon.schedule { background:var(--cat-schedule-bg); color:var(--cat-schedule); }
+.rs-icon.cost     { background:var(--cat-cost-bg);     color:#9F1239; }
+.rs-icon.submit   { background:var(--cat-submit-bg);   color:#065F46; }
+.rs-icon.supply   { background:var(--cat-supply-bg);   color:#92400E; }
+.rs-value { font-size:11px; font-weight:700; color:var(--ink); }
+.rs-key   { font-size:9px; color:var(--ink3); font-weight:600; margin-top:1px; text-transform:uppercase; letter-spacing:.03em; }
+
 /* 답장 입력창 */
 .reply-input-bar {
   padding:8px 12px 14px; border-top:1px solid var(--line);
@@ -208,6 +265,13 @@
 .action-row { display:flex; gap:8px; }
 
 /* (hero-chips, hero-title, hero-sub, row 유틸은 daon-shared.css로 이동) */
+
+/* 진행 바 fill 고정값 */
+.fill-92 { width: 92%; }
+
+/* 히어로 카드 내부 진행 바 (흰 배경 위의 흰 fill) */
+.bar.hero-bar          { margin-top: 14px; background: rgba(255,255,255,.2); }
+.bar.hero-bar > div    { background: white; }
 .row-gap10 { gap:10px; }
 .row-sb    { justify-content:space-between; align-items:flex-end; }
 
@@ -238,6 +302,48 @@
 }
 .quality-label { font-size:12px; font-weight:600; color:#065F46; flex:1; }
 
+/* ── 파일 업로드 존 ── */
+.upload-zone {
+  border:1.5px dashed var(--brand-mid);
+  border-radius:var(--radius-sm);
+  padding:16px 14px; text-align:center;
+  background:var(--brand-light); cursor:pointer;
+  transition:border-color .15s;
+}
+.uz-icon {
+  width:34px; height:34px; border-radius:9px;
+  background:var(--brand); color:white;
+  display:flex; align-items:center; justify-content:center;
+  margin:0 auto 8px;
+}
+.uz-title { font-size:13px; font-weight:700; color:var(--brand-deep); }
+.uz-sub   { font-size:10px; color:var(--ink3); margin-top:2px; }
+.uz-types { display:flex; gap:4px; justify-content:center; margin-top:10px; }
+.uz-type  {
+  font-size:9px; font-weight:700; padding:2px 6px;
+  background:white; border:1px solid var(--brand-mid);
+  border-radius:5px; color:var(--brand-deep);
+}
+
+/* 파일 업로드 완료 프리뷰 */
+.file-preview {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 12px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm);
+}
+.fp-icon {
+  width:32px; height:36px; border-radius:7px;
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; font-size:10px; font-weight:800;
+}
+.fp-icon.hwp { background:#DBEAFE; color:#1D4ED8; }
+.fp-icon.pdf { background:#FFE4E6; color:#9F1239; }
+.fp-icon.img { background:var(--cat-supply-bg); color:#92400E; }
+.fp-body { flex:1; min-width:0; }
+.fp-name   { font-size:12px; font-weight:700; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fp-status { font-size:10px; color:var(--ink3); margin-top:3px; display:flex; align-items:center; gap:5px; }
+
 /* 통신문 작성 — 입력 영역 */
 .compose-field {
   background:var(--surface); border:1.5px solid var(--line);
@@ -264,6 +370,16 @@
 /* 템플릿 칩 행 */
 .template-row { display:flex; gap:6px; overflow-x:auto; padding-bottom:4px; }
 .template-row::-webkit-scrollbar { display:none; }
+
+/* Claude Haiku 배지 — LLM 단계 구분 (ai-badge 와 색상 분리) */
+.llm-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px 3px 5px;
+  background: #FFF7ED; border: 1px solid #FED7AA;
+  border-radius: 6px; font-size: 10px; font-weight: 700; color: #C2410C;
+  white-space: nowrap;
+}
+.llm-badge svg { flex-shrink: 0; color: #C2410C; }
 </style>
 </head>
 <body>
@@ -275,7 +391,7 @@
 </div>
 
 <!-- SVG 아이콘 스프라이트 -->
-<svg style="display:none">
+<svg class="icon-sprite">
   <symbol id="ic-group" viewBox="0 0 24 24" fill="none">
     <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
     <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
@@ -320,8 +436,24 @@
   <symbol id="ic-spark" viewBox="0 0 24 24" fill="none">
     <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </symbol>
+  <symbol id="ic-haiku" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="4" stroke="currentColor" stroke-width="2"/>
+    <path d="M7 8h10M7 12h7M7 16h5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
   <symbol id="ic-play" viewBox="0 0 24 24">
     <path d="M5 3l14 9-14 9V3z" fill="currentColor"/>
+  </symbol>
+  <symbol id="ic-clock" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 7v5l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-pin" viewBox="0 0 24 24" fill="none">
+    <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" stroke="currentColor" stroke-width="2"/>
+    <circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/>
+  </symbol>
+  <symbol id="ic-coin" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 7v10M9.5 9.5c0-1.4 1.1-2.5 2.5-2.5s2.5 1.1 2.5 2.5c0 2.5-5 2.5-5 5 0 1.4 1.1 2.5 2.5 2.5s2.5-1.1 2.5-2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
   </symbol>
   <symbol id="ic-attach" viewBox="0 0 24 24" fill="none">
     <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -509,12 +641,12 @@
         <div class="step-connector"></div>
         <div class="step-node">
           <div class="step-circle">2</div>
-          <div class="step-label">AI분석</div>
+          <div class="step-label">미리보기</div>
         </div>
         <div class="step-connector"></div>
         <div class="step-node">
           <div class="step-circle">3</div>
-          <div class="step-label">번역</div>
+          <div class="step-label">번역 확인</div>
         </div>
         <div class="step-connector"></div>
         <div class="step-node">
@@ -523,27 +655,44 @@
         </div>
       </div>
 
-      <div class="title-lg">통신문 작성</div>
+      <div class="title-lg">통신문 입력</div>
 
-      <!-- 템플릿 선택 -->
-      <div class="section-label">템플릿</div>
-      <div class="template-row">
-        <span class="chip brand" style="padding:7px 12px; font-size:11px;">현장학습</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">상담</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">급식</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">평가</span>
-        <span class="chip default" style="padding:7px 12px; font-size:11px;">+ 직접</span>
+      <!-- ① 파일 업로드 (주요 입력 방법: HWP/PDF/이미지) -->
+      <div class="section-label">파일로 가져오기</div>
+      <div class="upload-zone">
+        <div class="uz-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+              stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="uz-title">HWP · PDF · 이미지 올리기</div>
+        <div class="uz-sub">탭하여 파일 선택 / 서버에서 자동 변환</div>
+        <div class="uz-types">
+          <span class="uz-type">HWP</span>
+          <span class="uz-type">HWPX</span>
+          <span class="uz-type">PDF</span>
+          <span class="uz-type">JPG</span>
+          <span class="uz-type">PNG</span>
+        </div>
       </div>
 
-      <!-- 제목 입력 -->
-      <div class="compose-field" style="margin-top:12px;">
-        <div class="compose-field-label">제목</div>
-        <div class="title-sm compose-field-content">현장체험학습 안내</div>
+      <!-- 업로드 완료 상태 (HWP 파일 선택 후) -->
+      <div class="file-preview mt6">
+        <div class="fp-icon hwp">HWP</div>
+        <div class="fp-body">
+          <div class="fp-name">현장체험학습_안내문.hwp</div>
+          <div class="fp-status">
+            <span class="ai-badge">텍스트 추출 완료</span>
+            <span>LibreOffice → PDF 변환</span>
+          </div>
+        </div>
       </div>
 
-      <!-- 본문 입력 -->
+      <!-- ② 추출된 텍스트 확인 (수정 가능) -->
+      <div class="section-label mt10">추출된 텍스트 확인</div>
       <div class="compose-field">
-        <div class="compose-field-label">내용 (한국어)</div>
+        <div class="compose-field-label">내용 (한국어) · 수정 가능</div>
         <div class="compose-field-content">
           안녕하십니까. 5월 16일(목) 3-2반은 <b>국립과천과학관</b>으로 현장체험학습을 갑니다.
           9시까지 등교, 도시락·물·모자·명찰을 준비해 주세요.
@@ -554,11 +703,11 @@
       <!-- AI 어시스트 배너 -->
       <div class="ai-assist">
         <div class="ai-assist-icon">
-          <svg width="15" height="15" style="color:white;"><use href="#ic-spark"/></svg>
+          <svg width="15" height="15"><use href="#ic-spark"/></svg>
         </div>
         <div class="aa-body">
-          <div class="aa-title">AI가 분석할 준비가 됐어요</div>
-          <div class="aa-sub">일정·준비물·마감일 자동 추출 · 9개국어 번역</div>
+          <div class="aa-title">텍스트를 확인하고 AI 분석을 시작하세요</div>
+          <div class="aa-sub">일정·준비물·마감일 추출 · 9개국어 번역 · TTS 음성</div>
         </div>
       </div>
     </div>
@@ -566,9 +715,9 @@
     <div class="action-bar">
       <div class="action-row">
         <button class="btn ghost sm">임시 저장</button>
-        <button class="btn ai" style="flex:1.6; padding:13px; font-size:13px; gap:6px;">
+        <button class="btn ai analyze-btn">
           <svg width="14" height="14"><use href="#ic-spark"/></svg>
-          AI 분석하기 →
+          발송 전 미리보기 →
         </button>
       </div>
     </div>
@@ -581,12 +730,12 @@
   <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
     <path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
-  <span>AI 분석</span>
+  <span>발송 전 미리보기</span>
 </div>
 
 
 <!-- ════════════════════════════════════
-     SCREEN 3 · AI 분석 결과  ★ 핵심 ★
+     SCREEN 3 · 발송 전 미리보기 — 학부모 AI 분석 결과 미리보기
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -616,7 +765,7 @@
         <div class="back-btn">
           <svg width="14" height="14"><use href="#ic-back"/></svg>
         </div>
-        <span class="caption">AI 분석 결과</span>
+        <span class="caption">발송 전 미리보기 · AI 분석</span>
       </div>
 
       <!-- 4단계 스텝바 (현재: 2단계) -->
@@ -632,12 +781,12 @@
         <div class="step-connector done"></div>
         <div class="step-node">
           <div class="step-circle current">2</div>
-          <div class="step-label current">AI분석</div>
+          <div class="step-label current">미리보기</div>
         </div>
         <div class="step-connector"></div>
         <div class="step-node">
           <div class="step-circle">3</div>
-          <div class="step-label">번역</div>
+          <div class="step-label">번역 확인</div>
         </div>
         <div class="step-connector"></div>
         <div class="step-node">
@@ -646,9 +795,14 @@
         </div>
       </div>
 
-      <!-- 제목 + 모델 배지 -->
-      <div class="title-lg">AI 분석 완료</div>
-      <div style="display:flex; align-items:center; gap:5px; margin-top:6px; flex-wrap:wrap;">
+      <!-- 제목 + 미리보기 안내 + 모델 배지 -->
+      <div class="title-lg">학부모 AI 분석 미리보기</div>
+      <div class="caption mt3">발송 후 학부모가 AI 번역 탭 시 표시될 결과</div>
+      <div class="model-badges">
+        <span class="llm-badge">
+          <svg width="10" height="10"><use href="#ic-haiku"/></svg>
+          Claude Haiku 정제
+        </span>
         <span class="ai-badge">KoELECTRA 추출</span>
         <span class="ai-badge">KcELECTRA 분류</span>
         <span class="data-badge">공공데이터</span>
@@ -657,7 +811,7 @@
       <!-- ★ 문장별 카테고리 분석 (핵심 시각화) ★ -->
       <div class="section-label">원문 문장 분석 · 4문장</div>
 
-      <div class="card" style="padding:10px;">
+      <div class="card analysis">
 
         <!-- 분석 대상 외 문장 (회색) -->
         <div class="sentence-mark unmarked">
@@ -695,46 +849,92 @@
       <div class="section-label">추출된 핵심 정보</div>
 
       <div class="extract-item">
-        <span class="cat-chip schedule" style="flex-shrink:0;">일정</span>
-        <div style="flex:1;">
+        <span class="cat-chip schedule">일정</span>
+        <div class="ei-body">
           <div class="ei-value">5/16 (목) 09:00 — 15:00</div>
           <div class="ei-sub">현장체험학습 · 국립과천과학관</div>
         </div>
       </div>
 
       <div class="extract-item">
-        <span class="cat-chip submit" style="flex-shrink:0;">제출</span>
-        <div style="flex:1;">
+        <span class="cat-chip submit">제출</span>
+        <div class="ei-body">
           <div class="ei-value">5/14 마감</div>
           <div class="ei-sub">참여 동의 회신</div>
         </div>
       </div>
 
       <div class="extract-item">
-        <span class="cat-chip supply" style="flex-shrink:0;">준비물</span>
-        <div style="flex:1;">
+        <span class="cat-chip supply">준비물</span>
+        <div class="ei-body">
           <div class="ei-value">도시락, 물, 모자, 명찰</div>
           <div class="ei-sub">4개 항목</div>
         </div>
+      </div>
+
+      <!-- 정규식 추출 슬롯 (extract_summary_regex_slots 결과) -->
+      <div class="section-label">정규식 추출 데이터</div>
+      <div class="regex-slot-grid">
+
+        <div class="regex-slot">
+          <div class="rs-icon schedule">
+            <svg width="13" height="13"><use href="#ic-calendar"/></svg>
+          </div>
+          <div>
+            <div class="rs-value">5/16 09:00</div>
+            <div class="rs-key">날짜·시간</div>
+          </div>
+        </div>
+
+        <div class="regex-slot">
+          <div class="rs-icon cost">
+            <svg width="13" height="13"><use href="#ic-coin"/></svg>
+          </div>
+          <div>
+            <div class="rs-value">₩15,000</div>
+            <div class="rs-key">금액</div>
+          </div>
+        </div>
+
+        <div class="regex-slot">
+          <div class="rs-icon submit">
+            <svg width="13" height="13"><use href="#ic-clock"/></svg>
+          </div>
+          <div>
+            <div class="rs-value">5/14 마감</div>
+            <div class="rs-key">제출 기한</div>
+          </div>
+        </div>
+
+        <div class="regex-slot">
+          <div class="rs-icon supply">
+            <svg width="13" height="13"><use href="#ic-pin"/></svg>
+          </div>
+          <div>
+            <div class="rs-value">과천과학관</div>
+            <div class="rs-key">장소</div>
+          </div>
+        </div>
+
       </div>
 
     </div><!-- /body-area -->
 
     <div class="action-bar">
       <div class="action-row">
-        <button class="btn ghost" style="flex:1; padding:12px; font-size:12px; gap:5px;">
+        <button type="button" class="btn ghost action-back">
           <svg width="14" height="14"><use href="#ic-back"/></svg>
           원문 수정
         </button>
-        <button class="btn primary" style="flex:1.6; padding:12px; font-size:13px; gap:6px;">
+        <button type="button" class="btn primary action-send">
           <svg width="14" height="14"><use href="#ic-globe"/></svg>
-          9개 언어로 번역 →
+          8개 언어로 번역 →
         </button>
       </div>
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">3 · AI 분석 결과 ★</div>
+  <div class="phone-label">3 · 발송 전 미리보기 · AI 분석</div>
 </div>
 
 <div class="flow-arrow">
@@ -746,7 +946,7 @@
 
 
 <!-- ════════════════════════════════════
-     SCREEN 4 · 번역 미리보기 · 발송
+     SCREEN 4 · 발송 전 미리보기 — 번역 확인 · 발송
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -776,7 +976,7 @@
         <div class="back-btn">
           <svg width="14" height="14"><use href="#ic-back"/></svg>
         </div>
-        <span class="caption">번역 미리보기</span>
+        <span class="caption">발송 전 미리보기 · 번역 확인</span>
       </div>
 
       <!-- 스텝바 (현재: 3단계) -->
@@ -792,12 +992,12 @@
           <div class="step-circle done">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
-          <div class="step-label done">AI분석</div>
+          <div class="step-label done">미리보기</div>
         </div>
         <div class="step-connector done"></div>
         <div class="step-node">
           <div class="step-circle current">3</div>
-          <div class="step-label current">번역</div>
+          <div class="step-label current">번역 확인</div>
         </div>
         <div class="step-connector"></div>
         <div class="step-node">
@@ -806,8 +1006,8 @@
         </div>
       </div>
 
-      <div class="title-lg">번역 미리보기</div>
-      <div class="caption" style="margin-top:3px;">학부모가 받게 될 화면</div>
+      <div class="title-lg">번역 확인</div>
+      <div class="caption mt3">발송 후 학부모가 보게 될 번역 화면 미리보기</div>
 
       <!-- 언어 탭 스크롤 -->
       <div class="lang-tab-row">
@@ -834,21 +1034,21 @@
       </div>
 
       <!-- 번역 결과 카드 -->
-      <div class="card" style="margin-top:10px; padding:14px;">
+      <div class="card trans-body">
         <div class="title-sm">Thông báo dã ngoại học tập</div>
-        <p class="body" style="margin-top:8px; line-height:1.6;">
+        <p class="body mt8">
           Kính gửi quý phụ huynh, lớp 3-2 sẽ đi
           <b>dã ngoại học tập</b> đến <b>Bảo tàng Khoa học Quốc gia Gwacheon</b>
           vào <b>thứ Năm, ngày 16/5</b>.
         </p>
-        <p class="body" style="margin-top:6px; line-height:1.6;">
+        <p class="body mt6">
           Phản hồi đồng ý <b>trước ngày 14/5</b>. Xin cảm ơn.
         </p>
       </div>
 
       <!-- 번역 품질 + 용어사전 적용 (공공데이터 심사 포인트) -->
       <div class="quality-row">
-        <svg width="14" height="14" style="color:var(--cat-submit); flex-shrink:0;"><use href="#ic-check-circle"/></svg>
+        <svg width="14" height="14" class="quality-icon"><use href="#ic-check-circle"/></svg>
         <span class="quality-label">자연스러운 번역 확인됨</span>
         <span class="data-badge">학교용어사전 적용</span>
       </div>
@@ -871,8 +1071,8 @@
 
     <div class="action-bar">
       <div class="action-row">
-        <button class="btn ghost" style="flex:1; padding:12px; font-size:12px;">수정</button>
-        <button class="btn primary" style="flex:1.6; padding:12px; font-size:13px; gap:6px;">
+        <button class="btn ghost action-edit">수정</button>
+        <button class="btn primary action-dispatch">
           <svg width="14" height="14"><use href="#ic-send"/></svg>
           24명에게 발송
         </button>
@@ -880,7 +1080,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">4 · 번역 미리보기 · 발송</div>
+  <div class="phone-label">4 · 발송 전 미리보기 · 번역 확인</div>
 </div>
 
 <div class="flow-arrow">
@@ -924,7 +1124,7 @@
       <!-- 진행 히어로 카드 -->
       <div class="card hero">
         <div class="hero-content">
-          <div class="row row-sb" style="align-items:flex-end;">
+          <div class="row row-sb align-end">
             <div>
               <div class="hero-caption">전체 24명 중</div>
               <div class="progress-hero-num">
@@ -934,8 +1134,8 @@
             </div>
             <span class="chip white">D-2</span>
           </div>
-          <div class="bar" style="margin-top:14px; background:rgba(255,255,255,.2);">
-            <div style="width:92%; background:white;"></div>
+          <div class="bar hero-bar">
+            <div class="fill-92"></div>
           </div>
         </div>
       </div>
@@ -960,34 +1160,34 @@
       <div class="section-label">미회신 · 2명</div>
 
       <div class="student-row">
-        <div class="avatar sm" style="background:var(--ai-light); color:var(--ai);">박</div>
+        <div class="avatar sm ai-color">박</div>
         <div class="student-body">
           <div class="student-name">박서연 학생 학부모</div>
           <div class="student-meta">
-            <span class="lang-tag" style="display:inline-flex; padding:2px 6px 2px 2px; font-size:10px;">
+            <span class="lang-tag compact">
               <span class="flag-circle">VN</span>베트남어
             </span>
             · 읽음 1시간 전
           </div>
         </div>
-        <button class="btn sm ghost" style="gap:4px; font-size:11px;">
+        <button class="btn sm ghost notify-btn">
           <svg width="11" height="11"><use href="#ic-bell"/></svg>
           알림
         </button>
       </div>
 
       <div class="student-row">
-        <div class="avatar sm" style="background:var(--ai-light); color:var(--ai);">왕</div>
+        <div class="avatar sm ai-color">왕</div>
         <div class="student-body">
           <div class="student-name">왕민호 학생 학부모</div>
           <div class="student-meta">
-            <span class="lang-tag" style="display:inline-flex; padding:2px 6px 2px 2px; font-size:10px;">
+            <span class="lang-tag compact">
               <span class="flag-circle">CN</span>중국어
             </span>
             · 어제 읽음
           </div>
         </div>
-        <button class="btn sm ghost" style="gap:4px; font-size:11px;">
+        <button class="btn sm ghost notify-btn">
           <svg width="11" height="11"><use href="#ic-bell"/></svg>
           알림
         </button>
@@ -1002,7 +1202,7 @@
           <div class="student-name">이민준 학생 학부모</div>
           <div class="student-meta">베트남어 · 동의 · 5분 전</div>
         </div>
-        <span class="chip success" style="font-size:10px;">동의</span>
+        <span class="chip success xs">동의</span>
       </div>
 
       <div class="student-row">
@@ -1011,7 +1211,7 @@
           <div class="student-name">김예린 학생 학부모</div>
           <div class="student-meta">한국어 · 동의 · 12분 전</div>
         </div>
-        <span class="chip success" style="font-size:10px;">동의</span>
+        <span class="chip success xs">동의</span>
       </div>
 
     </div><!-- /body-area -->

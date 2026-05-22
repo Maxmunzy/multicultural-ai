@@ -558,7 +558,7 @@ html, body {
 
 /* ── 27. Stat Row ── */
 .stat-row {
-  display: flex; gap: 8px;
+  display: flex; gap: 8px; margin-top: 14px;
 }
 .stat-item {
   flex: 1;
@@ -572,7 +572,52 @@ html, body {
 .stat-item .si-unit { font-size: 10px; color: var(--brand-deep); font-weight: 600; }
 .stat-item .si-label { font-size: 10px; color: var(--ink3); margin-top: 2px; }
 
-/* ── 28. 공통 레이아웃 헬퍼 (parent/teacher 양쪽에서 쓰는 패턴) ── */
+/* ── 28. 공통 유틸리티 ── */
+
+/* SVG 스프라이트 숨김 */
+.icon-sprite { display: none; }
+
+/* 여백 유틸 (margin-top 단계) */
+.mt2 { margin-top: 2px; }
+.mt3 { margin-top: 3px; }
+.mt6 { margin-top: 6px; }
+.mt8 { margin-top: 8px; }
+.mt10 { margin-top: 10px; }
+
+/* body 단락 여백 */
+.body.mt8 { margin-top: 8px; }
+.body.mt6 { margin-top: 6px; }
+
+/* caption 여백 */
+.caption.mt3 { margin-top: 3px; }
+
+/* title-md 여백 */
+.title-md.mt2 { margin-top: 2px; }
+
+/* 가로 정렬 끝맞춤 */
+.row.align-end { align-items: flex-end; }
+
+/* 작은 chip 텍스트 */
+.chip.xs { font-size: 10px; }
+
+/* avatar sm + ai 색상 조합 */
+.avatar.sm.ai-color { background: var(--ai-light); color: var(--ai); }
+
+/* compact lang-tag (미회신 학생 행 등) */
+.lang-tag.compact {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 6px 2px 2px; font-size: 10px;
+}
+
+/* 진행 바 fill 고정값 */
+.fill-50 { width: 50%; }
+.fill-92 { width: 92%; }
+
+/* 히어로 카드 안 진행 바 */
+.bar.hero-bar       { margin-top: 14px; background: rgba(255,255,255,.2); }
+.bar.hero-bar > div { background: white; }
+
+/* ── 29. 공통 레이아웃 헬퍼 (parent/teacher 양쪽에서 쓰는 패턴) ── */
 
 /* 뒤로가기 내비 */
 .back-nav { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
@@ -601,6 +646,7 @@ html, body {
 
 /* ── 29. TTS Player ── */
 .tts-bar {
+  margin-top: 10px;
   display: flex; align-items: center; gap: 8px;
   background: var(--surface);
   border: 1px solid var(--line);
@@ -621,5 +667,12 @@ html, body {
 .tts-bar .speed-chip {
   font-size: 10px; font-weight: 700; color: var(--brand);
   background: var(--brand-light); padding: 3px 7px; border-radius: 6px;
-  flex-shrink: 0;
+  flex-shrink: 0; border: none; cursor: pointer; font-family: inherit;
 }
+.tts-bar .stt-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface3); border: 1.5px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; color: var(--ink3);
+}
+.tts-bar .stt-btn svg { width: 13px; height: 13px; }

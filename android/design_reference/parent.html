@@ -14,6 +14,48 @@
    (daon-shared.css에 없는 이 파일 전용 패턴)
 ──────────────────────────────────────── */
 
+/* parent.html 전용 (공통 유틸: daon-shared.css) */
+.chip.ai-pill             { gap: 3px; }
+.btn.hero-cta             { margin-top:12px; background:rgba(255,255,255,.95); color:var(--brand); }
+.card.p12                 { padding: 12px; }
+.card.notice-body         { margin-top: 10px; padding: 14px; }
+.card.notice.p14          { padding: 14px; }
+.bar.mb12                 { margin-bottom: 12px; }
+.btn.action-cal           { flex:1; font-size:12px; padding:10px 8px; gap:5px; }
+.btn.action-cal .cal-count {
+  background: var(--brand); color: white;
+  font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 99px;
+}
+.btn.action-reply         { flex:1.3; font-size:13px; padding:10px; }
+.btn.btn-send             { padding:14px; gap:7px; }
+.reply-option.selected .ro-icon svg { color: white; }
+.capture-btn.featured .cb-icon svg  { color: white; }
+
+/* 원문 통신문 카드 (AI 번역 전 상태) */
+.notice-raw {
+  margin-top: 12px;
+  background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm); padding: 14px;
+}
+.notice-raw-meta  { font-size: 10px; color: var(--ink4); margin-bottom: 6px; }
+.notice-raw-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+.notice-raw-body  { margin-top: 8px; font-size: 13px; line-height: 1.6; color: var(--ink2); }
+
+/* AI 번역하기 CTA 카드 */
+.ai-cta {
+  margin-top: 12px;
+  background: var(--ai-light); border: 1px solid var(--ai-mid);
+  border-radius: var(--radius-sm); padding: 14px; text-align: center;
+}
+.ai-cta-icon {
+  width: 40px; height: 40px; border-radius: 12px; background: var(--ai);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 8px;
+}
+.ai-cta-icon svg { color: white; }
+.ai-cta-title { font-size: 14px; font-weight: 700; color: var(--ai); }
+.ai-cta-sub   { font-size: 11px; color: var(--ai); opacity: .75; margin-top: 3px; }
+.btn.ai-translate { width: 100%; margin-top: 12px; padding: 13px; gap: 7px; font-size: 14px; }
+
 /* 통신문 상세 — 배지 행 */
 .notice-badges { display:flex; align-items:center; gap:5px; margin-top:7px; flex-wrap:wrap; }
 
@@ -117,6 +159,23 @@
 .cb-label { font-size:13px; font-weight:700; color:var(--ink); }
 .cb-desc  { font-size:10px; color:var(--ink3); margin-top:-6px; }
 
+
+/* ── 통합 체크리스트 항목 (inbox/checklist 엔드포인트) ── */
+.agg-check-item {
+  display:flex; align-items:flex-start; gap:8px;
+  padding:8px 10px;
+  background:var(--surface); border:1px solid var(--line);
+  border-radius:var(--radius-sm); margin-bottom:5px;
+}
+.agg-check-item .checkbox {
+  width:16px; height:16px; flex-shrink:0; margin-top:2px;
+  border:2px solid var(--brand-mid); border-radius:4px;
+  background:transparent;
+}
+.aci-body  { flex:1; min-width:0; }
+.aci-text  { font-size:12px; font-weight:600; color:var(--ink); }
+.aci-src   { font-size:10px; color:var(--ink4); margin-top:1px; }
+
 /* 안내 배너 */
 .hint-banner {
   margin-top:14px; display:flex; align-items:center; gap:10px;
@@ -167,7 +226,7 @@
 </div>
 
 <!-- SVG 심볼 (아이콘 스프라이트) -->
-<svg style="display:none">
+<svg class="icon-sprite">
   <symbol id="ic-home" viewBox="0 0 24 24" fill="none">
     <path d="M3 12L12 3l9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"
       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
@@ -305,7 +364,7 @@
         <div class="hero-content">
           <div class="hero-chips">
             <span class="chip danger">회신 필요 · D-2</span>
-            <span class="chip white" style="gap:3px;">
+            <span class="chip white ai-pill">
               <svg width="7" height="7" viewBox="0 0 8 8">
                 <circle cx="4" cy="4" r="4" fill="#7C3AED"/>
               </svg>
@@ -315,7 +374,7 @@
           <div class="title-md hero-title">Dã ngoại học tập</div>
           <div class="hero-sub">현장체험학습 안내 · 5/16 · 서울초 3-2</div>
           <div class="hero-body">Lớp 3-2 đến Bảo tàng Khoa học Seoul. Phản hồi trước 14/5.</div>
-          <button class="btn sm" style="margin-top:12px; background:rgba(255,255,255,.95); color:var(--brand);">
+          <button type="button" class="btn sm hero-cta">
             지금 회신하기 →
           </button>
         </div>
@@ -359,7 +418,7 @@
 
       <div class="section-label">다가오는 일정</div>
 
-      <div class="card row row-gap12" style="padding:12px;">
+      <div class="card row row-gap12 p12">
         <div class="date-box lg brand">
           <span class="dbx-mon">5월</span>
           <span class="dbx-num">16</span>
@@ -371,14 +430,44 @@
         <span class="chip warning">D-2</span>
       </div>
 
+      <!-- 통합 할 일 목록 (/inbox/{id}/checklist — 전체 통신문 통합) -->
+      <div class="section-label">미완료 항목 · 6개</div>
+
+      <div class="agg-check-item">
+        <div class="checkbox"></div>
+        <div class="aci-body">
+          <div class="aci-text">도시락 · 물병 · 모자 준비</div>
+          <div class="aci-src">현장체험학습 안내 · 5/16</div>
+        </div>
+        <span class="cat-chip supply">준비물</span>
+      </div>
+
+      <div class="agg-check-item">
+        <div class="checkbox"></div>
+        <div class="aci-body">
+          <div class="aci-text">참가 동의서 제출</div>
+          <div class="aci-src">현장체험학습 안내 · 5/14 마감</div>
+        </div>
+        <span class="cat-chip submit">제출</span>
+      </div>
+
+      <div class="agg-check-item">
+        <div class="checkbox"></div>
+        <div class="aci-body">
+          <div class="aci-text">체험학습비 납부 ₩15,000</div>
+          <div class="aci-src">현장체험학습 안내 · 5/22 마감</div>
+        </div>
+        <span class="cat-chip cost">비용</span>
+      </div>
+
       <!-- 서비스 현황 통계 (심사: AI 서비스 완결성) -->
-      <div class="stat-row" style="margin-top:14px;">
+      <div class="stat-row">
         <div class="stat-item">
           <div class="si-num">47<span class="si-unit">건</span></div>
           <div class="si-label">받은 통신문</div>
         </div>
         <div class="stat-item">
-          <div class="si-num">9<span class="si-unit">개</span></div>
+          <div class="si-num">8<span class="si-unit">개</span></div>
           <div class="si-label">지원 언어</div>
         </div>
         <div class="stat-item">
@@ -425,7 +514,86 @@
 
 
 <!-- ════════════════════════════════════
-     SCREEN 2 · 통신문 상세 · AI 번역
+     SCREEN 2 · 통신문 원문 · AI 번역 전
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone"><div class="screen">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11">
+          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
+        </svg>
+        <svg width="24" height="12" viewBox="0 0 24 12">
+          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
+          <rect x="2" y="2" width="10" height="8" rx="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+    </div>
+    <div class="lang-pill">
+      <span class="flag">KR</span>
+      <span>한국어 원문</span>
+    </div>
+
+    <div class="body-area">
+      <div class="back-nav">
+        <div class="back-btn">
+          <svg width="14" height="14"><use href="#ic-back"/></svg>
+        </div>
+        <span class="caption">통신문 #142 · 서울초 3-2반</span>
+      </div>
+
+      <div class="title-lg">현장체험학습 안내</div>
+      <div class="notice-badges">
+        <span class="chip">김선생님 발송</span>
+        <span class="chip danger">D-2</span>
+        <span class="chip">2025.05.13</span>
+      </div>
+
+      <!-- 한국어 원문 -->
+      <div class="notice-raw">
+        <div class="notice-raw-meta">서울초 3학년 2반 · 원본 한국어</div>
+        <div class="notice-raw-title">현장체험학습 안내</div>
+        <p class="notice-raw-body">
+          안녕하십니까. 5월 16일(목) 3-2반은 <b>국립과천과학관</b>으로 현장체험학습을 갑니다.
+          9시까지 등교, 도시락·물·모자·명찰을 준비해 주세요.
+          <b>5월 14일까지</b> 참여 동의 회신 부탁드립니다.
+        </p>
+      </div>
+
+      <!-- AI 번역하기 CTA -->
+      <div class="ai-cta">
+        <div class="ai-cta-icon">
+          <svg width="18" height="18"><use href="#ic-spark"/></svg>
+        </div>
+        <div class="ai-cta-title">AI 번역하기</div>
+        <div class="ai-cta-sub">번역 · 체크리스트 · 일정 · TTS 음성 자동 생성</div>
+        <button type="button" class="btn ai ai-translate">
+          <svg width="15" height="15"><use href="#ic-globe"/></svg>
+          Tiếng Việt로 번역 →
+        </button>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div></div>
+  <div class="phone-label">2 · 통신문 원문 · AI 번역 전</div>
+</div>
+
+<div class="flow-arrow">
+  <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
+    <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span>AI 번역하기 탭 → 자동 처리</span>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 3 · AI 번역 결과
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -465,16 +633,16 @@
         <span class="chip danger">D-2</span>
       </div>
 
-      <!-- AI 파이프라인 시각화 (심사: AI 기술 15점) -->
+      <!-- AI 파이프라인 시각화 — 학부모 탭 시 실행되는 서버 파이프라인 -->
       <div class="pipeline-box">
-        <div class="pipeline-box-label">AI 처리 완료</div>
+        <div class="pipeline-box-label">AI 분석 · 번역 완료</div>
         <div class="pipeline">
 
           <div class="pipeline-step active">
             <div class="ps-icon">
-              <svg width="13" height="13"><use href="#ic-ocr"/></svg>
+              <svg width="13" height="13"><use href="#ic-spark"/></svg>
             </div>
-            <div class="ps-label">OCR<br>인식</div>
+            <div class="ps-label">Haiku<br>정제</div>
           </div>
           <div class="pipeline-arrow"></div>
 
@@ -498,7 +666,7 @@
             <div class="ps-icon">
               <svg width="13" height="13"><use href="#ic-globe"/></svg>
             </div>
-            <div class="ps-label">9개국어<br>번역</div>
+            <div class="ps-label">8개 언어<br>번역</div>
           </div>
           <div class="pipeline-arrow"></div>
 
@@ -520,15 +688,15 @@
       </div>
 
       <!-- 번역 본문 -->
-      <div class="card" style="margin-top:10px; padding:14px;">
+      <div class="card notice-body">
         <div class="title-sm">Kính gửi quý phụ huynh,</div>
-        <p class="body" style="margin-top:8px; line-height:1.6;">
+        <p class="body mt8">
           Lớp 3-2 sẽ tổ chức chuyến
           <span class="hl-supply">dã ngoại học tập</span>
           đến Bảo tàng Khoa học Seoul vào ngày
           <span class="hl-schedule">16/5 (Thứ Năm)</span>.
         </p>
-        <p class="body" style="margin-top:6px; line-height:1.6;">
+        <p class="body mt6">
           Vui lòng chuẩn bị cơm hộp, nước uống và mũ.
           Phản hồi đồng ý trước <span class="hl-deadline">14/5</span>.
         </p>
@@ -541,33 +709,36 @@
         <span class="cat-chip submit">5/14 회신</span>
       </div>
 
-      <!-- TTS 플레이어 -->
-      <div class="tts-bar" style="margin-top:10px;">
-        <button class="play-btn">
+      <!-- TTS 음성 안내 + 속도 조절 + STT 음성 질문 -->
+      <div class="tts-bar">
+        <button type="button" class="play-btn" aria-label="음성 재생">
           <svg width="12" height="12"><use href="#ic-play"/></svg>
         </button>
         <div class="track">
           <div class="track-bar"><div class="track-fill"></div></div>
           <div class="track-time"><span>0:14</span><span>0:40</span></div>
         </div>
-        <span class="speed-chip">1.0×</span>
+        <button type="button" class="speed-chip" aria-label="재생 속도 조절">1.0×</button>
+        <button type="button" class="stt-btn" aria-label="음성으로 질문">
+          <svg width="13" height="13"><use href="#ic-mic"/></svg>
+        </button>
       </div>
     </div>
 
     <div class="action-bar">
       <div class="action-row">
-        <button class="btn outline" style="flex:1; font-size:12px; padding:10px 8px; gap:5px;">
+        <button type="button" class="btn outline action-cal">
           <svg width="14" height="14"><use href="#ic-calendar"/></svg>
-          일정 추가
+          캘린더에 저장 <span class="cal-count">2개</span>
         </button>
-        <button class="btn primary" style="flex:1.3; font-size:13px; padding:10px;">
+        <button type="button" class="btn primary action-reply">
           회신하기 →
         </button>
       </div>
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">2 · 통신문 상세 · AI 번역</div>
+  <div class="phone-label">3 · AI 번역 결과</div>
 </div>
 
 <div class="flow-arrow">
@@ -575,12 +746,12 @@
     <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
-  <span>회신 버튼</span>
+  <span>회신하기 탭</span>
 </div>
 
 
 <!-- ════════════════════════════════════
-     SCREEN 3 · 회신 작성
+     SCREEN 4 · 회신 작성
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -614,13 +785,13 @@
       </div>
 
       <div class="title-lg">Trả lời cô Kim</div>
-      <div class="caption" style="margin-top:3px;">김선생님께 · 현장체험학습 동의서</div>
+      <div class="caption mt3">김선생님께 · 현장체험학습 동의서</div>
 
       <div class="section-label">빠른 답변 선택</div>
 
       <div class="reply-option selected">
         <div class="ro-icon">
-          <svg width="14" height="14" style="color:white;"><use href="#ic-check-bold"/></svg>
+          <svg width="14" height="14"><use href="#ic-check-bold"/></svg>
         </div>
         <div class="ro-body">
           <div class="ro-title">Đồng ý tham gia</div>
@@ -665,14 +836,14 @@
     </div>
 
     <div class="action-bar">
-      <button class="btn primary full" style="padding:14px; gap:7px;">
+      <button type="button" class="btn primary full btn-send">
         <svg width="15" height="15"><use href="#ic-send"/></svg>
         김선생님께 전송하기
       </button>
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">3 · 회신 작성</div>
+  <div class="phone-label">4 · 회신 작성</div>
 </div>
 
 <div class="flow-arrow">
@@ -685,7 +856,7 @@
 
 
 <!-- ════════════════════════════════════
-     SCREEN 4 · 일정 + 준비물 체크리스트
+     SCREEN 5 · 일정 + 준비물 체크리스트
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -728,11 +899,11 @@
       <div class="section-label">5월 16일 · 목요일</div>
 
       <!-- 이벤트 카드 (왼쪽 보더 = 일정 카테고리 색) -->
-      <div class="card notice schedule" style="padding:14px;">
+      <div class="card notice schedule p14">
         <div class="evt-header">
           <div>
             <div class="evt-time">09:00 — 15:00</div>
-            <div class="title-md" style="margin-top:2px;">Dã ngoại học tập</div>
+            <div class="title-md mt2">Dã ngoại học tập</div>
             <div class="caption">현장체험학습 · Bảo tàng Khoa học Seoul</div>
           </div>
           <span class="chip warning">D-2</span>
@@ -742,7 +913,7 @@
           <span class="chk-label">준비물 체크리스트</span>
           <span class="chk-count">2 / 4</span>
         </div>
-        <div class="bar" style="margin-bottom:12px;"><div style="width:50%;"></div></div>
+        <div class="bar mb12"><div class="fill-50"></div></div>
 
         <div class="check-item done">
           <div class="checkbox"></div>
@@ -776,7 +947,7 @@
 
       <div class="section-label">다음 주</div>
 
-      <div class="card notice row row-gap12" style="padding:12px;">
+      <div class="card notice row row-gap12 p12">
         <div class="date-box md ai">
           <span class="dbx-mon">5월</span>
           <span class="dbx-num">22</span>
@@ -798,7 +969,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">4 · 일정 + 준비물 체크</div>
+  <div class="phone-label">5 · 일정 + 준비물 체크</div>
 </div>
 
 <div class="flow-arrow">
@@ -811,7 +982,7 @@
 
 
 <!-- ════════════════════════════════════
-     SCREEN 5 · 통신문 추가 (입력 방식)
+     SCREEN 6 · 통신문 추가 (입력 방식)
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -843,7 +1014,7 @@
       <div class="capture-grid">
         <div class="capture-btn featured">
           <div class="cb-icon">
-            <svg width="17" height="17" style="color:white;"><use href="#ic-camera"/></svg>
+            <svg width="17" height="17"><use href="#ic-camera"/></svg>
           </div>
           <span class="cb-label">사진 찍기</span>
           <span class="cb-desc">자동 OCR 인식</span>
@@ -895,7 +1066,7 @@
         <svg width="16" height="16" class="hint-banner-icon"><use href="#ic-globe"/></svg>
         <p class="hint-text">
           한국어 통신문을 <b>자동으로 번역</b>해 드려요.
-          현재 <b>9개 언어</b> 지원 중.
+          현재 <b>8개 언어</b> 지원 중.
         </p>
       </div>
     </div>
@@ -909,7 +1080,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">5 · 통신문 추가</div>
+  <div class="phone-label">6 · 통신문 추가</div>
 </div>
 
 </div><!-- /canvas -->
