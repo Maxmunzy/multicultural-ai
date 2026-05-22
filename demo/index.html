@@ -501,12 +501,26 @@ textarea::placeholder { color: var(--ink4); }
 .ci-ko   { font-size: 11px; color: var(--ink3); margin-top: 2px; font-style: italic; }
 
 /* ══════════════════════════════════
-   18. TTS Player
+   18. TTS Player (Dual: 번역어 + 쉬운한국어)
 ══════════════════════════════════ */
 .tts-player {
-  display: flex; align-items: center; gap: 10px;
   background: var(--surface2); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 12px;
+  border-radius: var(--radius-sm); overflow: hidden;
+}
+.tts-mode-tabs {
+  display: flex; background: var(--surface3); padding: 3px; gap: 3px;
+}
+.tts-mode-tab {
+  flex: 1; padding: 5px 4px; text-align: center;
+  font-size: 10px; font-weight: 600; color: var(--ink3);
+  border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+  border: none; background: transparent; font-family: inherit;
+}
+.tts-mode-tab.active      { background: white; color: var(--ai); box-shadow: var(--shadow-sm); }
+.tts-mode-tab.active.easy { color: var(--brand); }
+.tts-player-row {
+  display: flex; align-items: center; gap: 10px; padding: 10px 12px;
 }
 
 .tts-btn {
@@ -1000,25 +1014,43 @@ hr.section-sep {
 
       <div id="parentChecklist"></div>
 
-      <!-- TTS Player -->
+      <!-- Dual TTS: tts_url (번역어) + tts_url_easy_ko (쉬운한국어) -->
       <div class="tts-player">
-        <button class="tts-btn" id="ttsBtn" onclick="toggleTTS()">
-          <svg width="12" height="12" id="ttsIcon"><use href="#ic-play"/></svg>
-        </button>
-        <div class="tts-track">
-          <div class="tts-label" id="ttsLabel">음성 안내</div>
-          <div class="tts-wave" id="ttsWave">
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-            <div class="wave-bar"></div>
-          </div>
+        <div class="tts-mode-tabs">
+          <button type="button" class="tts-mode-tab active" id="ttsTabTr" onclick="switchTTSMode('tr')">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
+              <path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            <span id="ttsTabTrLabel">번역어 음성</span>
+          </button>
+          <button type="button" class="tts-mode-tab easy" id="ttsTabEasy" onclick="switchTTSMode('easy')">
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+              <path d="M9 12h6M12 9v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            쉬운 한국어
+          </button>
         </div>
-        <span class="speed-badge" id="speedBadge">1.0×</span>
-      </div>
+        <div class="tts-player-row">
+          <button type="button" class="tts-btn" id="ttsBtn" onclick="toggleTTS()" aria-label="음성 재생">
+            <svg width="12" height="12" id="ttsIcon"><use href="#ic-play"/></svg>
+          </button>
+          <div class="tts-track">
+            <div class="tts-label" id="ttsLabel">음성 안내</div>
+            <div class="tts-wave" id="ttsWave">
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+              <div class="wave-bar"></div>
+            </div>
+          </div>
+          <span class="speed-badge" id="speedBadge">1.0×</span>
+        </div><!-- /tts-player-row -->
+      </div><!-- /tts-player -->
 
       <div class="btn-row">
         <button class="btn btn-outline btn-calendar">
@@ -1461,8 +1493,10 @@ function updateNoticePreview() {
   document.getElementById('noticeTitleParent').textContent = data.title;
   document.getElementById('noticePreviewParent').textContent =
     data.items.map(it => it.tr).join(' ').slice(0, 80) + '...';
-  document.getElementById('ttsLabel').textContent =
-    '음성 안내 · ' + (LANGUAGES.find(l => l.code === selectedLang)?.name ?? '');
+  const langName = LANGUAGES.find(l => l.code === selectedLang)?.name ?? '';
+  document.getElementById('ttsLabel').textContent = langName + ' 음성';
+  const tabTrLabel = document.getElementById('ttsTabTrLabel');
+  if (tabTrLabel) tabTrLabel.textContent = langName + ' 음성';
 }
 
 /* ══════════════════════════════════
@@ -1519,6 +1553,27 @@ function toggleCheck(el) {
 /* ══════════════════════════════════
    TTS
 ══════════════════════════════════ */
+function switchTTSMode(mode) {
+  const tabTr   = document.getElementById('ttsTabTr');
+  const tabEasy = document.getElementById('ttsTabEasy');
+  const label   = document.getElementById('ttsLabel');
+
+  if (mode === 'tr') {
+    tabTr.className   = 'tts-mode-tab active';
+    tabEasy.className = 'tts-mode-tab easy';
+    const langName = LANGUAGES.find(l => l.code === selectedLang)?.name ?? '번역어';
+    label.textContent = langName + ' 음성';
+    document.getElementById('ttsTabTrLabel').textContent = langName + ' 음성';
+  } else {
+    tabTr.className   = 'tts-mode-tab';
+    tabEasy.className = 'tts-mode-tab active easy';
+    label.textContent = '쉬운 한국어 음성';
+  }
+
+  // TTS 재생 중이면 중지
+  if (ttsPlaying) toggleTTS();
+}
+
 function toggleTTS() {
   ttsPlaying = !ttsPlaying;
   const wave = document.getElementById('ttsWave');
