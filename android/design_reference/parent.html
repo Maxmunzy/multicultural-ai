@@ -14,15 +14,6 @@
    (daon-shared.css에 없는 이 파일 전용 패턴)
 ──────────────────────────────────────── */
 
-/* 뒤로가기 내비게이션 */
-.back-nav { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
-.back-btn {
-  width:28px; height:28px; border-radius:8px;
-  background:var(--surface3);
-  display:flex; align-items:center; justify-content:center;
-  cursor:pointer; flex-shrink:0;
-}
-
 /* 통신문 상세 — 배지 행 */
 .notice-badges { display:flex; align-items:center; gap:5px; margin-top:7px; flex-wrap:wrap; }
 
@@ -69,14 +60,7 @@
 .ai-preview-body { color:var(--brand-deep); }
 
 /* 하단 액션 바 */
-.action-bar { padding:8px 14px 14px; border-top:1px solid var(--line); }
-.action-row { display:flex; gap:8px; }
-
-/* 히어로 카드 내부 요소 */
-.hero-chips { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
-.hero-title { color:white; }
-.hero-sub   { font-size:11px; color:rgba(255,255,255,.62); margin-top:3px; }
-.hero-body  { color:rgba(255,255,255,.82); margin-top:8px; font-size:12px; }
+/* (action-bar, action-row는 daon-shared.css로 이동) */
 
 /* 날짜 박스 (캘린더·일정 카드) */
 .date-box {
@@ -95,12 +79,7 @@
 .date-box.ai    .dbx-mon { color:var(--ai); }
 .date-box.ai    .dbx-num { color:var(--ai); font-size:16px; }
 
-/* 플렉스 행 유틸 (반복 레이아웃) */
-.row       { display:flex; align-items:center; }
-.row-gap12 { gap:12px; }
-.row-gap8  { gap:8px; }
-.row-sb    { justify-content:space-between; }
-.flex1     { flex:1; min-width:0; }
+/* (row 유틸은 daon-shared.css로 이동) */
 
 /* 캘린더 날짜 스트립 */
 .cal-strip { display:flex; gap:5px; margin-top:14px; overflow-x:auto; padding-bottom:2px; }
@@ -322,7 +301,7 @@
       <div class="title-xl">민준 어머니</div>
 
       <!-- 히어로 — 긴급 통신문 스포트라이트 -->
-      <div class="card hero" style="margin-top:14px; padding:16px;">
+      <div class="card hero">
         <div class="hero-content">
           <div class="hero-chips">
             <span class="chip danger">회신 필요 · D-2</span>

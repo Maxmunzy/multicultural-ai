@@ -13,12 +13,7 @@
    teacher.html 로컬 컴포넌트
 ──────────────────────────────────────── */
 
-/* 뒤로가기 내비 */
-.back-nav { display:flex; align-items:center; gap:8px; margin-bottom:12px; }
-.back-btn  {
-  width:28px; height:28px; border-radius:8px; background:var(--surface3);
-  display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0;
-}
+/* (back-nav, back-btn은 daon-shared.css로 이동) */
 
 /* ── 4단계 스텝바 ── */
 .step-bar {
@@ -81,11 +76,11 @@
 .lang-tab.active { background:var(--brand); color:white; }
 .lt-flag {
   width:18px; height:18px; border-radius:50%;
-  background:rgba(0,0,0,.1);
+  background:var(--surface3);
   display:flex; align-items:center; justify-content:center;
-  font-size:9px; font-weight:800; flex-shrink:0;
+  font-size:9px; font-weight:800; flex-shrink:0; color:var(--ink3);
 }
-.lang-tab.active .lt-flag { background:rgba(255,255,255,.2); color:white; }
+.lang-tab.active .lt-flag { background:rgba(255,255,255,.25); color:white; }
 
 /* 용어사전 적용 행 */
 .glossary-row {
@@ -212,17 +207,9 @@
 .action-bar { padding:8px 14px 14px; border-top:1px solid var(--line); }
 .action-row { display:flex; gap:8px; }
 
-/* 히어로 내용 */
-.hero-chips { display:flex; align-items:center; gap:6px; margin-bottom:10px; }
-.hero-title { color:white; }
-.hero-sub   { font-size:11px; color:rgba(255,255,255,.62); margin-top:3px; }
-
-/* 플렉스 유틸 */
-.row       { display:flex; align-items:center; }
+/* (hero-chips, hero-title, hero-sub, row 유틸은 daon-shared.css로 이동) */
 .row-gap10 { gap:10px; }
-.row-gap12 { gap:12px; }
 .row-sb    { justify-content:space-between; align-items:flex-end; }
-.flex1     { flex:1; min-width:0; }
 
 /* 히어로 카드 내 캡션 */
 .hero-caption { font-size:11px; color:rgba(255,255,255,.65); }
@@ -376,7 +363,7 @@
       <div class="title-xl">김선생님</div>
 
       <!-- 우리반 히어로 -->
-      <div class="card hero" style="margin-top:14px; padding:16px;">
+      <div class="card hero">
         <div class="hero-content">
           <div class="hero-chips">
             <span class="chip white">서울초 3학년</span>
@@ -578,9 +565,9 @@
 
     <div class="action-bar">
       <div class="action-row">
-        <button class="btn ghost" style="flex:1; padding:13px; font-size:13px;">임시 저장</button>
+        <button class="btn ghost sm">임시 저장</button>
         <button class="btn ai" style="flex:1.6; padding:13px; font-size:13px; gap:6px;">
-          <svg width="14" height="14" style="color:white;"><use href="#ic-spark"/></svg>
+          <svg width="14" height="14"><use href="#ic-spark"/></svg>
           AI 분석하기 →
         </button>
       </div>
@@ -675,7 +662,7 @@
         <!-- 분석 대상 외 문장 (회색) -->
         <div class="sentence-mark unmarked">
           <span class="sm-text">안녕하십니까. 서울초 3학년 2반 학부모님께 안내드립니다.</span>
-          <span class="sm-chip"><span class="cat-chip" style="background:var(--surface); color:var(--ink4); font-size:9px;">일반</span></span>
+          <span class="sm-chip"><span class="cat-chip other">일반</span></span>
         </div>
 
         <!-- 일정 추출 문장 (파란 배경) -->
@@ -935,7 +922,7 @@
       <div class="title-xl">회신 현황</div>
 
       <!-- 진행 히어로 카드 -->
-      <div class="card hero" style="margin-top:14px; padding:16px;">
+      <div class="card hero">
         <div class="hero-content">
           <div class="row row-sb" style="align-items:flex-end;">
             <div>
