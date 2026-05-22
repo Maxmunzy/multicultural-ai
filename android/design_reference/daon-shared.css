@@ -667,5 +667,12 @@ html, body {
 .tts-bar .speed-chip {
   font-size: 10px; font-weight: 700; color: var(--brand);
   background: var(--brand-light); padding: 3px 7px; border-radius: 6px;
-  flex-shrink: 0;
+  flex-shrink: 0; border: none; cursor: pointer; font-family: inherit;
 }
+.tts-bar .stt-btn {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--surface3); border: 1.5px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; color: var(--ink3);
+}
+.tts-bar .stt-btn svg { width: 13px; height: 13px; }
