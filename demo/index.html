@@ -635,6 +635,10 @@ textarea::placeholder { color: var(--ink4); }
 .btn-row .btn.narrow    { flex: .8; }
 .btn-mt                 { margin-top: 10px; }
 .btn-calendar { flex: .9 !important; font-size: 12px; padding: 11px 8px; }
+.cal-count-badge {
+  background: var(--brand); color: white;
+  font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 99px;
+}
 .btn-reply    { font-size: 13px; padding: 11px; }
 .tts-wave.playing .wave-bar { background: var(--brand); animation: wave 1s ease-in-out infinite; }
 .wave-bar:nth-child(1) { animation-delay: 0s; }
@@ -1142,7 +1146,7 @@ hr.section-sep {
       <div class="btn-row">
         <button class="btn btn-outline btn-calendar">
           <svg width="13" height="13"><use href="#ic-calendar"/></svg>
-          일정 추가
+          캘린더에 저장 <span class="cal-count-badge">2개</span>
         </button>
         <button class="btn btn-ai btn-reply">
           <svg width="13" height="13"><use href="#ic-reply"/></svg>

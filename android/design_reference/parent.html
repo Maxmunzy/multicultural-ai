@@ -22,6 +22,10 @@
 .card.notice.p14          { padding: 14px; }
 .bar.mb12                 { margin-bottom: 12px; }
 .btn.action-cal           { flex:1; font-size:12px; padding:10px 8px; gap:5px; }
+.btn.action-cal .cal-count {
+  background: var(--brand); color: white;
+  font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 99px;
+}
 .btn.action-reply         { flex:1.3; font-size:13px; padding:10px; }
 .btn.btn-send             { padding:14px; gap:7px; }
 .reply-option.selected .ro-icon svg { color: white; }
@@ -725,7 +729,7 @@
       <div class="action-row">
         <button type="button" class="btn outline action-cal">
           <svg width="14" height="14"><use href="#ic-calendar"/></svg>
-          일정 추가
+          캘린더에 저장 <span class="cal-count">2개</span>
         </button>
         <button type="button" class="btn primary action-reply">
           회신하기 →
