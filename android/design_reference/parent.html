@@ -3,455 +3,915 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>다온 · 학부모용</title>
-<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<title>SchoolBridge · 학부모</title>
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
 <link rel="stylesheet" href="daon-shared.css">
+
+<style>
+/* ────────────────────────────────────────
+   parent.html 로컬 컴포넌트
+   (daon-shared.css에 없는 이 파일 전용 패턴)
+──────────────────────────────────────── */
+
+/* 통신문 상세 — 배지 행 */
+.notice-badges { display:flex; align-items:center; gap:5px; margin-top:7px; flex-wrap:wrap; }
+
+/* AI 파이프라인 박스 */
+.pipeline-box {
+  margin-top:12px;
+  background:var(--ai-light); border:1px solid var(--ai-mid);
+  border-radius:10px; padding:10px 12px;
+}
+.pipeline-box-label {
+  font-size:9px; font-weight:700; color:var(--ai);
+  text-transform:uppercase; letter-spacing:.07em; margin-bottom:8px;
+}
+
+/* 언어 전환 토글 */
+.lang-toggle {
+  display:flex; margin-top:10px;
+  background:var(--surface3); border-radius:10px; padding:3px;
+}
+.lang-toggle-btn {
+  flex:1; padding:6px; text-align:center;
+  font-size:11px; font-weight:600; color:var(--ink3);
+  border-radius:7px; cursor:pointer;
+}
+.lang-toggle-btn.active {
+  background:white; color:var(--brand); font-weight:700;
+  box-shadow:var(--shadow-sm);
+}
+
+/* 번역 본문 텍스트 하이라이트 */
+.hl-supply   { background:var(--cat-supply-bg); color:#92400E; padding:1px 5px; border-radius:4px; font-weight:600; }
+.hl-schedule { color:var(--cat-schedule); font-weight:600; }
+.hl-deadline { color:var(--cat-cost); font-weight:600; }
+
+/* 카테고리 칩 행 */
+.cat-chips-row { display:flex; gap:5px; margin-top:8px; flex-wrap:wrap; }
+
+/* AI 번역 미리보기 박스 (회신 화면) */
+.ai-preview {
+  background:var(--brand-light); border:1px solid var(--brand-mid);
+  border-radius:var(--radius-sm); padding:12px 14px;
+}
+.ai-preview-hd { display:flex; align-items:center; gap:5px; margin-bottom:8px; }
+.ai-preview-body { color:var(--brand-deep); }
+
+/* 하단 액션 바 */
+/* (action-bar, action-row는 daon-shared.css로 이동) */
+
+/* 날짜 박스 (캘린더·일정 카드) */
+.date-box {
+  border-radius:12px; flex-shrink:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+}
+.date-box.lg { width:44px; height:44px; }
+.date-box.md { width:40px; height:40px; border-radius:10px; }
+.date-box.brand { background:var(--brand-light); border:1px solid var(--brand-mid); }
+.date-box.ai    { background:var(--ai-light);    border:1px solid var(--ai-mid); }
+.date-box .dbx-mon { font-size:9px; font-weight:700; }
+.date-box .dbx-num { font-size:17px; font-weight:800; line-height:1.15; }
+.date-box.brand .dbx-mon { color:var(--brand-deep); }
+.date-box.brand .dbx-num { color:var(--brand); }
+.date-box.ai    .dbx-mon { color:var(--ai); }
+.date-box.ai    .dbx-num { color:var(--ai); font-size:16px; }
+
+/* (row 유틸은 daon-shared.css로 이동) */
+
+/* 캘린더 날짜 스트립 */
+.cal-strip { display:flex; gap:5px; margin-top:14px; overflow-x:auto; padding-bottom:2px; }
+.day-cell  {
+  width:38px; padding:8px 0; text-align:center;
+  border-radius:10px; flex-shrink:0;
+  background:var(--surface3);
+}
+.day-cell.today { background:var(--brand); color:white; }
+.day-cell .dw   { font-size:9px; font-weight:600; opacity:.65; }
+.day-cell .dd   { font-size:15px; font-weight:800; line-height:1.2; margin-top:1px; }
+.day-cell.today .dw { opacity:.7; }
+
+/* 이벤트 카드 내부 */
+.evt-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:10px; }
+.evt-time   { font-size:11px; color:var(--cat-schedule); }
+.chk-meta   { display:flex; justify-content:space-between; margin-bottom:5px; }
+.chk-label  { font-size:10px; font-weight:700; color:var(--ink3); }
+.chk-count  { font-size:10px; font-weight:700; color:var(--brand); }
+
+/* 통신문 추가 — 입력 버튼 그리드 */
+.capture-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:16px; }
+.capture-btn  {
+  background:var(--surface); border:1.5px solid var(--line);
+  border-radius:var(--radius-sm); padding:16px 12px;
+  display:flex; flex-direction:column; align-items:flex-start; gap:10px; cursor:pointer;
+}
+.capture-btn.featured { border-color:var(--brand-mid); background:var(--brand-light); }
+.capture-btn.muted    { border-style:dashed; opacity:.55; }
+.cb-icon {
+  width:34px; height:34px; border-radius:9px; background:var(--surface3);
+  display:flex; align-items:center; justify-content:center;
+}
+.capture-btn.featured .cb-icon { background:var(--brand); }
+.cb-label { font-size:13px; font-weight:700; color:var(--ink); }
+.cb-desc  { font-size:10px; color:var(--ink3); margin-top:-6px; }
+
+/* 안내 배너 */
+.hint-banner {
+  margin-top:14px; display:flex; align-items:center; gap:10px;
+  background:var(--ai-light); border:1px solid var(--ai-mid);
+  border-radius:var(--radius-sm); padding:10px 12px;
+}
+.hint-text { font-size:12px; color:var(--ai); }
+
+/* 회신 선택지 */
+.reply-option {
+  display:flex; align-items:center; gap:10px;
+  padding:12px 14px;
+  background:var(--surface); border:1.5px solid var(--line);
+  border-radius:var(--radius-sm); cursor:pointer; margin-bottom:7px;
+}
+.reply-option.selected { border-color:var(--brand); background:var(--brand-light); }
+.ro-icon {
+  width:30px; height:30px; border-radius:50%; background:var(--surface3);
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.reply-option.selected .ro-icon { background:var(--brand); }
+.ro-body  { flex:1; }
+.ro-title { font-size:13px; font-weight:600; color:var(--ink); }
+.ro-sub   { font-size:11px; color:var(--ink3); margin-top:1px; }
+.reply-option.selected .ro-title { color:var(--brand-deep); }
+.ro-check {
+  width:18px; height:18px; border-radius:50%;
+  border:2px solid var(--line); flex-shrink:0;
+}
+.reply-option.selected .ro-check {
+  background:var(--brand); border-color:var(--brand);
+  display:flex; align-items:center; justify-content:center;
+}
+.reply-option.selected .ro-check::after {
+  content:'';
+  width:4px; height:7px;
+  border-right:2px solid white; border-bottom:2px solid white;
+  transform:rotate(45deg) translate(-1px,-1px);
+}
+</style>
 </head>
 <body>
 
-<div class="scroll-hint">← 좌우로 스크롤해서 흐름 보기 →</div>
+<div class="scroll-hint">← 스크롤해서 화면 흐름 보기 →</div>
 <div class="role-switcher">
   <a href="parent.html" class="active">학부모</a>
   <a href="teacher.html">선생님</a>
 </div>
 
+<!-- SVG 심볼 (아이콘 스프라이트) -->
+<svg style="display:none">
+  <symbol id="ic-home" viewBox="0 0 24 24" fill="none">
+    <path d="M3 12L12 3l9 9M5 10v9a1 1 0 001 1h4v-5h4v5h4a1 1 0 001-1v-9"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-camera" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="7" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/>
+    <path d="M8 7V5a1 1 0 011-1h6a1 1 0 011 1v2" stroke="currentColor" stroke-width="2"/>
+    <circle cx="12" cy="13.5" r="3" stroke="currentColor" stroke-width="2"/>
+  </symbol>
+  <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+    <path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-chat" viewBox="0 0 24 24" fill="none">
+    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-person" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/>
+    <path d="M5 20a7 7 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-back" viewBox="0 0 24 24" fill="none">
+    <path d="M19 12H5m0 0l7 7m-7-7l7-7"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24" fill="none">
+    <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-play" viewBox="0 0 24 24">
+    <path d="M5 3l14 9-14 9V3z" fill="currentColor"/>
+  </symbol>
+  <symbol id="ic-globe" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 3c-2.5 3.5-3 5.5-3 9s.5 5.5 3 9M12 3c2.5 3.5 3 5.5 3 9s-.5 5.5-3 9M3 12h18"
+      stroke="currentColor" stroke-width="2"/>
+  </symbol>
+  <symbol id="ic-check-bold" viewBox="0 0 24 24" fill="none">
+    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5"
+      stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-close" viewBox="0 0 24 24" fill="none">
+    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-question" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 8v4M12 16h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-mic" viewBox="0 0 24 24" fill="none">
+    <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" stroke="currentColor" stroke-width="2"/>
+    <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-file" viewBox="0 0 24 24" fill="none">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-image" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5" stroke="currentColor" stroke-width="2"/>
+    <path d="M21 15l-5-5L5 21" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-pen" viewBox="0 0 24 24" fill="none">
+    <path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-link" viewBox="0 0 24 24" fill="none">
+    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-sound" viewBox="0 0 24 24" fill="none">
+    <path d="M11 5L6 9H2v6h4l5 4V5z"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-ocr" viewBox="0 0 24 24" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/>
+    <path d="M7 12l3 3 7-7" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-extract" viewBox="0 0 24 24" fill="none">
+    <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"
+      stroke="currentColor" stroke-width="2"/>
+    <rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="2"/>
+    <path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-classify" viewBox="0 0 24 24" fill="none">
+    <path d="M4 6h16M4 10h10M4 14h12M4 18h8"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+</svg>
+
 <div class="canvas">
 
-  <!-- ── 1. HOME ── -->
-  <div class="phone-wrap">
-    <div class="phone"><div class="screen">
-      <div class="statusbar">
-        <span>9:41</span>
-        <span class="icons">
-          <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/><rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/></svg>
-          <svg width="24" height="12" viewBox="0 0 24 12"><rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/><path d="M22 4v4c0.7-0.3 1.3-1 1.3-2s-0.6-1.7-1.3-2z" fill="currentColor"/></svg>
-        </span>
-      </div>
+<!-- ════════════════════════════════════
+     SCREEN 1 · 홈 · 받은 통신문
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone"><div class="screen">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11">
+          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
+        </svg>
+        <svg width="24" height="12" viewBox="0 0 24 12">
+          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
+          <rect x="2" y="2" width="16" height="8" rx="1.5" fill="currentColor"/>
+          <path d="M22 4v4c.7-.3 1.3-1 1.3-2s-.6-1.7-1.3-2z" fill="currentColor"/>
+        </svg>
+      </span>
+    </div>
 
-      <div class="lang-pill">
-        <span class="flag">VN</span>
-        <span>Tiếng Việt</span>
-        <span class="chev">▾</span>
-      </div>
+    <div class="lang-pill">
+      <span class="flag">VN</span>
+      <span>Tiếng Việt</span>
+      <span class="chev">▾</span>
+    </div>
 
-      <div class="body-area">
-        <div class="greet">Xin chào,</div>
-        <div class="title-xl">민준이 어머니 👋</div>
+    <div class="body-area">
+      <div class="greet">Xin chào,</div>
+      <div class="title-xl">민준 어머니</div>
 
-        <!-- hero card with today's spotlight -->
-        <div class="card peach hero" style="margin-top: 16px; padding: 16px;">
-          <div class="hero-blob" style="background: #fff; width: 90px; height: 90px; top: -20px; right: -20px;"></div>
-          <div class="hero-blob" style="background: var(--lemon); width: 60px; height: 60px; bottom: -10px; left: 30%;"></div>
-          <div style="position: relative; z-index: 1;">
-            <div style="display: flex; align-items: center; gap: 6px;">
-              <span class="chip" style="background: rgba(255,255,255,0.7);">📌 회신 필요 · D-2</span>
-            </div>
-            <div class="title-md" style="margin-top: 10px; color: var(--peach-ink);">Dã ngoại học tập</div>
-            <div class="caption" style="color: var(--peach-ink); opacity: 0.75;">현장체험학습 안내 · 5/16</div>
-            <div class="body" style="margin-top: 8px; color: var(--peach-ink);">
-              Lớp sẽ đến bảo tàng khoa học. Vui lòng phản hồi đồng ý trước 14/5.
-            </div>
-            <button class="btn" style="margin-top: 12px; background: white; color: var(--peach-ink); padding: 8px 14px; font-size: 12px;">
-              지금 회신하기 →
-            </button>
+      <!-- 히어로 — 긴급 통신문 스포트라이트 -->
+      <div class="card hero">
+        <div class="hero-content">
+          <div class="hero-chips">
+            <span class="chip danger">회신 필요 · D-2</span>
+            <span class="chip white" style="gap:3px;">
+              <svg width="7" height="7" viewBox="0 0 8 8">
+                <circle cx="4" cy="4" r="4" fill="#7C3AED"/>
+              </svg>
+              AI 번역됨
+            </span>
           </div>
-        </div>
-
-        <div class="section-label">새 통신문 3</div>
-
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <!-- notice item -->
-          <div class="card" style="display: flex; gap: 12px; align-items: center;">
-            <div class="avatar mint">🍱</div>
-            <div style="flex: 1; min-width: 0;">
-              <div class="title-sm">Thực đơn tháng 5 đã thay đổi</div>
-              <div class="caption">5월 식단 변경 · 어제</div>
-            </div>
-            <span class="dot" style="background: var(--peach-deep);"></span>
-          </div>
-
-          <div class="card" style="display: flex; gap: 12px; align-items: center;">
-            <div class="avatar lavender">📅</div>
-            <div style="flex: 1; min-width: 0;">
-              <div class="title-sm">Tuần tư vấn phụ huynh</div>
-              <div class="caption">학부모 상담주간 · 5/22</div>
-            </div>
-            <span class="dot" style="background: var(--peach-deep);"></span>
-          </div>
-
-          <div class="card" style="display: flex; gap: 12px; align-items: center; opacity: 0.7;">
-            <div class="avatar lemon">🏃</div>
-            <div style="flex: 1; min-width: 0;">
-              <div class="title-sm">Hội thao mùa xuân</div>
-              <div class="caption">운동회 안내 · 읽음</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-label">곧 다가오는 일정</div>
-        <div class="card mint" style="display: flex; gap: 12px; align-items: center;">
-          <div style="width: 44px; height: 44px; background: white; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <div style="font-size: 9px; color: var(--mint-ink); font-weight: 700;">5월</div>
-            <div style="font-size: 16px; color: var(--mint-ink); font-weight: 800; line-height: 1;">16</div>
-          </div>
-          <div style="flex: 1;">
-            <div class="title-sm" style="color: var(--mint-ink);">현장체험학습</div>
-            <div class="caption" style="color: var(--mint-ink); opacity: 0.8;">목 · 9:00 — 15:00</div>
-          </div>
+          <div class="title-md hero-title">Dã ngoại học tập</div>
+          <div class="hero-sub">현장체험학습 안내 · 5/16 · 서울초 3-2</div>
+          <div class="hero-body">Lớp 3-2 đến Bảo tàng Khoa học Seoul. Phản hồi trước 14/5.</div>
+          <button class="btn sm" style="margin-top:12px; background:rgba(255,255,255,.95); color:var(--brand);">
+            지금 회신하기 →
+          </button>
         </div>
       </div>
 
-      <div class="tabbar">
-        <div class="tab active"><div class="ic">🏠</div><span>홈</span></div>
-        <div class="tab"><div class="ic">📷</div><span>번역</span></div>
-        <div class="tab"><div class="ic">📅</div><span>일정</span></div>
-        <div class="tab"><div class="ic">💬</div><span>회신</span></div>
-        <div class="tab"><div class="ic">👤</div><span>나</span></div>
-      </div>
-      <div class="home-indicator"></div>
-    </div></div>
-    <div class="phone-label">1 · 홈 · 받은 통신문</div>
-  </div>
+      <div class="section-label">새 통신문 · 3건</div>
 
-  <div class="flow-arrow">
-    <svg width="24" height="14" viewBox="0 0 24 14" fill="none"><path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span>탭하여 열기</span>
-  </div>
-
-  <!-- ── 2. TRANSLATION RESULT ── -->
-  <div class="phone-wrap">
-    <div class="phone"><div class="screen">
-      <div class="statusbar">
-        <span>9:42</span>
-        <span class="icons">
-          <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/><rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/></svg>
-          <svg width="24" height="12" viewBox="0 0 24 12"><rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/></svg>
-        </span>
-      </div>
-
-      <div class="lang-pill">
-        <span class="flag">VN</span>
-        <span>Tiếng Việt</span>
-        <span class="chev">▾</span>
-      </div>
-
-      <div class="body-area">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-          <span style="font-size: 18px; cursor: pointer;">←</span>
-          <span class="caption">통신문 #142</span>
+      <div class="notice-row">
+        <div class="nr-dot"></div>
+        <div class="nr-body">
+          <div class="nr-title">Thực đơn tháng 5 đã thay đổi</div>
+          <div class="nr-meta">5월 식단 변경 · 어제</div>
         </div>
-        <div class="title-lg">Thông báo dã ngoại</div>
-        <div class="caption">현장체험학습 안내 · 서울초 3-2반</div>
-
-        <!-- side-by-side toggle -->
-        <div style="display: flex; gap: 4px; margin-top: 14px; padding: 4px; background: rgba(0,0,0,0.04); border-radius: 12px;">
-          <div style="flex: 1; padding: 6px; text-align: center; font-size: 11px; font-weight: 600; color: var(--ink3);">한국어</div>
-          <div style="flex: 1; padding: 6px; text-align: center; font-size: 11px; font-weight: 600; color: var(--ink3);">↔ 나란히</div>
-          <div style="flex: 1; padding: 6px; text-align: center; font-size: 11px; font-weight: 700; background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">Tiếng Việt</div>
-        </div>
-
-        <!-- translated content -->
-        <div class="card" style="margin-top: 12px; padding: 16px;">
-          <div class="title-md">Kính gửi quý phụ huynh,</div>
-          <div class="body" style="margin-top: 8px;">
-            Lớp 3-2 sẽ tổ chức chuyến <span style="background: var(--lemon); padding: 1px 4px; border-radius: 4px; font-weight: 600;">dã ngoại học tập</span> đến Bảo tàng Khoa học vào ngày 16/5 (Thứ Năm).
-          </div>
-          <div class="body" style="margin-top: 6px;">
-            Vui lòng chuẩn bị cơm hộp, nước uống và mũ. Phản hồi đồng ý trước 14/5.
-          </div>
-        </div>
-
-        <!-- term card -->
-        <div class="card lemon" style="margin-top: 8px; display: flex; gap: 10px; align-items: center;">
-          <div style="font-size: 22px;">📖</div>
-          <div style="flex: 1;">
-            <div class="title-sm" style="color: var(--lemon-ink);">"현장체험학습"이란?</div>
-            <div class="caption" style="color: var(--lemon-ink); opacity: 0.85;">학교 밖에서 진행하는 체험 수업</div>
-          </div>
-        </div>
-
-        <!-- action chips -->
-        <div style="display: flex; gap: 6px; margin-top: 12px;">
-          <button class="btn" style="flex: 1; padding: 10px; font-size: 12px;">🔊 듣기</button>
-          <button class="btn" style="flex: 1; padding: 10px; font-size: 12px;">📅 일정 추가</button>
-          <button class="btn peach" style="flex: 1.4; padding: 10px; font-size: 12px;">↩ 회신</button>
+        <div class="nr-right">
+          <span class="cat-chip submit">제출</span>
+          <span class="caption">D-5</span>
         </div>
       </div>
 
-      <div class="home-indicator"></div>
-    </div></div>
-    <div class="phone-label">2 · 번역 결과</div>
-  </div>
-
-  <div class="flow-arrow">
-    <svg width="24" height="14" viewBox="0 0 24 14" fill="none"><path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span>회신 누름</span>
-  </div>
-
-  <!-- ── 3. REPLY COMPOSER ── -->
-  <div class="phone-wrap">
-    <div class="phone"><div class="screen">
-      <div class="statusbar">
-        <span>9:43</span>
-        <span class="icons">
-          <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/><rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/></svg>
-          <svg width="24" height="12" viewBox="0 0 24 12"><rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/></svg>
-        </span>
-      </div>
-
-      <div class="lang-pill">
-        <span class="flag">VN</span>
-        <span>Tiếng Việt</span>
-        <span class="chev">▾</span>
-      </div>
-
-      <div class="body-area">
-        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-          <span style="font-size: 18px;">←</span>
-          <span class="caption">답장 작성</span>
+      <div class="notice-row">
+        <div class="nr-dot"></div>
+        <div class="nr-body">
+          <div class="nr-title">Tuần tư vấn phụ huynh</div>
+          <div class="nr-meta">학부모 상담주간 · 5/22</div>
         </div>
-        <div class="title-lg">Trả lời cô Kim</div>
-        <div class="caption">김선생님께 · 동의서 회신</div>
-
-        <div class="section-label">빠른 답변</div>
-        <div style="display: flex; flex-direction: column; gap: 8px;">
-          <div class="card mint" style="display: flex; align-items: center; gap: 10px; padding: 12px 14px;">
-            <div style="width: 28px; height: 28px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--mint-ink);">✓</div>
-            <div style="flex: 1;">
-              <div class="title-sm" style="color: var(--mint-ink);">Đồng ý tham gia</div>
-              <div class="caption" style="color: var(--mint-ink); opacity: 0.8;">참여에 동의합니다</div>
-            </div>
-            <div style="width: 20px; height: 20px; background: var(--mint-ink); border-radius: 50%; color: white; display: flex; align-items: center; justify-content: center; font-size: 11px;">✓</div>
-          </div>
-
-          <div class="card" style="display: flex; align-items: center; gap: 10px; padding: 12px 14px;">
-            <div style="width: 28px; height: 28px; background: var(--paper2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">✗</div>
-            <div style="flex: 1;">
-              <div class="title-sm">Không tham gia</div>
-              <div class="caption">참여하지 않습니다</div>
-            </div>
-          </div>
-
-          <div class="card" style="display: flex; align-items: center; gap: 10px; padding: 12px 14px;">
-            <div style="width: 28px; height: 28px; background: var(--paper2); border-radius: 50%; display: flex; align-items: center; justify-content: center;">?</div>
-            <div style="flex: 1;">
-              <div class="title-sm">Tôi có câu hỏi</div>
-              <div class="caption">질문이 있어요</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-label">전송될 한국어</div>
-        <div class="card lemon" style="padding: 14px;">
-          <div class="caption" style="color: var(--lemon-ink); margin-bottom: 6px;">선생님이 받게 될 메시지</div>
-          <div class="body" style="color: var(--lemon-ink);">
-            안녕하세요, <b>민준</b>이의 학부모입니다. <b>5월 16일 현장체험학습</b>에 동의합니다. 감사합니다.
-          </div>
+        <div class="nr-right">
+          <span class="cat-chip schedule">일정</span>
         </div>
       </div>
 
-      <div style="padding: 8px 16px 14px; border-top: 1px solid rgba(0,0,0,0.04);">
-        <button class="btn peach full" style="padding: 14px;">김선생님께 전송 →</button>
-      </div>
-      <div class="home-indicator"></div>
-    </div></div>
-    <div class="phone-label">3 · 회신 작성</div>
-  </div>
-
-  <div class="flow-arrow">
-    <svg width="24" height="14" viewBox="0 0 24 14" fill="none"><path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span>일정 탭</span>
-  </div>
-
-  <!-- ── 4. CALENDAR + SUPPLIES ── -->
-  <div class="phone-wrap">
-    <div class="phone"><div class="screen">
-      <div class="statusbar">
-        <span>9:44</span>
-        <span class="icons">
-          <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/><rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/></svg>
-          <svg width="24" height="12" viewBox="0 0 24 12"><rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/></svg>
-        </span>
-      </div>
-
-      <div class="lang-pill">
-        <span class="flag">VN</span>
-        <span>Tiếng Việt</span>
-        <span class="chev">▾</span>
-      </div>
-
-      <div class="body-area">
-        <div class="greet">tháng 5 · 5월</div>
-        <div class="title-xl">Lịch lớp học</div>
-
-        <!-- mini calendar strip -->
-        <div style="display: flex; gap: 6px; margin-top: 14px; overflow-x: auto;">
-          <!-- 7 day strip -->
-          <div style="display: flex; gap: 6px;">
-            <div style="width: 40px; padding: 8px 0; text-align: center; background: var(--paper2); border-radius: 12px;"><div class="caption">월</div><div style="font-weight: 700; margin-top: 2px;">13</div></div>
-            <div style="width: 40px; padding: 8px 0; text-align: center; background: var(--paper2); border-radius: 12px;"><div class="caption">화</div><div style="font-weight: 700; margin-top: 2px;">14</div></div>
-            <div style="width: 40px; padding: 8px 0; text-align: center; background: var(--paper2); border-radius: 12px;"><div class="caption">수</div><div style="font-weight: 700; margin-top: 2px;">15</div></div>
-            <div style="width: 40px; padding: 8px 0; text-align: center; background: var(--ink); color: white; border-radius: 12px;"><div style="font-size: 10px; opacity: 0.7;">목</div><div style="font-weight: 800; margin-top: 2px;">16</div></div>
-            <div style="width: 40px; padding: 8px 0; text-align: center; background: var(--paper2); border-radius: 12px; position: relative;"><div class="caption">금</div><div style="font-weight: 700; margin-top: 2px;">17</div></div>
-            <div style="width: 40px; padding: 8px 0; text-align: center; background: var(--paper2); border-radius: 12px;"><div class="caption">토</div><div style="font-weight: 700; margin-top: 2px;">18</div></div>
-            <div style="width: 40px; padding: 8px 0; text-align: center; background: var(--paper2); border-radius: 12px;"><div class="caption">일</div><div style="font-weight: 700; margin-top: 2px;">19</div></div>
-          </div>
+      <div class="notice-row read">
+        <div class="nr-dot"></div>
+        <div class="nr-body">
+          <div class="nr-title">Hội thao mùa xuân</div>
+          <div class="nr-meta">운동회 안내 · 읽음</div>
         </div>
-
-        <div class="section-label">5월 16일 · 목요일</div>
-
-        <!-- event card -->
-        <div class="card peach" style="padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-            <div>
-              <div class="caption" style="color: var(--peach-ink); opacity: 0.8;">9:00 — 15:00</div>
-              <div class="title-md" style="color: var(--peach-ink); margin-top: 2px;">Dã ngoại học tập</div>
-              <div class="caption" style="color: var(--peach-ink); opacity: 0.85;">현장체험학습 · Bảo tàng Khoa học</div>
-            </div>
-            <span class="chip" style="background: rgba(255,255,255,0.7); color: var(--peach-ink);">D-2</span>
-          </div>
-
-          <!-- supplies checklist -->
-          <div style="margin-top: 14px; background: rgba(255,255,255,0.6); border-radius: 14px; padding: 12px;">
-            <div class="caption" style="color: var(--peach-ink); font-weight: 700; margin-bottom: 8px;">🎒 Cần chuẩn bị · 4개</div>
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 18px; height: 18px; border-radius: 6px; background: var(--mint-deep); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px;">✓</div>
-                <span style="font-size: 13px; color: var(--peach-ink); text-decoration: line-through; opacity: 0.6;">Cơm hộp · 도시락</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 18px; height: 18px; border-radius: 6px; background: var(--mint-deep); color: white; display: flex; align-items: center; justify-content: center; font-size: 11px;">✓</div>
-                <span style="font-size: 13px; color: var(--peach-ink); text-decoration: line-through; opacity: 0.6;">Bình nước · 물병</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 18px; height: 18px; border-radius: 6px; background: white; border: 1.5px solid rgba(179,90,43,0.3);"></div>
-                <span style="font-size: 13px; color: var(--peach-ink); font-weight: 600;">Nón · 모자</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <div style="width: 18px; height: 18px; border-radius: 6px; background: white; border: 1.5px solid rgba(179,90,43,0.3);"></div>
-                <span style="font-size: 13px; color: var(--peach-ink); font-weight: 600;">Thẻ tên · 명찰</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="section-label">다음 주</div>
-        <div class="card" style="display: flex; gap: 12px; align-items: center;">
-          <div style="width: 44px; height: 44px; background: var(--lavender); border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-            <div style="font-size: 9px; color: #5a4a99; font-weight: 700;">5월</div>
-            <div style="font-size: 16px; color: #5a4a99; font-weight: 800; line-height: 1;">22</div>
-          </div>
-          <div style="flex: 1;">
-            <div class="title-sm">학부모 상담주간</div>
-            <div class="caption">Tuần tư vấn phụ huynh · 15:00</div>
-          </div>
+        <div class="nr-right">
+          <span class="cat-chip health">건강</span>
         </div>
       </div>
 
-      <div class="tabbar">
-        <div class="tab"><div class="ic">🏠</div><span>홈</span></div>
-        <div class="tab"><div class="ic">📷</div><span>번역</span></div>
-        <div class="tab active"><div class="ic">📅</div><span>일정</span></div>
-        <div class="tab"><div class="ic">💬</div><span>회신</span></div>
-        <div class="tab"><div class="ic">👤</div><span>나</span></div>
-      </div>
-      <div class="home-indicator"></div>
-    </div></div>
-    <div class="phone-label">4 · 일정 + 준비물</div>
-  </div>
+      <div class="section-label">다가오는 일정</div>
 
-  <div class="flow-arrow">
-    <svg width="24" height="14" viewBox="0 0 24 14" fill="none"><path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span>새 통신문 추가</span>
-  </div>
-
-  <!-- ── 5. CAPTURE ── -->
-  <div class="phone-wrap">
-    <div class="phone"><div class="screen">
-      <div class="statusbar">
-        <span>9:45</span>
-        <span class="icons">
-          <svg width="17" height="11" viewBox="0 0 17 11"><rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/><rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/><rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/><rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/></svg>
-          <svg width="24" height="12" viewBox="0 0 24 12"><rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="currentColor"/></svg>
-        </span>
-      </div>
-
-      <div class="lang-pill">
-        <span class="flag">VN</span>
-        <span>Tiếng Việt</span>
-        <span class="chev">▾</span>
-      </div>
-
-      <div class="body-area">
-        <div class="greet">새 통신문</div>
-        <div class="title-xl">어떻게 받으셨나요?</div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px;">
-          <div class="card peach" style="padding: 16px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-size: 28px;">📷</div>
-            <div>
-              <div class="title-sm" style="color: var(--peach-ink);">사진 찍기</div>
-              <div class="caption" style="color: var(--peach-ink); opacity: 0.8;">자동 인식</div>
-            </div>
-          </div>
-          <div class="card mint" style="padding: 16px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-size: 28px;">🖼️</div>
-            <div>
-              <div class="title-sm" style="color: var(--mint-ink);">갤러리</div>
-              <div class="caption" style="color: var(--mint-ink); opacity: 0.8;">여러 장 선택</div>
-            </div>
-          </div>
-          <div class="card lemon" style="padding: 16px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-size: 28px;">📄</div>
-            <div>
-              <div class="title-sm" style="color: var(--lemon-ink);">PDF 파일</div>
-              <div class="caption" style="color: var(--lemon-ink); opacity: 0.8;">학교 알림장</div>
-            </div>
-          </div>
-          <div class="card lavender" style="padding: 16px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-size: 28px;">✏️</div>
-            <div>
-              <div class="title-sm" style="color: #5a4a99;">붙여넣기</div>
-              <div class="caption" style="color: #5a4a99; opacity: 0.8;">텍스트 직접</div>
-            </div>
-          </div>
-          <div class="card sky" style="padding: 16px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: space-between;">
-            <div style="font-size: 28px;">🎤</div>
-            <div>
-              <div class="title-sm" style="color: #1f5b8a;">음성 입력</div>
-              <div class="caption" style="color: #1f5b8a; opacity: 0.8;">읽어주는 내용</div>
-            </div>
-          </div>
-          <div class="card" style="padding: 16px; aspect-ratio: 1; display: flex; flex-direction: column; justify-content: space-between; border: 1.5px dashed rgba(0,0,0,0.12); background: transparent; box-shadow: none;">
-            <div style="font-size: 28px; opacity: 0.5;">🔗</div>
-            <div>
-              <div class="title-sm">학교 연동</div>
-              <div class="caption">e알리미 · 곧 출시</div>
-            </div>
-          </div>
+      <div class="card row row-gap12" style="padding:12px;">
+        <div class="date-box lg brand">
+          <span class="dbx-mon">5월</span>
+          <span class="dbx-num">16</span>
         </div>
+        <div class="flex1">
+          <div class="title-sm">현장체험학습</div>
+          <div class="caption">Dã ngoại học tập · 목 9:00 — 15:00</div>
+        </div>
+        <span class="chip warning">D-2</span>
+      </div>
 
-        <div class="card" style="margin-top: 14px; padding: 12px 14px; display: flex; gap: 10px; align-items: center; background: var(--paper2);">
-          <div style="font-size: 18px;">💡</div>
-          <div class="caption" style="color: var(--ink2); flex: 1;">
-            한국어 통신문을 자동으로 <b>Tiếng Việt</b>로 번역해 드려요.
-          </div>
+      <!-- 서비스 현황 통계 (심사: AI 서비스 완결성) -->
+      <div class="stat-row" style="margin-top:14px;">
+        <div class="stat-item">
+          <div class="si-num">47<span class="si-unit">건</span></div>
+          <div class="si-label">받은 통신문</div>
+        </div>
+        <div class="stat-item">
+          <div class="si-num">9<span class="si-unit">개</span></div>
+          <div class="si-label">지원 언어</div>
+        </div>
+        <div class="stat-item">
+          <div class="si-num">340<span class="si-unit">개</span></div>
+          <div class="si-label">학교 용어사전</div>
         </div>
       </div>
+    </div>
 
-      <div class="tabbar">
-        <div class="tab"><div class="ic">🏠</div><span>홈</span></div>
-        <div class="tab active"><div class="ic">📷</div><span>번역</span></div>
-        <div class="tab"><div class="ic">📅</div><span>일정</span></div>
-        <div class="tab"><div class="ic">💬</div><span>회신</span></div>
-        <div class="tab"><div class="ic">👤</div><span>나</span></div>
+    <div class="tabbar">
+      <div class="tab active">
+        <div class="ic"><svg width="18" height="18"><use href="#ic-home"/></svg></div>
+        <span>홈</span>
       </div>
-      <div class="home-indicator"></div>
-    </div></div>
-    <div class="phone-label">5 · 통신문 추가</div>
-  </div>
-
+      <div class="tab">
+        <div class="ic"><svg width="18" height="18"><use href="#ic-camera"/></svg></div>
+        <span>번역</span>
+      </div>
+      <div class="tab">
+        <div class="ic"><svg width="18" height="18"><use href="#ic-calendar"/></svg></div>
+        <span>일정</span>
+      </div>
+      <div class="tab">
+        <div class="ic"><svg width="18" height="18"><use href="#ic-chat"/></svg></div>
+        <span>회신</span>
+      </div>
+      <div class="tab">
+        <div class="ic"><svg width="18" height="18"><use href="#ic-person"/></svg></div>
+        <span>나</span>
+      </div>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+  <div class="phone-label">1 · 홈 · 받은 통신문</div>
 </div>
 
+<div class="flow-arrow">
+  <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
+    <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span>탭하여 열기</span>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 2 · 통신문 상세 · AI 번역
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone"><div class="screen">
+    <div class="statusbar">
+      <span>9:42</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11">
+          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
+        </svg>
+        <svg width="24" height="12" viewBox="0 0 24 12">
+          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
+          <rect x="2" y="2" width="14" height="8" rx="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+    </div>
+    <div class="lang-pill">
+      <span class="flag">VN</span>
+      <span>Tiếng Việt</span>
+      <span class="chev">▾</span>
+    </div>
+
+    <div class="body-area">
+      <div class="back-nav">
+        <div class="back-btn">
+          <svg width="14" height="14"><use href="#ic-back"/></svg>
+        </div>
+        <span class="caption">통신문 #142 · 서울초 3-2반</span>
+      </div>
+
+      <div class="title-lg">Thông báo dã ngoại</div>
+      <div class="notice-badges">
+        <span class="ai-badge">AI 번역됨</span>
+        <span class="data-badge">학교용어사전 340개</span>
+        <span class="chip danger">D-2</span>
+      </div>
+
+      <!-- AI 파이프라인 시각화 (심사: AI 기술 15점) -->
+      <div class="pipeline-box">
+        <div class="pipeline-box-label">AI 처리 완료</div>
+        <div class="pipeline">
+
+          <div class="pipeline-step active">
+            <div class="ps-icon">
+              <svg width="13" height="13"><use href="#ic-ocr"/></svg>
+            </div>
+            <div class="ps-label">OCR<br>인식</div>
+          </div>
+          <div class="pipeline-arrow"></div>
+
+          <div class="pipeline-step active">
+            <div class="ps-icon">
+              <svg width="13" height="13"><use href="#ic-extract"/></svg>
+            </div>
+            <div class="ps-label">문장<br>추출</div>
+          </div>
+          <div class="pipeline-arrow"></div>
+
+          <div class="pipeline-step active">
+            <div class="ps-icon">
+              <svg width="13" height="13"><use href="#ic-classify"/></svg>
+            </div>
+            <div class="ps-label">카테고리<br>분류</div>
+          </div>
+          <div class="pipeline-arrow"></div>
+
+          <div class="pipeline-step active">
+            <div class="ps-icon">
+              <svg width="13" height="13"><use href="#ic-globe"/></svg>
+            </div>
+            <div class="ps-label">9개국어<br>번역</div>
+          </div>
+          <div class="pipeline-arrow"></div>
+
+          <div class="pipeline-step active">
+            <div class="ps-icon">
+              <svg width="13" height="13"><use href="#ic-sound"/></svg>
+            </div>
+            <div class="ps-label">TTS<br>음성</div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- 언어 전환 탭 -->
+      <div class="lang-toggle">
+        <div class="lang-toggle-btn">한국어</div>
+        <div class="lang-toggle-btn">나란히</div>
+        <div class="lang-toggle-btn active">Tiếng Việt</div>
+      </div>
+
+      <!-- 번역 본문 -->
+      <div class="card" style="margin-top:10px; padding:14px;">
+        <div class="title-sm">Kính gửi quý phụ huynh,</div>
+        <p class="body" style="margin-top:8px; line-height:1.6;">
+          Lớp 3-2 sẽ tổ chức chuyến
+          <span class="hl-supply">dã ngoại học tập</span>
+          đến Bảo tàng Khoa học Seoul vào ngày
+          <span class="hl-schedule">16/5 (Thứ Năm)</span>.
+        </p>
+        <p class="body" style="margin-top:6px; line-height:1.6;">
+          Vui lòng chuẩn bị cơm hộp, nước uống và mũ.
+          Phản hồi đồng ý trước <span class="hl-deadline">14/5</span>.
+        </p>
+      </div>
+
+      <!-- 카테고리 요약 -->
+      <div class="cat-chips-row">
+        <span class="cat-chip supply">준비물 3개</span>
+        <span class="cat-chip schedule">5/16 09:00</span>
+        <span class="cat-chip submit">5/14 회신</span>
+      </div>
+
+      <!-- TTS 플레이어 -->
+      <div class="tts-bar" style="margin-top:10px;">
+        <button class="play-btn">
+          <svg width="12" height="12"><use href="#ic-play"/></svg>
+        </button>
+        <div class="track">
+          <div class="track-bar"><div class="track-fill"></div></div>
+          <div class="track-time"><span>0:14</span><span>0:40</span></div>
+        </div>
+        <span class="speed-chip">1.0×</span>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <div class="action-row">
+        <button class="btn outline" style="flex:1; font-size:12px; padding:10px 8px; gap:5px;">
+          <svg width="14" height="14"><use href="#ic-calendar"/></svg>
+          일정 추가
+        </button>
+        <button class="btn primary" style="flex:1.3; font-size:13px; padding:10px;">
+          회신하기 →
+        </button>
+      </div>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+  <div class="phone-label">2 · 통신문 상세 · AI 번역</div>
+</div>
+
+<div class="flow-arrow">
+  <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
+    <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span>회신 버튼</span>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 3 · 회신 작성
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone"><div class="screen">
+    <div class="statusbar">
+      <span>9:43</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11">
+          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
+        </svg>
+        <svg width="24" height="12" viewBox="0 0 24 12">
+          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
+          <rect x="2" y="2" width="13" height="8" rx="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+    </div>
+    <div class="lang-pill">
+      <span class="flag">VN</span>
+      <span>Tiếng Việt</span>
+      <span class="chev">▾</span>
+    </div>
+
+    <div class="body-area">
+      <div class="back-nav">
+        <div class="back-btn">
+          <svg width="14" height="14"><use href="#ic-back"/></svg>
+        </div>
+        <span class="caption">답장 작성</span>
+      </div>
+
+      <div class="title-lg">Trả lời cô Kim</div>
+      <div class="caption" style="margin-top:3px;">김선생님께 · 현장체험학습 동의서</div>
+
+      <div class="section-label">빠른 답변 선택</div>
+
+      <div class="reply-option selected">
+        <div class="ro-icon">
+          <svg width="14" height="14" style="color:white;"><use href="#ic-check-bold"/></svg>
+        </div>
+        <div class="ro-body">
+          <div class="ro-title">Đồng ý tham gia</div>
+          <div class="ro-sub">참여에 동의합니다</div>
+        </div>
+        <div class="ro-check"></div>
+      </div>
+
+      <div class="reply-option">
+        <div class="ro-icon">
+          <svg width="14" height="14"><use href="#ic-close"/></svg>
+        </div>
+        <div class="ro-body">
+          <div class="ro-title">Không tham gia</div>
+          <div class="ro-sub">참여하지 않습니다</div>
+        </div>
+        <div class="ro-check"></div>
+      </div>
+
+      <div class="reply-option">
+        <div class="ro-icon">
+          <svg width="14" height="14"><use href="#ic-question"/></svg>
+        </div>
+        <div class="ro-body">
+          <div class="ro-title">Tôi có câu hỏi</div>
+          <div class="ro-sub">질문이 있어요</div>
+        </div>
+        <div class="ro-check"></div>
+      </div>
+
+      <!-- AI 번역 미리보기 (심사: AI 서비스 완결성) -->
+      <div class="section-label">선생님이 받게 될 한국어</div>
+      <div class="ai-preview">
+        <div class="ai-preview-hd">
+          <span class="ai-badge">AI 번역 미리보기</span>
+        </div>
+        <p class="body ai-preview-body">
+          안녕하세요, <b>민준</b>이의 학부모입니다.
+          <b>5월 16일 현장체험학습</b>에 동의합니다. 감사합니다.
+        </p>
+      </div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn primary full" style="padding:14px; gap:7px;">
+        <svg width="15" height="15"><use href="#ic-send"/></svg>
+        김선생님께 전송하기
+      </button>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+  <div class="phone-label">3 · 회신 작성</div>
+</div>
+
+<div class="flow-arrow">
+  <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
+    <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span>일정 탭</span>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 4 · 일정 + 준비물 체크리스트
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone"><div class="screen">
+    <div class="statusbar">
+      <span>9:44</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11">
+          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
+        </svg>
+        <svg width="24" height="12" viewBox="0 0 24 12">
+          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
+          <rect x="2" y="2" width="12" height="8" rx="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+    </div>
+    <div class="lang-pill">
+      <span class="flag">VN</span>
+      <span>Tiếng Việt</span>
+      <span class="chev">▾</span>
+    </div>
+
+    <div class="body-area">
+      <div class="greet">tháng 5 · 5월</div>
+      <div class="title-xl">Lịch lớp học</div>
+
+      <!-- 날짜 스트립 -->
+      <div class="cal-strip">
+        <div class="day-cell"><div class="dw">월</div><div class="dd">13</div></div>
+        <div class="day-cell"><div class="dw">화</div><div class="dd">14</div></div>
+        <div class="day-cell"><div class="dw">수</div><div class="dd">15</div></div>
+        <div class="day-cell today"><div class="dw">목</div><div class="dd">16</div></div>
+        <div class="day-cell"><div class="dw">금</div><div class="dd">17</div></div>
+        <div class="day-cell"><div class="dw">토</div><div class="dd">18</div></div>
+        <div class="day-cell"><div class="dw">일</div><div class="dd">19</div></div>
+      </div>
+
+      <div class="section-label">5월 16일 · 목요일</div>
+
+      <!-- 이벤트 카드 (왼쪽 보더 = 일정 카테고리 색) -->
+      <div class="card notice schedule" style="padding:14px;">
+        <div class="evt-header">
+          <div>
+            <div class="evt-time">09:00 — 15:00</div>
+            <div class="title-md" style="margin-top:2px;">Dã ngoại học tập</div>
+            <div class="caption">현장체험학습 · Bảo tàng Khoa học Seoul</div>
+          </div>
+          <span class="chip warning">D-2</span>
+        </div>
+
+        <div class="chk-meta">
+          <span class="chk-label">준비물 체크리스트</span>
+          <span class="chk-count">2 / 4</span>
+        </div>
+        <div class="bar" style="margin-bottom:12px;"><div style="width:50%;"></div></div>
+
+        <div class="check-item done">
+          <div class="checkbox"></div>
+          <div>
+            <div class="check-text">Cơm hộp · 도시락</div>
+            <div class="check-sub">점심 준비물</div>
+          </div>
+        </div>
+        <div class="check-item done">
+          <div class="checkbox"></div>
+          <div>
+            <div class="check-text">Bình nước · 물병</div>
+            <div class="check-sub">개인 음료</div>
+          </div>
+        </div>
+        <div class="check-item">
+          <div class="checkbox"></div>
+          <div>
+            <div class="check-text">Nón · 모자</div>
+            <div class="check-sub">야외 필수</div>
+          </div>
+        </div>
+        <div class="check-item">
+          <div class="checkbox"></div>
+          <div>
+            <div class="check-text">Thẻ tên · 명찰</div>
+            <div class="check-sub">학교 발급</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-label">다음 주</div>
+
+      <div class="card notice row row-gap12" style="padding:12px;">
+        <div class="date-box md ai">
+          <span class="dbx-mon">5월</span>
+          <span class="dbx-num">22</span>
+        </div>
+        <div class="flex1">
+          <div class="title-sm">학부모 상담주간</div>
+          <div class="caption">Tuần tư vấn phụ huynh · 15:00</div>
+        </div>
+        <span class="cat-chip schedule">일정</span>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-home"/></svg></div><span>홈</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-camera"/></svg></div><span>번역</span></div>
+      <div class="tab active"><div class="ic"><svg width="18" height="18"><use href="#ic-calendar"/></svg></div><span>일정</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-chat"/></svg></div><span>회신</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-person"/></svg></div><span>나</span></div>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+  <div class="phone-label">4 · 일정 + 준비물 체크</div>
+</div>
+
+<div class="flow-arrow">
+  <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
+    <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span>번역 탭</span>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 5 · 통신문 추가 (입력 방식)
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone"><div class="screen">
+    <div class="statusbar">
+      <span>9:45</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11">
+          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
+        </svg>
+        <svg width="24" height="12" viewBox="0 0 24 12">
+          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
+          <rect x="2" y="2" width="10" height="8" rx="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+    </div>
+    <div class="lang-pill">
+      <span class="flag">VN</span>
+      <span>Tiếng Việt</span>
+      <span class="chev">▾</span>
+    </div>
+
+    <div class="body-area">
+      <div class="greet">새 통신문</div>
+      <div class="title-xl">어떻게 받으셨나요?</div>
+
+      <div class="capture-grid">
+        <div class="capture-btn featured">
+          <div class="cb-icon">
+            <svg width="17" height="17" style="color:white;"><use href="#ic-camera"/></svg>
+          </div>
+          <span class="cb-label">사진 찍기</span>
+          <span class="cb-desc">자동 OCR 인식</span>
+        </div>
+
+        <div class="capture-btn">
+          <div class="cb-icon">
+            <svg width="17" height="17"><use href="#ic-image"/></svg>
+          </div>
+          <span class="cb-label">갤러리</span>
+          <span class="cb-desc">여러 장 선택</span>
+        </div>
+
+        <div class="capture-btn">
+          <div class="cb-icon">
+            <svg width="17" height="17"><use href="#ic-file"/></svg>
+          </div>
+          <span class="cb-label">PDF 파일</span>
+          <span class="cb-desc">학교 알림장</span>
+        </div>
+
+        <div class="capture-btn">
+          <div class="cb-icon">
+            <svg width="17" height="17"><use href="#ic-pen"/></svg>
+          </div>
+          <span class="cb-label">텍스트 입력</span>
+          <span class="cb-desc">붙여넣기</span>
+        </div>
+
+        <div class="capture-btn">
+          <div class="cb-icon">
+            <svg width="17" height="17"><use href="#ic-mic"/></svg>
+          </div>
+          <span class="cb-label">음성 입력</span>
+          <span class="cb-desc">읽어주는 내용</span>
+        </div>
+
+        <div class="capture-btn muted">
+          <div class="cb-icon">
+            <svg width="17" height="17"><use href="#ic-link"/></svg>
+          </div>
+          <span class="cb-label">e알리미 연동</span>
+          <span class="cb-desc">출시 예정</span>
+        </div>
+      </div>
+
+      <!-- 안내 배너 -->
+      <div class="hint-banner">
+        <svg width="16" height="16" class="hint-banner-icon"><use href="#ic-globe"/></svg>
+        <p class="hint-text">
+          한국어 통신문을 <b>자동으로 번역</b>해 드려요.
+          현재 <b>9개 언어</b> 지원 중.
+        </p>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-home"/></svg></div><span>홈</span></div>
+      <div class="tab active"><div class="ic"><svg width="18" height="18"><use href="#ic-camera"/></svg></div><span>번역</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-calendar"/></svg></div><span>일정</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-chat"/></svg></div><span>회신</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-person"/></svg></div><span>나</span></div>
+    </div>
+    <div class="home-indicator"></div>
+  </div></div>
+  <div class="phone-label">5 · 통신문 추가</div>
+</div>
+
+</div><!-- /canvas -->
 </body>
 </html>

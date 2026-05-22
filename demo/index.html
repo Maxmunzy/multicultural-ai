@@ -2,802 +2,1544 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>가정통신문 AI 도우미</title>
-<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>SchoolBridge — 가정통신문 AI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" as="style" crossorigin
+  href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+
 <style>
-  :root {
-    --bg: #0f0e0c;
-    --surface: #1a1814;
-    --surface2: #242118;
-    --border: #2e2b24;
-    --amber: #e8a445;
-    --amber-dim: #b07a28;
-    --amber-glow: rgba(232,164,69,0.12);
-    --teal: #4ab8a0;
-    --teal-dim: #2d8a76;
-    --red: #e85c4a;
-    --text: #f0ead8;
-    --text-dim: #9e9680;
-    --text-muted: #5a5648;
-    --radius: 16px;
-  }
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: 'Noto Sans KR', sans-serif;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  /* 배경 노이즈 */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .app {
-    width: 100%;
-    max-width: 420px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    position: relative;
-    z-index: 1;
-  }
-
-  /* 헤더 */
-  .header {
-    padding: 24px 20px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  .header-top {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .logo-icon {
-    width: 36px;
-    height: 36px;
-    background: var(--amber-glow);
-    border: 1px solid var(--amber-dim);
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-  }
-
-  .logo-text {
-    font-family: 'Nanum Myeongjo', serif;
-    font-size: 15px;
-    font-weight: 700;
-    color: var(--amber);
-    letter-spacing: -0.3px;
-    line-height: 1.2;
-  }
-
-  .logo-sub {
-    font-size: 10px;
-    color: var(--text-muted);
-    font-weight: 300;
-    letter-spacing: 0.5px;
-  }
-
-  /* 역할 전환 토글 */
-  .role-toggle {
-    display: flex;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 4px;
-    gap: 4px;
-  }
-
-  .role-btn {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    border-radius: 9px;
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    background: transparent;
-    color: var(--text-muted);
-  }
-
-  .role-btn.active-teacher {
-    background: var(--amber);
-    color: var(--bg);
-  }
-
-  .role-btn.active-parent {
-    background: var(--teal);
-    color: var(--bg);
-  }
-
-  /* 사용자 배지 */
-  .user-badge {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 12px;
-    color: var(--text-dim);
-  }
-
-  .user-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--amber);
-    box-shadow: 0 0 6px var(--amber);
-    animation: pulse 2s infinite;
-  }
-
-  .user-dot.parent { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-  }
-
-  /* 메인 콘텐츠 */
-  .main {
-    flex: 1;
-    padding: 0 20px 32px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-  }
-
-  /* 섹션 카드 */
-  .card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    animation: fadeUp 0.3s ease;
-  }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(8px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
-
-  .card-title {
-    font-family: 'Nanum Myeongjo', serif;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--amber);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .card-title.teal { color: var(--teal); }
-
-  /* 입력 영역 */
-  textarea {
-    width: 100%;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 14px;
-    color: var(--text);
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 13px;
-    line-height: 1.7;
-    resize: none;
-    height: 140px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
-
-  textarea:focus { border-color: var(--amber-dim); }
-  textarea.parent-focus:focus { border-color: var(--teal-dim); }
-
-  textarea::placeholder { color: var(--text-muted); }
-
-  /* 수신자 선택 */
-  .recipient-row {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-  }
-
-  .recipient-label {
-    font-size: 12px;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
-
-  .recipient-select {
-    flex: 1;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 8px 12px;
-    color: var(--text);
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 13px;
-    outline: none;
-    cursor: pointer;
-  }
-
-  /* 버튼 */
-  .btn {
-    width: 100%;
-    padding: 14px;
-    border: none;
-    border-radius: 12px;
-    font-family: 'Noto Sans KR', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    letter-spacing: 0.3px;
-  }
-
-  .btn-amber {
-    background: var(--amber);
-    color: var(--bg);
-  }
-
-  .btn-amber:hover { background: #f0b055; transform: translateY(-1px); }
-  .btn-amber:active { transform: translateY(0); }
-
-  .btn-teal {
-    background: var(--teal);
-    color: var(--bg);
-  }
-
-  .btn-teal:hover { background: #5acdb5; transform: translateY(-1px); }
-
-  .btn-ghost {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    color: var(--text-dim);
-  }
-
-  /* 알림 뱃지 */
-  .inbox-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .badge {
-    background: var(--red);
-    color: white;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: 99px;
-  }
-
-  /* 가정통신문 아이템 */
-  .notice-item {
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 14px;
-    cursor: pointer;
-    transition: all 0.2s;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .notice-item:hover {
-    border-color: var(--teal-dim);
-    background: rgba(74,184,160,0.05);
-  }
-
-  .notice-item.selected {
-    border-color: var(--teal);
-    background: rgba(74,184,160,0.08);
-  }
-
-  .notice-meta {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  .notice-from {
-    font-size: 11px;
-    color: var(--teal);
-    font-weight: 500;
-  }
-
-  .notice-time {
-    font-size: 11px;
-    color: var(--text-muted);
-  }
-
-  .notice-preview {
-    font-size: 13px;
-    color: var(--text-dim);
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  .notice-unread {
-    width: 6px;
-    height: 6px;
-    background: var(--teal);
-    border-radius: 50%;
-    box-shadow: 0 0 4px var(--teal);
-  }
-
-  /* 체크리스트 */
-  .todo-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .todo-item {
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
-    padding: 12px;
-    background: var(--surface2);
-    border-radius: 10px;
-    border: 1px solid var(--border);
-    animation: fadeUp 0.3s ease both;
-  }
-
-  .todo-item:nth-child(1) { animation-delay: 0.05s; }
-  .todo-item:nth-child(2) { animation-delay: 0.1s; }
-  .todo-item:nth-child(3) { animation-delay: 0.15s; }
-
-  .todo-category {
-    font-size: 10px;
-    padding: 2px 7px;
-    border-radius: 99px;
-    font-weight: 700;
-    white-space: nowrap;
-    flex-shrink: 0;
-    margin-top: 1px;
-  }
-
-  .cat-schedule { background: rgba(232,164,69,0.15); color: var(--amber); }
-  .cat-supplies { background: rgba(74,184,160,0.15); color: var(--teal); }
-  .cat-submission { background: rgba(232,92,74,0.15); color: var(--red); }
-  .cat-cost { background: rgba(160,130,200,0.15); color: #b08de0; }
-  .cat-health { background: rgba(100,180,100,0.15); color: #7bc97b; }
-
-  .todo-texts { flex: 1; display: flex; flex-direction: column; gap: 3px; }
-
-  .todo-ko {
-    font-size: 13px;
-    color: var(--text);
-    line-height: 1.5;
-    font-weight: 500;
-  }
-
-  .todo-vi {
-    font-size: 11px;
-    color: var(--text-muted);
-    line-height: 1.4;
-    font-style: italic;
-  }
-
-  .importance-bar {
-    width: 3px;
-    border-radius: 99px;
-    background: var(--border);
-    flex-shrink: 0;
-    align-self: stretch;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .importance-fill {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: var(--amber);
-    transition: height 0.5s ease;
-  }
-
-  /* TTS 컨트롤 */
-  .tts-bar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-  }
-
-  .tts-play {
-    width: 42px;
-    height: 42px;
-    border-radius: 50%;
-    background: var(--teal);
-    border: none;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 16px;
-    flex-shrink: 0;
-    transition: all 0.2s;
-  }
-
-  .tts-play:hover { background: #5acdb5; transform: scale(1.05); }
-
-  .tts-info { flex: 1; }
-
-  .tts-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: 4px;
-  }
-
-  .tts-wave {
-    display: flex;
-    align-items: center;
-    gap: 2px;
-    height: 20px;
-  }
-
-  .wave-bar {
-    width: 3px;
-    border-radius: 99px;
-    background: var(--teal-dim);
-    animation: wave 1.2s ease-in-out infinite;
-  }
-
-  .wave-bar:nth-child(1) { animation-delay: 0s; }
-  .wave-bar:nth-child(2) { animation-delay: 0.1s; }
-  .wave-bar:nth-child(3) { animation-delay: 0.2s; }
-  .wave-bar:nth-child(4) { animation-delay: 0.3s; }
-  .wave-bar:nth-child(5) { animation-delay: 0.2s; }
-  .wave-bar:nth-child(6) { animation-delay: 0.1s; }
-  .wave-bar:nth-child(7) { animation-delay: 0s; }
-
-  @keyframes wave {
-    0%, 100% { height: 4px; }
-    50% { height: 18px; }
-  }
-
-  .tts-playing .wave-bar { background: var(--teal); }
-
-  .level-badge {
-    font-size: 10px;
-    padding: 4px 8px;
-    border-radius: 6px;
-    background: rgba(74,184,160,0.1);
-    border: 1px solid var(--teal-dim);
-    color: var(--teal);
-    font-weight: 500;
-  }
-
-  /* 전송 성공 메시지 */
-  .success-msg {
-    display: none;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 14px;
-    background: rgba(74,184,160,0.1);
-    border: 1px solid var(--teal-dim);
-    border-radius: 10px;
-    font-size: 13px;
-    color: var(--teal);
-    animation: fadeUp 0.3s ease;
-  }
-
-  .success-msg.show { display: flex; }
-
-  /* 로딩 */
-  .loading {
-    display: none;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: var(--text-muted);
-    padding: 8px 0;
-  }
-
-  .loading.show { display: flex; }
-
-  .spinner {
-    width: 16px;
-    height: 16px;
-    border: 2px solid var(--border);
-    border-top-color: var(--teal);
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-  }
-
-  @keyframes spin { to { transform: rotate(360deg); } }
-
-  /* 숨김 */
-  .hidden { display: none !important; }
+/* ══════════════════════════════════
+   0. Design Tokens
+══════════════════════════════════ */
+:root {
+  --brand:       #4F46E5;
+  --brand-deep:  #3730A3;
+  --brand-light: #EEF2FF;
+  --brand-mid:   #C7D2FE;
+  --ai:          #7C3AED;
+  --ai-light:    #F5F3FF;
+  --ai-mid:      #DDD6FE;
+
+  --cat-schedule:    #0EA5E9; --cat-schedule-bg: #E0F2FE;
+  --cat-supply:      #F59E0B; --cat-supply-bg:   #FEF3C7;
+  --cat-submit:      #10B981; --cat-submit-bg:   #D1FAE5;
+  --cat-cost:        #F43F5E; --cat-cost-bg:     #FFE4E6;
+  --cat-health:      #14B8A6; --cat-health-bg:   #CCFBF1;
+
+  --ink:    #1E1B4B;
+  --ink2:   #374151;
+  --ink3:   #6B7280;
+  --ink4:   #9CA3AF;
+  --line:   #E5E7EB;
+  --bg:     #F4F6FF;
+  --surface: #FFFFFF;
+  --surface2: #F8FAFF;
+  --surface3: #F1F5F9;
+
+  --radius-sm: 10px;
+  --radius:    16px;
+  --radius-lg: 22px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.07);
+  --shadow:    0 4px 14px rgba(79,70,229,.09), 0 1px 3px rgba(0,0,0,.05);
+}
+
+/* ══════════════════════════════════
+   1. Reset & Base
+══════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Pretendard Variable', 'Pretendard', -apple-system, system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ══════════════════════════════════
+   2. Layout Shell
+══════════════════════════════════ */
+.app {
+  width: 100%;
+  max-width: 480px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+/* ══════════════════════════════════
+   3. Header
+══════════════════════════════════ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255,255,255,.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--line);
+  padding: 12px 20px 10px;
+}
+
+.header-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.logo { display: flex; align-items: center; gap: 9px; }
+
+.logo-icon {
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--brand), var(--ai));
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.logo-wordmark { font-size: 16px; font-weight: 800; color: var(--ink); letter-spacing: -.02em; }
+.logo-sub      { font-size: 10px; color: var(--ink3); font-weight: 500; margin-top: 1px; }
+
+.user-pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 10px 5px 5px;
+  background: var(--surface3); border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: var(--ink2);
+}
+
+.user-avatar {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--brand-light); color: var(--brand-deep);
+  font-size: 9px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+}
+.user-avatar.vi { background: #FEF3C7; color: #92400E; }
+
+/* Role switch tabs */
+.role-tabs {
+  display: flex;
+  background: var(--surface3);
+  border-radius: 12px;
+  padding: 4px;
+  gap: 3px;
+}
+
+.role-tab {
+  flex: 1; padding: 9px 8px;
+  border: none; border-radius: 9px;
+  font-family: inherit; font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: all .18s;
+  background: transparent; color: var(--ink3);
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+
+.role-tab.active-teacher { background: var(--brand); color: white; }
+.role-tab.active-parent  { background: var(--ai);    color: white; }
+
+/* ══════════════════════════════════
+   4. Public Data Banner
+══════════════════════════════════ */
+.data-banner {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--brand-light);
+  border-bottom: 1px solid var(--brand-mid);
+  padding: 8px 20px;
+  font-size: 11px; color: var(--brand-deep); font-weight: 500;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+.data-banner::-webkit-scrollbar { display: none; }
+.db-label { font-weight: 700; color: var(--brand); flex-shrink: 0; }
+.db-divider { color: var(--brand-mid); flex-shrink: 0; }
+.db-source {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: white; border: 1px solid var(--brand-mid);
+  border-radius: 6px; padding: 2px 8px;
+  font-size: 10px; font-weight: 600; color: var(--brand-deep);
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════
+   5. Main Content
+══════════════════════════════════ */
+.main {
+  flex: 1;
+  padding: 16px 16px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ══════════════════════════════════
+   6. Cards
+══════════════════════════════════ */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: var(--shadow-sm);
+  animation: fadeUp .25s ease both;
+}
+
+.card.ai-card {
+  border-color: var(--ai-mid);
+  background: linear-gradient(to bottom right, var(--ai-light), white);
+}
+
+.card-label {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 11px; font-weight: 700;
+  color: var(--ink3); text-transform: uppercase; letter-spacing: .06em;
+}
+.card-label svg { flex-shrink: 0; }
+
+.card-title {
+  font-size: 16px; font-weight: 800;
+  color: var(--ink); letter-spacing: -.02em;
+}
+
+/* ══════════════════════════════════
+   7. Step Bar
+══════════════════════════════════ */
+.step-bar {
+  display: flex; align-items: flex-end; gap: 0;
+}
+.step-node { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.step-circle {
+  width: 20px; height: 20px; border-radius: 50%;
+  background: var(--surface3); border: 2px solid var(--line);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; color: var(--ink3); flex-shrink: 0;
+  transition: all .3s;
+}
+.step-circle.done    { background: var(--brand); border-color: var(--brand); color: white; }
+.step-circle.current { background: var(--ai);    border-color: var(--ai);    color: white; }
+.step-label {
+  font-size: 9px; font-weight: 600; color: var(--ink3);
+  white-space: nowrap; transition: color .3s;
+}
+.step-label.done    { color: var(--brand); }
+.step-label.current { color: var(--ai); font-weight: 700; }
+.step-connector { flex: 1; height: 2px; background: var(--line); margin-bottom: 12px; transition: background .3s; }
+.step-connector.done { background: var(--brand); }
+
+/* ══════════════════════════════════
+   8. Input & Textarea
+══════════════════════════════════ */
+.textarea-wrap { position: relative; }
+
+textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: inherit; font-size: 13px; line-height: 1.7;
+  color: var(--ink2); resize: none; height: 130px;
+  outline: none; transition: border-color .2s;
+}
+textarea:focus { border-color: var(--ai); }
+textarea::placeholder { color: var(--ink4); }
+
+.sample-link {
+  font-size: 11px; color: var(--brand); font-weight: 600;
+  background: none; border: none; cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+  padding: 0; font-family: inherit;
+}
+
+/* ══════════════════════════════════
+   9. Buttons
+══════════════════════════════════ */
+.btn {
+  width: 100%; padding: 13px;
+  border: none; border-radius: var(--radius-sm);
+  font-family: inherit; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: all .18s;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  letter-spacing: -.01em;
+}
+.btn:active { transform: scale(.98); opacity: .9; }
+
+.btn-ai      { background: var(--ai);    color: white; }
+.btn-brand   { background: var(--brand); color: white; }
+.btn-ghost   { background: var(--surface3); color: var(--ink2); border: 1px solid var(--line); }
+.btn-outline { background: white; color: var(--brand); border: 1.5px solid var(--brand-mid); }
+.btn-success { background: #059669; color: white; }
+
+.btn-row { display: flex; gap: 8px; }
+.btn-row .btn { width: auto; flex: 1; }
+
+/* ══════════════════════════════════
+   10. AI Pipeline Mini
+══════════════════════════════════ */
+.pipeline-mini {
+  display: flex; align-items: center;
+  background: var(--ai-light);
+  border: 1px solid var(--ai-mid);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  gap: 0;
+}
+.pm-step {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex: 1;
+  opacity: .35; transition: opacity .4s;
+}
+.pm-step.lit { opacity: 1; }
+.pm-icon {
+  width: 28px; height: 28px; border-radius: 8px;
+  background: var(--ai-mid); color: var(--ai);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .3s, color .3s;
+}
+.pm-step.lit .pm-icon { background: var(--ai); color: white; }
+.pm-lbl { font-size: 9px; font-weight: 700; color: var(--ai); text-align: center; line-height: 1.2; }
+.pm-arrow { width: 10px; height: 2px; background: var(--ai-mid); margin-bottom: 12px; flex-shrink: 0; }
+
+/* ══════════════════════════════════
+   11. Sentence Analysis
+══════════════════════════════════ */
+.sentence-block {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 9px 10px; border-radius: 8px;
+  margin-bottom: 5px; font-size: 13px; line-height: 1.55;
+  opacity: 0; transform: translateX(-6px);
+  transition: opacity .4s, transform .4s;
+}
+.sentence-block.visible { opacity: 1; transform: translateX(0); }
+.sentence-block.schedule { background: var(--cat-schedule-bg); }
+.sentence-block.supply   { background: var(--cat-supply-bg); }
+.sentence-block.submit   { background: var(--cat-submit-bg); }
+.sentence-block.cost     { background: var(--cat-cost-bg); }
+.sentence-block.health   { background: var(--cat-health-bg); }
+.sentence-block.other    { background: var(--surface3); }
+.sb-text { flex: 1; color: var(--ink2); }
+.sb-chip { flex-shrink: 0; margin-top: 2px; }
+
+/* Category chips */
+.cat-chip {
+  display: inline-flex; align-items: center;
+  padding: 3px 8px; border-radius: 6px;
+  font-size: 10px; font-weight: 700; white-space: nowrap;
+}
+.cat-chip.schedule { background: var(--cat-schedule-bg); color: var(--cat-schedule); }
+.cat-chip.supply   { background: var(--cat-supply-bg);   color: #92400E; }
+.cat-chip.submit   { background: var(--cat-submit-bg);   color: #065F46; }
+.cat-chip.cost     { background: var(--cat-cost-bg);     color: #9F1239; }
+.cat-chip.health   { background: var(--cat-health-bg);   color: #0F766E; }
+.cat-chip.other    { background: var(--surface3);        color: var(--ink3); }
+
+/* ══════════════════════════════════
+   12. Extracted Items
+══════════════════════════════════ */
+.extract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+.extract-item {
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 10px;
+  opacity: 0; transform: translateY(6px);
+  transition: opacity .35s, transform .35s;
+}
+.extract-item.visible { opacity: 1; transform: translateY(0); }
+.ei-cat   { margin-bottom: 5px; }
+.ei-value { font-size: 13px; font-weight: 700; color: var(--ink); }
+.ei-sub   { font-size: 10px; color: var(--ink3); margin-top: 2px; }
+
+/* ══════════════════════════════════
+   13. Language Tabs
+══════════════════════════════════ */
+.lang-row {
+  display: flex; gap: 5px; overflow-x: auto; padding-bottom: 2px;
+}
+.lang-row::-webkit-scrollbar { display: none; }
+
+.lang-pill {
+  display: flex; align-items: center; gap: 5px;
+  padding: 6px 12px 6px 5px;
+  background: var(--surface3); border-radius: 999px;
+  font-size: 11px; font-weight: 600; color: var(--ink3);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  border: 1.5px solid transparent;
+  transition: all .15s;
+}
+.lang-pill.active { background: var(--brand); color: white; border-color: var(--brand); }
+.lang-pill:hover:not(.active) { border-color: var(--brand-mid); }
+
+.lp-flag {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: rgba(0,0,0,.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 800; flex-shrink: 0;
+}
+.lang-pill.active .lp-flag { background: rgba(255,255,255,.2); color: white; }
+.lp-count { font-size: 10px; opacity: .75; }
+
+/* ══════════════════════════════════
+   14. Translation Preview
+══════════════════════════════════ */
+.trans-card {
+  background: var(--surface2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 14px;
+}
+.trans-title   { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 10px; }
+.trans-items   { display: flex; flex-direction: column; gap: 6px; }
+
+.trans-item {
+  display: flex; align-items: flex-start; gap: 8px;
+  padding: 8px 10px; border-radius: 8px;
+}
+.trans-item.schedule { background: var(--cat-schedule-bg); }
+.trans-item.supply   { background: var(--cat-supply-bg); }
+.trans-item.submit   { background: var(--cat-submit-bg); }
+.trans-item.cost     { background: var(--cat-cost-bg); }
+.ti-body  { flex: 1; }
+.ti-tr    { font-size: 13px; color: var(--ink2); line-height: 1.5; }
+.ti-ko    { font-size: 10px; color: var(--ink3); margin-top: 2px; font-style: italic; }
+
+/* Glossary row */
+.glossary-section { margin-top: 2px; }
+.glossary-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px;
+  background: var(--brand-light); border: 1px solid var(--brand-mid);
+  border-radius: 7px; margin-bottom: 4px;
+  font-size: 12px;
+}
+.gr-ko  { font-weight: 600; color: var(--ink); }
+.gr-arr { color: var(--brand); font-weight: 700; }
+.gr-tr  { color: var(--brand-deep); font-style: italic; }
+
+/* ══════════════════════════════════
+   15. Parent — Language Selector
+══════════════════════════════════ */
+.lang-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+.lang-option {
+  display: flex; flex-direction: column; align-items: center; gap: 4px;
+  padding: 10px 6px;
+  background: var(--surface3); border: 1.5px solid transparent;
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: all .15s; text-align: center;
+}
+.lang-option.active {
+  background: var(--brand-light); border-color: var(--brand-mid);
+}
+.lo-flag {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: var(--brand-mid); color: var(--brand-deep);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800;
+}
+.lang-option.active .lo-flag { background: var(--brand); color: white; }
+.lo-name  { font-size: 11px; font-weight: 600; color: var(--ink2); }
+.lo-count { font-size: 10px; color: var(--ink3); }
+
+/* ══════════════════════════════════
+   16. Parent — Inbox & Notice
+══════════════════════════════════ */
+.notice-item {
+  display: flex; gap: 10px; align-items: flex-start;
+  padding: 12px 14px;
+  background: var(--surface2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); cursor: pointer;
+  transition: all .18s;
+}
+.notice-item:hover { border-color: var(--brand-mid); background: var(--brand-light); }
+.notice-item.opened { opacity: .6; cursor: default; }
+
+.ni-unread { width: 6px; height: 6px; border-radius: 50%; background: var(--brand); flex-shrink: 0; margin-top: 4px; }
+.ni-body   { flex: 1; min-width: 0; }
+.ni-from   { font-size: 11px; font-weight: 700; color: var(--brand); }
+.ni-title  { font-size: 13px; font-weight: 600; color: var(--ink); margin-top: 2px; }
+.ni-preview { font-size: 12px; color: var(--ink3); margin-top: 3px; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ni-time   { font-size: 10px; color: var(--ink4); flex-shrink: 0; margin-top: 2px; }
+
+/* ══════════════════════════════════
+   17. Parent — Bilingual Checklist
+══════════════════════════════════ */
+.check-item {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 12px;
+  background: var(--surface); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); margin-bottom: 5px;
+  opacity: 0; transform: translateY(5px);
+  transition: opacity .35s, transform .35s;
+}
+.check-item.visible { opacity: 1; transform: translateY(0); }
+
+.check-box {
+  width: 18px; height: 18px; flex-shrink: 0; margin-top: 1px;
+  border: 2px solid var(--brand-mid); border-radius: 5px;
+  cursor: pointer; background: transparent;
+  transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.check-box.checked { background: var(--brand); border-color: var(--brand); }
+.check-box.checked::after {
+  content: '';
+  width: 5px; height: 8px;
+  border-right: 2px solid white; border-bottom: 2px solid white;
+  transform: rotate(45deg) translate(-1px, -1px);
+}
+.ci-body { flex: 1; }
+.ci-tr   { font-size: 13px; color: var(--ink2); line-height: 1.5; }
+.ci-ko   { font-size: 11px; color: var(--ink3); margin-top: 2px; font-style: italic; }
+
+/* ══════════════════════════════════
+   18. TTS Player
+══════════════════════════════════ */
+.tts-player {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 12px;
+}
+
+.tts-btn {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--brand); border: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: transform .15s;
+}
+.tts-btn:hover { transform: scale(1.07); }
+.tts-btn svg { fill: white; }
+
+.tts-track  { flex: 1; }
+.tts-label  { font-size: 10px; color: var(--ink3); font-weight: 600; margin-bottom: 6px; }
+
+.tts-wave {
+  display: flex; align-items: center; gap: 2px; height: 18px;
+}
+.wave-bar {
+  width: 3px; height: 3px; border-radius: 999px;
+  background: var(--brand-mid); transition: background .3s;
+}
+
+/* ── 인라인 스타일 대체 클래스 ── */
+.icon-sprite { display: none; }
+
+/* 버튼·카드 내부 SVG 색상 컨텍스트 */
+.logo-icon svg,
+.btn-ai svg, .btn-brand svg, .btn-success svg,
+.sc-icon svg { color: white; }
+.btn-outline svg { color: var(--brand); }
+
+.card-label     svg { color: var(--brand); }
+.card-label.ai  svg { color: var(--ai); }
+
+/* 섹션 소제목 */
+.section-heading {
+  font-size: 11px; font-weight: 700; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px;
+}
+
+/* 번역·체크리스트 내 카테고리 칩 위치 */
+.trans-item  .cat-chip,
+.check-item  .cat-chip { flex-shrink: 0; margin-top: 2px; align-self: flex-start; }
+
+/* JS로 주입되는 용어사전 소제목 */
+.glossary-heading {
+  font-size: 11px; font-weight: 700; color: var(--ink3);
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+}
+
+.sample-link-row  { display: flex; justify-content: flex-end; }
+.card-header-row  { display: flex; align-items: center; justify-content: space-between; }
+
+.inbox-badge {
+  background: var(--cat-cost); color: white;
+  font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+}
+
+.result-badges { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.result-sub    { font-size: 11px; color: var(--ink3); margin-top: 3px; }
+
+.card-label .data-badge { margin-left: 2px; }
+.btn-row .btn.narrow    { flex: .8; }
+.btn-mt                 { margin-top: 10px; }
+.btn-calendar { flex: .9 !important; font-size: 12px; padding: 11px 8px; }
+.btn-reply    { font-size: 13px; padding: 11px; }
+.tts-wave.playing .wave-bar { background: var(--brand); animation: wave 1s ease-in-out infinite; }
+.wave-bar:nth-child(1) { animation-delay: 0s; }
+.wave-bar:nth-child(2) { animation-delay: .1s; }
+.wave-bar:nth-child(3) { animation-delay: .2s; }
+.wave-bar:nth-child(4) { animation-delay: .3s; }
+.wave-bar:nth-child(5) { animation-delay: .2s; }
+.wave-bar:nth-child(6) { animation-delay: .1s; }
+.wave-bar:nth-child(7) { animation-delay: 0s; }
+@keyframes wave {
+  0%, 100% { height: 3px; }
+  50%       { height: 16px; }
+}
+
+.speed-badge {
+  font-size: 10px; font-weight: 700; color: var(--brand);
+  background: var(--brand-light); padding: 3px 8px; border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════
+   19. Status Badges
+══════════════════════════════════ */
+.ai-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px 3px 5px;
+  background: var(--ai-light); border: 1px solid var(--ai-mid);
+  border-radius: 6px; font-size: 10px; font-weight: 700; color: var(--ai);
+}
+.ai-badge::before {
+  content: ''; display: inline-block; width: 5px; height: 5px;
+  border-radius: 50%; background: var(--ai);
+  will-change: opacity; animation: blink 2s ease-in-out infinite;
+}
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.data-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 8px; background: var(--brand-light);
+  border: 1px solid var(--brand-mid); border-radius: 6px;
+  font-size: 10px; font-weight: 600; color: var(--brand-deep);
+}
+
+/* ══════════════════════════════════
+   20. Loading & Spinner
+══════════════════════════════════ */
+.loading-row {
+  display: none; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--ink3); padding: 4px 0;
+}
+.loading-row.show { display: flex; }
+
+.spinner {
+  width: 16px; height: 16px; flex-shrink: 0;
+  border: 2px solid var(--line); border-top-color: var(--ai);
+  border-radius: 50%; animation: spin .75s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ══════════════════════════════════
+   21. Success State
+══════════════════════════════════ */
+.success-card {
+  background: linear-gradient(135deg, var(--brand), var(--ai));
+  border-radius: var(--radius); padding: 20px;
+  text-align: center; color: white;
+}
+.sc-icon {
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,.2);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 12px;
+}
+.sc-title { font-size: 16px; font-weight: 800; }
+.sc-sub   { font-size: 12px; color: rgba(255,255,255,.75); margin-top: 4px; }
+.sc-stats {
+  display: flex; gap: 8px; margin-top: 14px;
+  justify-content: center;
+}
+.sc-stat {
+  background: rgba(255,255,255,.15); border-radius: 8px;
+  padding: 8px 12px; text-align: center;
+}
+.sc-stat-num   { font-size: 16px; font-weight: 800; }
+.sc-stat-label { font-size: 10px; color: rgba(255,255,255,.7); margin-top: 1px; }
+
+/* ══════════════════════════════════
+   22. Footer
+══════════════════════════════════ */
+.footer {
+  border-top: 1px solid var(--line);
+  padding: 14px 20px;
+  display: flex; flex-direction: column; gap: 5px;
+}
+.footer-models {
+  display: flex; gap: 5px; flex-wrap: wrap;
+}
+.model-tag {
+  font-size: 10px; padding: 2px 7px;
+  background: var(--surface3); border-radius: 5px;
+  color: var(--ink3); font-weight: 600;
+}
+.footer-copy { font-size: 10px; color: var(--ink4); }
+
+/* ══════════════════════════════════
+   23. Animations & Utilities
+══════════════════════════════════ */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.hidden { display: none !important; }
+
+hr.section-sep {
+  border: none; border-top: 1px solid var(--line);
+  margin: 2px 0;
+}
 </style>
 </head>
 <body>
 
+<!-- ────────────────────────────── SVG Icons ── -->
+<svg class="icon-sprite">
+  <symbol id="ic-spark" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6L12 2z"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-send" viewBox="0 0 24 24" fill="none">
+    <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-check" viewBox="0 0 24 24" fill="none">
+    <path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-globe" viewBox="0 0 24 24" fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/>
+    <path d="M12 3c-2.5 3.5-3 5.5-3 9s.5 5.5 3 9M12 3c2.5 3.5 3 5.5 3 9s-.5 5.5-3 9M3 12h18" stroke="currentColor" stroke-width="2"/>
+  </symbol>
+  <symbol id="ic-refresh" viewBox="0 0 24 24" fill="none">
+    <path d="M23 4v6h-6M1 20v-6h6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </symbol>
+  <symbol id="ic-ocr"      viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M7 12l3 3 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-extract"  viewBox="0 0 24 24" fill="none"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" stroke="currentColor" stroke-width="2"/><rect x="9" y="3" width="6" height="4" rx="1" stroke="currentColor" stroke-width="2"/><path d="M9 12h6M9 16h4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="ic-classify" viewBox="0 0 24 24" fill="none"><path d="M4 6h16M4 10h10M4 14h12M4 18h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="ic-translate" viewBox="0 0 24 24" fill="none"><path d="M5 8l6 6M4 14l6-6 2-3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M2 5h12M9 2v3M14 21l4-4 4 4M18 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-sound"    viewBox="0 0 24 24" fill="none"><path d="M11 5L6 9H2v6h4l5 4V5z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="ic-play"     viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z" fill="white"/></symbol>
+  <symbol id="ic-pause"    viewBox="0 0 24 24"><rect x="6"  y="4" width="4" height="16" rx="1" fill="white"/><rect x="14" y="4" width="4" height="16" rx="1" fill="white"/></symbol>
+  <symbol id="ic-calendar" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="ic-reply"    viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="ic-teacher"  viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="14" rx="2" stroke="currentColor" stroke-width="2"/><path d="M8 21h8M12 17v4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+  <symbol id="ic-parent"   viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="2"/><path d="M5 20a7 7 0 0114 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>
+
+<!-- ══════════════════════════════════
+     APP
+══════════════════════════════════ -->
 <div class="app">
-  <div class="header">
+
+  <!-- ── HEADER ── -->
+  <header class="header">
     <div class="header-top">
       <div class="logo">
-        <div class="logo-icon">📋</div>
+        <div class="logo-icon">
+          <svg width="18" height="18"><use href="#ic-globe"/></svg>
+        </div>
         <div>
-          <div class="logo-text">가정통신문 AI</div>
-          <div class="logo-sub">THÔNG BÁO TRƯỜNG HỌC</div>
+          <div class="logo-wordmark">SchoolBridge</div>
+          <div class="logo-sub">가정통신문 AI · 9개 언어</div>
         </div>
       </div>
-      <div class="user-badge">
-        <div class="user-dot" id="userDot"></div>
-        <span id="userLabel">김선생님</span>
+      <div class="user-pill" id="userPill">
+        <div class="user-avatar" id="userAvatar">김</div>
+        <span id="userName">김선생님</span>
       </div>
     </div>
 
-    <div class="role-toggle">
-      <button class="role-btn active-teacher" id="btnTeacher" onclick="switchRole('teacher')">
-        👩‍🏫 선생님
+    <div class="role-tabs">
+      <button class="role-tab active-teacher" id="tabTeacher" onclick="switchRole('teacher')">
+        <svg width="15" height="15"><use href="#ic-teacher"/></svg>
+        선생님
       </button>
-      <button class="role-btn" id="btnParent" onclick="switchRole('parent')">
-        👩 학부모
+      <button class="role-tab" id="tabParent" onclick="switchRole('parent')">
+        <svg width="15" height="15"><use href="#ic-parent"/></svg>
+        학부모
       </button>
     </div>
+  </header>
+
+  <!-- ── 공공데이터 배너 ── -->
+  <div class="data-banner">
+    <span class="db-label">공공데이터</span>
+    <span class="db-divider">·</span>
+    <span class="db-source">복지로</span>
+    <span class="db-source">사회보장정보</span>
+    <span class="db-source">다문화가족 지원</span>
+    <span class="db-source">학교 급식 데이터</span>
   </div>
 
-  <div class="main">
+  <!-- ══════════════════════════════
+       TEACHER PANEL
+  ══════════════════════════════ -->
+  <main class="main" id="teacherPanel">
 
-    <!-- 선생님 화면 -->
-    <div id="teacherView">
+    <!-- STEP 1: 작성 -->
+    <div id="t-step1">
       <div class="card">
-        <div class="card-title">📨 가정통신문 발송</div>
-
-        <div class="recipient-row">
-          <span class="recipient-label">수신자</span>
-          <select class="recipient-select" id="recipientSelect">
-            <option>전체 학부모</option>
-            <option>응우옌 티 흐엉 (1학년 3반)</option>
-            <option>쩐 티 마이 (2학년 1반)</option>
-            <option>레 티 란 (3학년 2반)</option>
-          </select>
+        <div class="card-label">
+          <svg width="14" height="14"><use href="#ic-teacher"/></svg>
+          통신문 작성
         </div>
 
-        <textarea id="noticeInput" placeholder="가정통신문 내용을 입력하세요...
-
-예) 4월 25일(금) 봄 소풍이 있습니다.
-준비물: 도시락, 개인 물병, 돗자리
-체험학습비 15,000원을 4월 22일까지 납부해 주세요.
-참가 동의서를 내일까지 제출해 주세요."></textarea>
-
-        <div class="success-msg" id="successMsg">
-          ✅ 발송 완료! 학부모 앱에 전달되었습니다.
+        <!-- 4단계 스텝바 -->
+        <div class="step-bar" id="teacherStepBar">
+          <div class="step-node">
+            <div class="step-circle current" id="ts1">1</div>
+            <div class="step-label current" id="tl1">작성</div>
+          </div>
+          <div class="step-connector" id="tc1"></div>
+          <div class="step-node">
+            <div class="step-circle" id="ts2">2</div>
+            <div class="step-label" id="tl2">AI분석</div>
+          </div>
+          <div class="step-connector" id="tc2"></div>
+          <div class="step-node">
+            <div class="step-circle" id="ts3">3</div>
+            <div class="step-label" id="tl3">번역</div>
+          </div>
+          <div class="step-connector" id="tc3"></div>
+          <div class="step-node">
+            <div class="step-circle" id="ts4">4</div>
+            <div class="step-label" id="tl4">발송</div>
+          </div>
         </div>
 
-        <button class="btn btn-amber" onclick="sendNotice()">
-          📤 발송하기
+        <div class="textarea-wrap">
+          <textarea id="noticeInput"
+            placeholder="가정통신문 내용을 한국어로 입력하세요..."></textarea>
+        </div>
+
+        <div class="sample-link-row">
+          <button class="sample-link" onclick="fillSample()">샘플 텍스트 사용 →</button>
+        </div>
+
+        <div class="loading-row" id="analyzeLoading">
+          <div class="spinner"></div>
+          <span>AI가 문장을 분석하고 있어요...</span>
+        </div>
+
+        <button class="btn btn-ai" onclick="analyzeNotice()">
+          <svg width="15" height="15"><use href="#ic-spark"/></svg>
+          AI 분석하기
         </button>
       </div>
     </div>
 
-    <!-- 부모 화면 -->
-    <div id="parentView" class="hidden">
-
-      <!-- 수신함 -->
-      <div class="card" id="inboxCard">
-        <div class="inbox-header">
-          <div class="card-title teal">📬 수신함</div>
-          <span class="badge" id="inboxBadge">1</span>
+    <!-- STEP 2: AI 분석 결과 (hidden) -->
+    <div id="t-step2" class="hidden">
+      <div class="card ai-card">
+        <div class="card-label">
+          <span class="ai-badge">AI 분석 완료</span>
+          <span class="data-badge">공공데이터</span>
         </div>
 
-        <div class="notice-item selected" onclick="openNotice(this)">
-          <div class="notice-meta">
-            <span class="notice-from">👩‍🏫 김지현 선생님</span>
-            <div style="display:flex;align-items:center;gap:6px;">
-              <div class="notice-unread"></div>
-              <span class="notice-time">방금 전</span>
-            </div>
+        <!-- AI 파이프라인 미니 -->
+        <div class="pipeline-mini" id="pipelineMini">
+          <div class="pm-step" id="pm0">
+            <div class="pm-icon"><svg width="13" height="13"><use href="#ic-ocr"/></svg></div>
+            <div class="pm-lbl">OCR<br>인식</div>
           </div>
-          <div class="notice-preview">4월 25일(금) 봄 소풍이 있습니다. 준비물: 도시락, 개인 물병, 돗자리...</div>
-        </div>
-
-        <div class="loading show" id="analyzeLoading">
-          <div class="spinner"></div>
-          <span>AI가 분석 중입니다...</span>
-        </div>
-      </div>
-
-      <!-- 체크리스트 결과 -->
-      <div class="card hidden" id="resultCard">
-        <div class="card-title teal">✅ 오늘 해야 할 일</div>
-
-        <div class="todo-list" id="todoList"></div>
-
-        <!-- TTS 컨트롤 -->
-        <div class="tts-bar" id="ttsBar">
-          <button class="tts-play" id="ttsPlayBtn" onclick="toggleTTS()">▶</button>
-          <div class="tts-info">
-            <div class="tts-label">음성 안내 · Hướng dẫn bằng giọng nói</div>
-            <div class="tts-wave" id="ttsWave">
-              <div class="wave-bar" style="height:4px"></div>
-              <div class="wave-bar" style="height:4px"></div>
-              <div class="wave-bar" style="height:4px"></div>
-              <div class="wave-bar" style="height:4px"></div>
-              <div class="wave-bar" style="height:4px"></div>
-              <div class="wave-bar" style="height:4px"></div>
-              <div class="wave-bar" style="height:4px"></div>
-            </div>
+          <div class="pm-arrow"></div>
+          <div class="pm-step" id="pm1">
+            <div class="pm-icon"><svg width="13" height="13"><use href="#ic-extract"/></svg></div>
+            <div class="pm-lbl">문장<br>추출</div>
           </div>
-          <span class="level-badge">초급 🇻🇳</span>
+          <div class="pm-arrow"></div>
+          <div class="pm-step" id="pm2">
+            <div class="pm-icon"><svg width="13" height="13"><use href="#ic-classify"/></svg></div>
+            <div class="pm-lbl">카테고리<br>분류</div>
+          </div>
+          <div class="pm-arrow"></div>
+          <div class="pm-step" id="pm3">
+            <div class="pm-icon"><svg width="13" height="13"><use href="#ic-translate"/></svg></div>
+            <div class="pm-lbl">9개국어<br>번역</div>
+          </div>
+          <div class="pm-arrow"></div>
+          <div class="pm-step" id="pm4">
+            <div class="pm-icon"><svg width="13" height="13"><use href="#ic-sound"/></svg></div>
+            <div class="pm-lbl">TTS<br>음성</div>
+          </div>
         </div>
-      </div>
 
+        <div>
+          <div class="section-heading">원문 문장 분석</div>
+          <div id="sentenceList"></div>
+        </div>
+
+        <div>
+          <div class="section-heading">추출된 핵심 정보</div>
+          <div class="extract-grid" id="extractGrid"></div>
+        </div>
+
+        <button class="btn btn-brand" onclick="showTranslation()">
+          <svg width="14" height="14"><use href="#ic-globe"/></svg>
+          번역 미리보기 →
+        </button>
+      </div>
     </div>
 
-  </div>
-</div>
+    <!-- STEP 3: 번역 미리보기 (hidden) -->
+    <div id="t-step3" class="hidden">
+      <div class="card">
+        <div class="card-label">
+          <svg width="14" height="14"><use href="#ic-globe"/></svg>
+          번역 미리보기
+        </div>
+
+        <div class="lang-row" id="langTabs"></div>
+
+        <div class="trans-card" id="transPreview"></div>
+
+        <div id="glossarySection" class="glossary-section"></div>
+
+        <div class="loading-row" id="sendLoading">
+          <div class="spinner"></div>
+          <span>발송 중...</span>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-ghost narrow" onclick="goBack()">
+            <svg width="13" height="13"><use href="#ic-refresh"/></svg>
+            수정
+          </button>
+          <button class="btn btn-brand" onclick="sendNotice()">
+            <svg width="14" height="14"><use href="#ic-send"/></svg>
+            <span id="sendBtnText">24명에게 발송</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 4: 발송 완료 (hidden) -->
+    <div id="t-step4" class="hidden">
+      <div class="success-card">
+        <div class="sc-icon">
+          <svg width="22" height="22"><use href="#ic-check"/></svg>
+        </div>
+        <div class="sc-title">발송 완료</div>
+        <div class="sc-sub">24명의 학부모 앱에 전달되었습니다</div>
+        <div class="sc-stats">
+          <div class="sc-stat">
+            <div class="sc-stat-num">24명</div>
+            <div class="sc-stat-label">발송 완료</div>
+          </div>
+          <div class="sc-stat">
+            <div class="sc-stat-num">5개</div>
+            <div class="sc-stat-label">언어</div>
+          </div>
+          <div class="sc-stat">
+            <div class="sc-stat-num">340개</div>
+            <div class="sc-stat-label">용어사전</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn btn-ghost btn-mt" onclick="resetTeacher()">
+        새 통신문 작성
+      </button>
+    </div>
+
+  </main>
+
+  <!-- ══════════════════════════════
+       PARENT PANEL (hidden)
+  ══════════════════════════════ -->
+  <main class="main hidden" id="parentPanel">
+
+    <!-- 언어 선택 -->
+    <div class="card" id="langSelectCard">
+      <div class="card-label ai">
+        <svg width="14" height="14"><use href="#ic-globe"/></svg>
+        내 언어 선택
+      </div>
+      <div class="lang-grid" id="langGrid"></div>
+    </div>
+
+    <!-- 수신함 -->
+    <div class="card" id="inboxCard">
+      <div class="card-header-row">
+        <div class="card-label ai">
+          <svg width="14" height="14"><use href="#ic-reply"/></svg>
+          받은 통신문
+        </div>
+        <span class="inbox-badge" id="inboxBadge">1</span>
+      </div>
+
+      <div class="notice-item" id="noticeItem" onclick="openNotice()">
+        <div class="ni-unread" id="noticeUnread"></div>
+        <div class="ni-body">
+          <div class="ni-from">김선생님 · 서울초 3학년 2반</div>
+          <div class="ni-title" id="noticeTitleParent">봄 소풍 안내</div>
+          <div class="ni-preview" id="noticePreviewParent">4월 25일(금) 봄 소풍이 있습니다. 준비물: 도시락, 개인 물병, 돗자리...</div>
+        </div>
+        <div class="ni-time">방금 전</div>
+      </div>
+
+      <div class="loading-row" id="parentLoading">
+        <div class="spinner"></div>
+        <span id="parentLoadingText">AI가 번역하고 있어요...</span>
+      </div>
+    </div>
+
+    <!-- AI 분석 결과 (hidden) -->
+    <div class="card hidden" id="parentResultCard">
+      <div class="result-badges">
+        <span class="ai-badge">AI 번역됨</span>
+        <span class="data-badge">학교용어사전 340개</span>
+      </div>
+
+      <div>
+        <div class="card-title" id="parentResultTitle"></div>
+        <div class="result-sub" id="parentResultSub"></div>
+      </div>
+
+      <div id="parentChecklist"></div>
+
+      <!-- TTS Player -->
+      <div class="tts-player">
+        <button class="tts-btn" id="ttsBtn" onclick="toggleTTS()">
+          <svg width="12" height="12" id="ttsIcon"><use href="#ic-play"/></svg>
+        </button>
+        <div class="tts-track">
+          <div class="tts-label" id="ttsLabel">음성 안내</div>
+          <div class="tts-wave" id="ttsWave">
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+            <div class="wave-bar"></div>
+          </div>
+        </div>
+        <span class="speed-badge" id="speedBadge">1.0×</span>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-outline btn-calendar">
+          <svg width="13" height="13"><use href="#ic-calendar"/></svg>
+          일정 추가
+        </button>
+        <button class="btn btn-ai btn-reply">
+          <svg width="13" height="13"><use href="#ic-reply"/></svg>
+          회신하기
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── FOOTER ── -->
+  <footer class="footer">
+    <div class="footer-models">
+      <span class="model-tag">KoELECTRA</span>
+      <span class="model-tag">KcELECTRA</span>
+      <span class="model-tag">NLLB-200</span>
+      <span class="model-tag">Edge-TTS</span>
+      <span class="model-tag">Claude Haiku</span>
+    </div>
+    <div class="footer-copy">사회보장정보 공공데이터 활용 · SchoolBridge 2026</div>
+  </footer>
+
+</div><!-- /app -->
 
 <script>
-  let currentRole = 'teacher';
-  let ttsPlaying = false;
-  let analysisTimer = null;
+/* ══════════════════════════════════
+   Data
+══════════════════════════════════ */
+const SAMPLE_TEXT = `안녕하십니까. 서울초 3학년 2반 학부모님께 안내드립니다.\n\n4월 25일(금) 봄 소풍이 있습니다. 오전 9시까지 등교해 주세요.\n\n준비물: 도시락, 개인 물병, 돗자리를 챙겨오세요.\n\n체험학습비 15,000원을 4월 22일(화)까지 납부해 주세요.\n\n참가 동의서를 4월 23일(수)까지 담임선생님께 제출해 주세요.`;
 
-  const mockTodos = [
-    {
-      category: '일정',
-      catClass: 'cat-schedule',
-      ko: '4월 25일(금) 봄 소풍',
-      vi: 'Ngày 25 tháng 4 (thứ Sáu) đi dã ngoại mùa xuân',
-      importance: 0.9
-    },
-    {
-      category: '준비물',
-      catClass: 'cat-supplies',
-      ko: '도시락, 개인 물병, 돗자리 준비',
-      vi: 'Chuẩn bị: hộp cơm, bình nước cá nhân, chiếu',
-      importance: 0.95
-    },
-    {
-      category: '비용',
-      catClass: 'cat-cost',
-      ko: '체험학습비 15,000원 → 4월 22일까지 납부',
-      vi: 'Nộp phí 15,000 won trước ngày 22 tháng 4',
-      importance: 0.85
-    },
-    {
-      category: '제출',
-      catClass: 'cat-submission',
-      ko: '참가 동의서 내일까지 제출',
-      vi: 'Nộp giấy đồng ý tham gia trước ngày mai',
-      importance: 1.0
-    }
-  ];
+const SENTENCES = [
+  { text: '안녕하십니까. 서울초 3학년 2반 학부모님께 안내드립니다.', cat: 'other', label: '일반' },
+  { text: '4월 25일(금) 봄 소풍이 있습니다. 오전 9시까지 등교해 주세요.', cat: 'schedule', label: '일정' },
+  { text: '준비물: 도시락, 개인 물병, 돗자리를 챙겨오세요.', cat: 'supply', label: '준비물' },
+  { text: '체험학습비 15,000원을 4월 22일(화)까지 납부해 주세요.', cat: 'cost', label: '비용' },
+  { text: '참가 동의서를 4월 23일(수)까지 담임선생님께 제출해 주세요.', cat: 'submit', label: '제출' },
+];
 
-  function switchRole(role) {
-    currentRole = role;
-    const teacherView = document.getElementById('teacherView');
-    const parentView = document.getElementById('parentView');
-    const btnTeacher = document.getElementById('btnTeacher');
-    const btnParent = document.getElementById('btnParent');
-    const userDot = document.getElementById('userDot');
-    const userLabel = document.getElementById('userLabel');
+const EXTRACTS = [
+  { cat: 'schedule', label: '일정',   value: '4/25 (금) 09:00', sub: '봄 소풍 · 학교 출발' },
+  { cat: 'supply',   label: '준비물', value: '도시락 · 물병 · 돗자리', sub: '3개 항목' },
+  { cat: 'cost',     label: '비용',   value: '₩15,000 · 4/22 마감', sub: '체험학습비' },
+  { cat: 'submit',   label: '제출',   value: '4/23 마감', sub: '참가 동의서' },
+];
 
-    if (role === 'teacher') {
-      teacherView.classList.remove('hidden');
-      parentView.classList.add('hidden');
-      btnTeacher.className = 'role-btn active-teacher';
-      btnParent.className = 'role-btn';
-      userDot.className = 'user-dot';
-      userLabel.textContent = '김지현 선생님';
-    } else {
-      teacherView.classList.add('hidden');
-      parentView.classList.remove('hidden');
-      btnTeacher.className = 'role-btn';
-      btnParent.className = 'role-btn active-parent';
-      userDot.className = 'user-dot parent';
-      userLabel.textContent = '응우옌 티 흐엉';
+const LANGUAGES = [
+  { code: 'vi', short: 'VN', name: 'Tiếng Việt',    count: 5 },
+  { code: 'zh', short: 'CN', name: '中文',           count: 4 },
+  { code: 'en', short: 'EN', name: 'English',        count: 2 },
+  { code: 'ru', short: 'RU', name: 'Русский',        count: 1 },
+  { code: 'mn', short: 'MN', name: 'Монгол',         count: 1 },
+  { code: 'th', short: 'TH', name: 'ภาษาไทย',      count: 1 },
+  { code: 'ja', short: 'JA', name: '日本語',         count: 1 },
+  { code: 'ms', short: 'MS', name: 'Bahasa',         count: 1 },
+  { code: 'ko_easy', short: '쉬운', name: '쉬운한국어', count: 8 },
+];
 
-      // 자동 분석 시뮬레이션
-      if (!document.getElementById('resultCard').classList.contains('hidden')) return;
-      if (analysisTimer) return;
-      analysisTimer = setTimeout(() => {
-        showAnalysisResult();
-      }, 2000);
-    }
+const TRANSLATIONS = {
+  vi: {
+    title: 'Thông báo dã ngoại mùa xuân',
+    items: [
+      { cat: 'schedule', tr: 'Ngày 25/4 (Thứ Sáu) đi dã ngoại mùa xuân. Đến trường lúc 9:00.', ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: 'Chuẩn bị: cơm hộp, bình nước cá nhân, chiếu.',                   ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: 'Nộp phí 15.000 won trước ngày 22/4.',                             ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: 'Nộp giấy đồng ý tham gia trước ngày 23/4.',                      ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [
+      { ko: '봄 소풍', tr: 'dã ngoại mùa xuân' },
+      { ko: '담임선생님', tr: 'giáo viên chủ nhiệm' },
+    ],
+  },
+  zh: {
+    title: '春游活动通知',
+    items: [
+      { cat: 'schedule', tr: '4月25日（周五）春游，上午9时前到校。',    ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: '请准备：午餐盒、个人水瓶、野餐垫。',     ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: '请于4月22日前缴纳体验费15,000韩元。',   ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: '请于4月23日前提交参加同意书。',           ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [
+      { ko: '봄 소풍', tr: '春游 (chūn yóu)' },
+      { ko: '담임선생님', tr: '班主任 (bānzhǔrèn)' },
+    ],
+  },
+  en: {
+    title: 'Spring Field Trip Notice',
+    items: [
+      { cat: 'schedule', tr: 'Spring field trip on Friday, April 25. Arrive by 9:00 AM.',            ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: 'Bring: packed lunch, personal water bottle, and a picnic mat.',         ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: 'Pay the ₩15,000 field trip fee by April 22.',                           ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: 'Submit the participation consent form by April 23.',                     ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [
+      { ko: '봄 소풍', tr: 'spring field trip' },
+      { ko: '담임선생님', tr: 'homeroom teacher' },
+    ],
+  },
+  ru: {
+    title: 'Уведомление о весенней экскурсии',
+    items: [
+      { cat: 'schedule', tr: 'Весенняя экскурсия в пятницу, 25 апреля. К 9:00 в школе.', ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: 'Возьмите: ланч-бокс, бутылку воды, подстилку.',            ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: 'Оплата 15 000 вон до 22 апреля.',                           ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: 'Сдайте согласие до 23 апреля.',                             ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [
+      { ko: '봄 소풍', tr: 'весенняя экскурсия' },
+      { ko: '담임선생님', tr: 'классный руководитель' },
+    ],
+  },
+  mn: {
+    title: 'Хаврын аялал зугаалгын мэдэгдэл',
+    items: [
+      { cat: 'schedule', tr: '4-р сарын 25-ны баасан гарагт хаврын аялал. 9:00 цагт ирнэ үү.', ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: 'Авч ирэх: үдийн хоол, усны сав, дэвсгэр.',                       ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: '15,000 вон 4/22-ны өдрийн дотор төлнө үү.',                       ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: 'Оролцох зөвшөөрлийн хуудсыг 4/23-ны дотор өгнө үү.',              ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [{ ko: '봄 소풍', tr: 'хаврын аялал зугаалга' }],
+  },
+  th: {
+    title: 'แจ้งการทัศนศึกษาฤดูใบไม้ผลิ',
+    items: [
+      { cat: 'schedule', tr: 'ทัศนศึกษาฤดูใบไม้ผลิ วันศุกร์ที่ 25 เมษายน มาโรงเรียน 9:00 น.', ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: 'เตรียม: กล่องข้าว ขวดน้ำส่วนตัว เสื่อปิกนิก',                   ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: 'ชำระค่าทัศนศึกษา 15,000 วอน ภายใน 22/4',                        ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: 'ส่งใบยินยอมเข้าร่วมภายใน 23/4',                                 ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [{ ko: '봄 소풍', tr: 'ทัศนศึกษาฤดูใบไม้ผลิ' }],
+  },
+  ja: {
+    title: '春の遠足のお知らせ',
+    items: [
+      { cat: 'schedule', tr: '4月25日（金）春の遠足です。午前9時までに登校してください。', ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: '持ち物：お弁当、水筒、レジャーシート',                      ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: '体験学習費15,000ウォンを4/22までにお支払いください。',         ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: '参加同意書を4/23までに担任の先生に提出してください。',         ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [
+      { ko: '봄 소풍', tr: '春の遠足' },
+      { ko: '담임선생님', tr: '担任の先生' },
+    ],
+  },
+  ms: {
+    title: 'Notis Lawatan Sambil Belajar Musim Bunga',
+    items: [
+      { cat: 'schedule', tr: 'Lawatan sambil belajar pada Jumaat, 25 April. Tiba di sekolah jam 9:00.', ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: 'Bawa: kotak makan tengah hari, botol air peribadi, alas duduk.',          ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: 'Bayar ₩15,000 sebelum 22/4.',                                            ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: 'Hantar borang persetujuan sebelum 23/4.',                                 ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [{ ko: '봄 소풍', tr: 'lawatan sambil belajar' }],
+  },
+  ko_easy: {
+    title: '봄 소풍 안내',
+    items: [
+      { cat: 'schedule', tr: '4월 25일 금요일에 소풍을 갑니다. 아침 9시까지 학교에 오세요.', ko: '4월 25일 봄 소풍' },
+      { cat: 'supply',   tr: '도시락, 물병, 돗자리를 가져오세요.',                           ko: '도시락, 물병, 돗자리' },
+      { cat: 'cost',     tr: '4월 22일까지 15,000원을 내주세요.',                             ko: '체험학습비 15,000원' },
+      { cat: 'submit',   tr: '4월 23일까지 동의서를 선생님께 주세요.',                        ko: '참가 동의서 4/23 마감' },
+    ],
+    glossary: [],
+  },
+};
+
+const PARENT_LANG_NAMES = {
+  vi: '응우옌 티 흐엉', zh: '왕리 어머니', en: 'Sarah Kim',
+  ru: '이리나', mn: '다바도르지', th: '수파릿',
+  ja: '다나카', ms: '파티마', ko_easy: '박서연 어머니'
+};
+
+/* ══════════════════════════════════
+   State
+══════════════════════════════════ */
+let currentRole   = 'teacher';
+let teacherPhase  = 0;        // 0=input, 1=analyzed, 2=translated, 3=sent
+let selectedLang  = 'vi';
+let parentPhase   = 0;        // 0=inbox, 1=loading, 2=result
+let ttsPlaying    = false;
+let ttsTimer      = null;
+
+/* ══════════════════════════════════
+   Role Switch
+══════════════════════════════════ */
+function switchRole(role) {
+  currentRole = role;
+  document.getElementById('teacherPanel').classList.toggle('hidden', role !== 'teacher');
+  document.getElementById('parentPanel' ).classList.toggle('hidden', role !== 'parent');
+  document.getElementById('tabTeacher').className = 'role-tab' + (role === 'teacher' ? ' active-teacher' : '');
+  document.getElementById('tabParent' ).className = 'role-tab' + (role === 'parent'  ? ' active-parent'  : '');
+
+  if (role === 'parent') {
+    document.getElementById('userAvatar').textContent = '응';
+    document.getElementById('userAvatar').className   = 'user-avatar vi';
+    document.getElementById('userName').textContent   = '응우옌 티 흐엉';
+    initParentView();
+  } else {
+    document.getElementById('userAvatar').textContent = '김';
+    document.getElementById('userAvatar').className   = 'user-avatar';
+    document.getElementById('userName').textContent   = '김선생님';
+  }
+}
+
+/* ══════════════════════════════════
+   Teacher: Sample
+══════════════════════════════════ */
+function fillSample() {
+  document.getElementById('noticeInput').value = SAMPLE_TEXT;
+}
+
+/* ══════════════════════════════════
+   Teacher: Analyze
+══════════════════════════════════ */
+function analyzeNotice() {
+  if (!document.getElementById('noticeInput').value.trim()) {
+    fillSample();
+  }
+  document.getElementById('analyzeLoading').classList.add('show');
+  document.getElementById('t-step2').classList.add('hidden');
+
+  // Animate pipeline lights sequentially
+  for (let i = 0; i < 5; i++) {
+    const pm = document.getElementById('pm' + i);
+    if (pm) pm.classList.remove('lit');
   }
 
-  function sendNotice() {
-    const input = document.getElementById('noticeInput').value.trim();
-    if (!input) return;
-
-    const msg = document.getElementById('successMsg');
-    msg.classList.add('show');
-    setTimeout(() => msg.classList.remove('show'), 3000);
-  }
-
-  function openNotice(el) {
-    if (!document.getElementById('resultCard').classList.contains('hidden')) return;
-    document.getElementById('analyzeLoading').classList.add('show');
-    setTimeout(showAnalysisResult, 1800);
-  }
-
-  function showAnalysisResult() {
+  setTimeout(() => {
     document.getElementById('analyzeLoading').classList.remove('show');
-    document.getElementById('inboxBadge').style.display = 'none';
+    setStep(2);
+    showAnalysisResult();
+  }, 1600);
+}
 
-    const resultCard = document.getElementById('resultCard');
-    resultCard.classList.remove('hidden');
+function setStep(n) {
+  const circles   = [null, 'ts1', 'ts2', 'ts3', 'ts4'];
+  const labels    = [null, 'tl1', 'tl2', 'tl3', 'tl4'];
+  const connectors = [null, null, 'tc1', 'tc2', 'tc3'];
 
-    const todoList = document.getElementById('todoList');
-    todoList.innerHTML = '';
-
-    mockTodos.sort((a, b) => b.importance - a.importance).forEach((todo, i) => {
-      const item = document.createElement('div');
-      item.className = 'todo-item';
-      item.style.animationDelay = `${i * 0.07}s`;
-      item.innerHTML = `
-        <div class="importance-bar">
-          <div class="importance-fill" style="height:${todo.importance * 100}%"></div>
-        </div>
-        <span class="todo-category ${todo.catClass}">${todo.category}</span>
-        <div class="todo-texts">
-          <div class="todo-ko">${todo.ko}</div>
-          <div class="todo-vi">${todo.vi}</div>
-        </div>
-      `;
-      todoList.appendChild(item);
-    });
-  }
-
-  function toggleTTS() {
-    ttsPlaying = !ttsPlaying;
-    const btn = document.getElementById('ttsPlayBtn');
-    const wave = document.getElementById('ttsWave');
-    btn.textContent = ttsPlaying ? '⏸' : '▶';
-    wave.className = ttsPlaying ? 'tts-wave tts-playing' : 'tts-wave';
-
-    if (ttsPlaying) {
-      setTimeout(() => {
-        ttsPlaying = false;
-        btn.textContent = '▶';
-        wave.className = 'tts-wave';
-      }, 8000);
+  for (let i = 1; i <= 4; i++) {
+    const c = document.getElementById(circles[i]);
+    const l = document.getElementById(labels[i]);
+    if (i < n) {
+      c.className = 'step-circle done';
+      c.innerHTML = '<svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+      l.className = 'step-label done';
+    } else if (i === n) {
+      c.className = 'step-circle current';
+      c.innerHTML = String(i);
+      l.className = 'step-label current';
+    } else {
+      c.className = 'step-circle';
+      c.innerHTML = String(i);
+      l.className = 'step-label';
     }
   }
+  for (let i = 2; i <= 4; i++) {
+    const conn = document.getElementById(connectors[i]);
+    if (conn) conn.className = 'step-connector' + (i <= n ? ' done' : '');
+  }
+}
+
+function showAnalysisResult() {
+  document.getElementById('t-step2').classList.remove('hidden');
+
+  // Light up pipeline steps with delay
+  for (let i = 0; i < 5; i++) {
+    setTimeout(() => {
+      const pm = document.getElementById('pm' + i);
+      if (pm) pm.classList.add('lit');
+    }, i * 180);
+  }
+
+  // Render sentences
+  const list = document.getElementById('sentenceList');
+  list.innerHTML = '';
+  SENTENCES.forEach((s, i) => {
+    const div = document.createElement('div');
+    div.className = 'sentence-block ' + s.cat;
+    div.innerHTML = `<span class="sb-text">${s.text}</span><span class="sb-chip"><span class="cat-chip ${s.cat}">${s.label}</span></span>`;
+    list.appendChild(div);
+    setTimeout(() => div.classList.add('visible'), 200 + i * 130);
+  });
+
+  // Render extracted items
+  const grid = document.getElementById('extractGrid');
+  grid.innerHTML = '';
+  EXTRACTS.forEach((e, i) => {
+    const div = document.createElement('div');
+    div.className = 'extract-item';
+    div.innerHTML = `<div class="ei-cat"><span class="cat-chip ${e.cat}">${e.label}</span></div><div class="ei-value">${e.value}</div><div class="ei-sub">${e.sub}</div>`;
+    grid.appendChild(div);
+    setTimeout(() => div.classList.add('visible'), 800 + i * 100);
+  });
+
+  teacherPhase = 1;
+}
+
+/* ══════════════════════════════════
+   Teacher: Translation Preview
+══════════════════════════════════ */
+function showTranslation() {
+  document.getElementById('t-step3').classList.remove('hidden');
+  setStep(3);
+
+  // Build language tabs
+  const row = document.getElementById('langTabs');
+  row.innerHTML = '';
+  LANGUAGES.forEach(l => {
+    const btn = document.createElement('button');
+    btn.className = 'lang-pill' + (l.code === selectedLang ? ' active' : '');
+    btn.innerHTML = `<span class="lp-flag">${l.short}</span>${l.name}<span class="lp-count">${l.count}명</span>`;
+    btn.onclick = () => { selectedLang = l.code; renderTranslation(); renderLangTabs(); };
+    row.appendChild(btn);
+  });
+
+  renderTranslation();
+  teacherPhase = 2;
+
+  // Update send button
+  const cnt = LANGUAGES.find(l => l.code === selectedLang)?.count ?? 24;
+  document.getElementById('sendBtnText').textContent = `24명에게 발송`;
+}
+
+function renderLangTabs() {
+  document.querySelectorAll('#langTabs .lang-pill').forEach((btn, i) => {
+    btn.className = 'lang-pill' + (LANGUAGES[i].code === selectedLang ? ' active' : '');
+  });
+}
+
+function renderTranslation() {
+  const data = TRANSLATIONS[selectedLang];
+  if (!data) return;
+
+  const preview = document.getElementById('transPreview');
+  preview.innerHTML = `<div class="trans-title">${data.title}</div><div class="trans-items">${
+    data.items.map(it => `
+      <div class="trans-item ${it.cat}">
+        <span class="cat-chip ${it.cat}">${getLabel(it.cat)}</span>
+        <div class="ti-body">
+          <div class="ti-tr">${it.tr}</div>
+          <div class="ti-ko">${it.ko}</div>
+        </div>
+      </div>`).join('')
+  }</div>`;
+
+  const gloss = document.getElementById('glossarySection');
+  if (data.glossary && data.glossary.length) {
+    gloss.innerHTML = `
+      <div class="glossary-heading">학교 용어사전 적용 · ${data.glossary.length}개</div>
+      ${data.glossary.map(g => `
+        <div class="glossary-row">
+          <span class="gr-ko">${g.ko}</span>
+          <span class="gr-arr">→</span>
+          <span class="gr-tr">${g.tr}</span>
+        </div>`).join('')}`;
+  } else {
+    gloss.innerHTML = '';
+  }
+}
+
+function getLabel(cat) {
+  const map = { schedule: '일정', supply: '준비물', submit: '제출', cost: '비용', health: '건강', other: '일반' };
+  return map[cat] || cat;
+}
+
+/* ══════════════════════════════════
+   Teacher: Send
+══════════════════════════════════ */
+function sendNotice() {
+  document.getElementById('sendLoading').classList.add('show');
+  setTimeout(() => {
+    document.getElementById('sendLoading').classList.remove('show');
+    document.getElementById('t-step4').classList.remove('hidden');
+    setStep(4);
+    document.getElementById('t-step3').classList.add('hidden');
+    teacherPhase = 3;
+  }, 1200);
+}
+
+function goBack() {
+  document.getElementById('t-step3').classList.add('hidden');
+  setStep(2);
+  teacherPhase = 1;
+}
+
+function resetTeacher() {
+  ['t-step2','t-step3','t-step4'].forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById('noticeInput').value = '';
+  setStep(1);
+  teacherPhase = 0;
+  for (let i = 0; i < 5; i++) {
+    const pm = document.getElementById('pm' + i);
+    if (pm) pm.classList.remove('lit');
+  }
+}
+
+/* ══════════════════════════════════
+   Parent: Init
+══════════════════════════════════ */
+function initParentView() {
+  // Language grid
+  const grid = document.getElementById('langGrid');
+  if (grid.innerHTML) return; // already initialized
+
+  LANGUAGES.forEach(l => {
+    const div = document.createElement('div');
+    div.className = 'lang-option' + (l.code === selectedLang ? ' active' : '');
+    div.innerHTML = `<div class="lo-flag">${l.short}</div><div class="lo-name">${l.name}</div><div class="lo-count">${l.count}명</div>`;
+    div.onclick = () => selectParentLang(l.code);
+    grid.appendChild(div);
+  });
+
+  updateNoticePreview();
+}
+
+function selectParentLang(code) {
+  selectedLang = code;
+  document.querySelectorAll('.lang-option').forEach((el, i) => {
+    el.className = 'lang-option' + (LANGUAGES[i].code === code ? ' active' : '');
+  });
+  document.getElementById('userAvatar').textContent = PARENT_LANG_NAMES[code]?.[0] ?? '학';
+  document.getElementById('userName').textContent   = PARENT_LANG_NAMES[code] ?? '학부모';
+  updateNoticePreview();
+
+  // Reset result if already shown
+  document.getElementById('parentResultCard').classList.add('hidden');
+  document.getElementById('noticeItem').classList.remove('opened');
+  document.getElementById('noticeUnread').style.display = '';
+  parentPhase = 0;
+}
+
+function updateNoticePreview() {
+  const data = TRANSLATIONS[selectedLang];
+  if (!data) return;
+  document.getElementById('noticeTitleParent').textContent = data.title;
+  document.getElementById('noticePreviewParent').textContent =
+    data.items.map(it => it.tr).join(' ').slice(0, 80) + '...';
+  document.getElementById('ttsLabel').textContent =
+    '음성 안내 · ' + (LANGUAGES.find(l => l.code === selectedLang)?.name ?? '');
+}
+
+/* ══════════════════════════════════
+   Parent: Open Notice
+══════════════════════════════════ */
+function openNotice() {
+  if (parentPhase > 0) return;
+  parentPhase = 1;
+
+  document.getElementById('noticeItem').classList.add('opened');
+  document.getElementById('noticeUnread').style.display = 'none';
+  document.getElementById('inboxBadge').style.display  = 'none';
+
+  const loading = document.getElementById('parentLoading');
+  document.getElementById('parentLoadingText').textContent = 'AI가 번역하고 있어요...';
+  loading.classList.add('show');
+
+  setTimeout(showParentResult, 1800);
+}
+
+function showParentResult() {
+  document.getElementById('parentLoading').classList.remove('show');
+  const resultCard = document.getElementById('parentResultCard');
+  resultCard.classList.remove('hidden');
+  parentPhase = 2;
+
+  const data = TRANSLATIONS[selectedLang];
+  document.getElementById('parentResultTitle').textContent = data.title;
+  document.getElementById('parentResultSub').textContent  =
+    LANGUAGES.find(l => l.code === selectedLang)?.name + ' · AI 번역됨 · 학교용어사전 적용';
+
+  const list = document.getElementById('parentChecklist');
+  list.innerHTML = '';
+  data.items.forEach((it, i) => {
+    const div = document.createElement('div');
+    div.className = 'check-item';
+    div.innerHTML = `
+      <div class="check-box" onclick="toggleCheck(this)"></div>
+      <div class="ci-body">
+        <div class="ci-tr">${it.tr}</div>
+        <div class="ci-ko">${it.ko}</div>
+      </div>
+      <span class="cat-chip ${it.cat}">${getLabel(it.cat)}</span>
+    `;
+    list.appendChild(div);
+    setTimeout(() => div.classList.add('visible'), i * 130);
+  });
+}
+
+function toggleCheck(el) {
+  el.classList.toggle('checked');
+}
+
+/* ══════════════════════════════════
+   TTS
+══════════════════════════════════ */
+function toggleTTS() {
+  ttsPlaying = !ttsPlaying;
+  const wave = document.getElementById('ttsWave');
+  const icon = document.getElementById('ttsIcon');
+  wave.className = 'tts-wave' + (ttsPlaying ? ' playing' : '');
+  icon.innerHTML = ttsPlaying
+    ? '<use href="#ic-pause"/>'
+    : '<use href="#ic-play"/>';
+
+  if (ttsTimer) { clearTimeout(ttsTimer); ttsTimer = null; }
+  if (ttsPlaying) {
+    ttsTimer = setTimeout(() => {
+      ttsPlaying = false;
+      document.getElementById('ttsWave').className = 'tts-wave';
+      document.getElementById('ttsIcon').innerHTML = '<use href="#ic-play"/>';
+    }, 9000);
+  }
+}
+
+/* Init */
+setStep(1);
 </script>
 </body>
 </html>
