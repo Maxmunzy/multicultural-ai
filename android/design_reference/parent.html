@@ -27,6 +27,31 @@
 .reply-option.selected .ro-icon svg { color: white; }
 .capture-btn.featured .cb-icon svg  { color: white; }
 
+/* 원문 통신문 카드 (AI 번역 전 상태) */
+.notice-raw {
+  margin-top: 12px;
+  background: var(--surface); border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm); padding: 14px;
+}
+.notice-raw-meta  { font-size: 10px; color: var(--ink4); margin-bottom: 6px; }
+.notice-raw-title { font-size: 15px; font-weight: 700; color: var(--ink); }
+.notice-raw-body  { margin-top: 8px; font-size: 13px; line-height: 1.6; color: var(--ink2); }
+
+/* AI 번역하기 CTA 카드 */
+.ai-cta {
+  margin-top: 12px;
+  background: var(--ai-light); border: 1px solid var(--ai-mid);
+  border-radius: var(--radius-sm); padding: 14px; text-align: center;
+}
+.ai-cta-icon {
+  width: 40px; height: 40px; border-radius: 12px; background: var(--ai);
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 8px;
+}
+.ai-cta-icon svg { color: white; }
+.ai-cta-title { font-size: 14px; font-weight: 700; color: var(--ai); }
+.ai-cta-sub   { font-size: 11px; color: var(--ai); opacity: .75; margin-top: 3px; }
+.btn.ai-translate { width: 100%; margin-top: 12px; padding: 13px; gap: 7px; font-size: 14px; }
+
 /* 통신문 상세 — 배지 행 */
 .notice-badges { display:flex; align-items:center; gap:5px; margin-top:7px; flex-wrap:wrap; }
 
@@ -438,7 +463,7 @@
           <div class="si-label">받은 통신문</div>
         </div>
         <div class="stat-item">
-          <div class="si-num">9<span class="si-unit">개</span></div>
+          <div class="si-num">8<span class="si-unit">개</span></div>
           <div class="si-label">지원 언어</div>
         </div>
         <div class="stat-item">
@@ -485,7 +510,86 @@
 
 
 <!-- ════════════════════════════════════
-     SCREEN 2 · 통신문 상세 · AI 번역
+     SCREEN 2 · 통신문 원문 · AI 번역 전
+════════════════════════════════════ -->
+<div class="phone-wrap">
+  <div class="phone"><div class="screen">
+    <div class="statusbar">
+      <span>9:41</span>
+      <span class="icons">
+        <svg width="17" height="11" viewBox="0 0 17 11">
+          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
+          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
+          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
+          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
+        </svg>
+        <svg width="24" height="12" viewBox="0 0 24 12">
+          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
+          <rect x="2" y="2" width="10" height="8" rx="1.5" fill="currentColor"/>
+        </svg>
+      </span>
+    </div>
+    <div class="lang-pill">
+      <span class="flag">KR</span>
+      <span>한국어 원문</span>
+    </div>
+
+    <div class="body-area">
+      <div class="back-nav">
+        <div class="back-btn">
+          <svg width="14" height="14"><use href="#ic-back"/></svg>
+        </div>
+        <span class="caption">통신문 #142 · 서울초 3-2반</span>
+      </div>
+
+      <div class="title-lg">현장체험학습 안내</div>
+      <div class="notice-badges">
+        <span class="chip">김선생님 발송</span>
+        <span class="chip danger">D-2</span>
+        <span class="chip">2025.05.13</span>
+      </div>
+
+      <!-- 한국어 원문 -->
+      <div class="notice-raw">
+        <div class="notice-raw-meta">서울초 3학년 2반 · 원본 한국어</div>
+        <div class="notice-raw-title">현장체험학습 안내</div>
+        <p class="notice-raw-body">
+          안녕하십니까. 5월 16일(목) 3-2반은 <b>국립과천과학관</b>으로 현장체험학습을 갑니다.
+          9시까지 등교, 도시락·물·모자·명찰을 준비해 주세요.
+          <b>5월 14일까지</b> 참여 동의 회신 부탁드립니다.
+        </p>
+      </div>
+
+      <!-- AI 번역하기 CTA -->
+      <div class="ai-cta">
+        <div class="ai-cta-icon">
+          <svg width="18" height="18"><use href="#ic-spark"/></svg>
+        </div>
+        <div class="ai-cta-title">AI 번역하기</div>
+        <div class="ai-cta-sub">번역 · 체크리스트 · 일정 · TTS 음성 자동 생성</div>
+        <button type="button" class="btn ai ai-translate">
+          <svg width="15" height="15"><use href="#ic-globe"/></svg>
+          Tiếng Việt로 번역 →
+        </button>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+  </div></div>
+  <div class="phone-label">2 · 통신문 원문 · AI 번역 전</div>
+</div>
+
+<div class="flow-arrow">
+  <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
+    <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
+      stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span>AI 번역하기 탭 → 자동 처리</span>
+</div>
+
+
+<!-- ════════════════════════════════════
+     SCREEN 3 · AI 번역 결과
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -525,16 +629,16 @@
         <span class="chip danger">D-2</span>
       </div>
 
-      <!-- AI 파이프라인 시각화 (심사: AI 기술 15점) -->
+      <!-- AI 파이프라인 시각화 — 학부모 탭 시 실행되는 서버 파이프라인 -->
       <div class="pipeline-box">
-        <div class="pipeline-box-label">AI 처리 완료</div>
+        <div class="pipeline-box-label">AI 분석 · 번역 완료</div>
         <div class="pipeline">
 
           <div class="pipeline-step active">
             <div class="ps-icon">
-              <svg width="13" height="13"><use href="#ic-ocr"/></svg>
+              <svg width="13" height="13"><use href="#ic-spark"/></svg>
             </div>
-            <div class="ps-label">OCR<br>인식</div>
+            <div class="ps-label">Haiku<br>정제</div>
           </div>
           <div class="pipeline-arrow"></div>
 
@@ -558,7 +662,7 @@
             <div class="ps-icon">
               <svg width="13" height="13"><use href="#ic-globe"/></svg>
             </div>
-            <div class="ps-label">9개국어<br>번역</div>
+            <div class="ps-label">8개 언어<br>번역</div>
           </div>
           <div class="pipeline-arrow"></div>
 
@@ -630,7 +734,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">2 · 통신문 상세 · AI 번역</div>
+  <div class="phone-label">3 · AI 번역 결과</div>
 </div>
 
 <div class="flow-arrow">
@@ -638,12 +742,12 @@
     <path d="M1 7h21m0 0l-6-6m6 6l-6 6"
       stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
-  <span>회신 버튼</span>
+  <span>회신하기 탭</span>
 </div>
 
 
 <!-- ════════════════════════════════════
-     SCREEN 3 · 회신 작성
+     SCREEN 4 · 회신 작성
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -735,7 +839,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">3 · 회신 작성</div>
+  <div class="phone-label">4 · 회신 작성</div>
 </div>
 
 <div class="flow-arrow">
@@ -748,7 +852,7 @@
 
 
 <!-- ════════════════════════════════════
-     SCREEN 4 · 일정 + 준비물 체크리스트
+     SCREEN 5 · 일정 + 준비물 체크리스트
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -861,7 +965,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">4 · 일정 + 준비물 체크</div>
+  <div class="phone-label">5 · 일정 + 준비물 체크</div>
 </div>
 
 <div class="flow-arrow">
@@ -874,7 +978,7 @@
 
 
 <!-- ════════════════════════════════════
-     SCREEN 5 · 통신문 추가 (입력 방식)
+     SCREEN 6 · 통신문 추가 (입력 방식)
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -958,7 +1062,7 @@
         <svg width="16" height="16" class="hint-banner-icon"><use href="#ic-globe"/></svg>
         <p class="hint-text">
           한국어 통신문을 <b>자동으로 번역</b>해 드려요.
-          현재 <b>9개 언어</b> 지원 중.
+          현재 <b>8개 언어</b> 지원 중.
         </p>
       </div>
     </div>
@@ -972,7 +1076,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">5 · 통신문 추가</div>
+  <div class="phone-label">6 · 통신문 추가</div>
 </div>
 
 </div><!-- /canvas -->
