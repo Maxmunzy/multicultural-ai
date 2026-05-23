@@ -11,8 +11,8 @@ Translation/TTS 파트는 슬롯 기반 응답 구조(summary + items)로 전환
 | 경로 | 대상 | 방식 |
 |---|---|---|
 | i18n 포매터 | summary.dates / times / amounts | 정규식 추출 → 언어별 룰 변환 (LLM 없음) |
-| glossary 치환 | summary.places / supplies / deadlines | term_glossary.csv exact 매칭, miss 시 한국어 노출 |
-| NLLB 번역 | items[].title_translated | glossary injection → NLLB → vi 후처리 |
+| 템플릿 번역 | 8타입 구조화 문장 (준비·제출·납부 등) | 동사 패턴 감지 → item zone 추출 → glossary 치환 → 다국어 템플릿 채움 (NLLB 없음, 0ms) |
+| NLLB 번역 | 나머지 자유 문장 | glossary injection → NLLB → 8개 언어별 후처리 |
 
 ### 경이(B단계) → 세종(C단계) 확정 인터페이스
 
@@ -27,9 +27,24 @@ Translation/TTS 파트는 슬롯 기반 응답 구조(summary + items)로 전환
 
 카테고리 6종: `제출 / 준비물 / 일정 / 비용 / 건강·안전 / 기타`
 
+### 템플릿 번역 시스템
+
+8가지 동사 타입을 인식해 NLLB 없이 즉시 번역:
+
+| 타입 | 대표 트리거 |
+|---|---|
+| prepare | 준비해 주세요, 준비하세요 |
+| bring | 챙겨 주세요, 가져와 주세요, 착용해 주세요, 지참하세요 |
+| submit | 제출해 주세요, 내 주세요, 보내 주세요 |
+| attend | 참석해 주세요, 참여해 주세요 |
+| pay | 납부해 주세요, 입금해 주세요 |
+| check | 확인해 주세요, 확인 바랍니다 |
+| fill | 작성해 주세요, 기재해 주세요 |
+| apply | 신청해 주세요, 접수해 주세요 |
+
 ### term_glossary.csv
 
-학교 특화 용어사전 (한국어 + 8개 언어). **현재 319개** (2026-05-06 기준).
+학교 특화 용어사전 (한국어 + 8개 언어). **현재 340개** (2026-05-22 기준). tts-lab 브랜치 423개 → 다음 동기화 예정.
 
 | 카테고리 | 예시 |
 |---|---|
@@ -60,7 +75,7 @@ Translation/TTS 파트는 슬롯 기반 응답 구조(summary + items)로 전환
 
 ## 백엔드 연동 파일 (backend/app/services/)
 
-- `translator.py`: `translate_term` (glossary 치환) / `translate_short_sentence` (NLLB 번역) 두 함수 제공
+- `translator.py`: `translate_term` (glossary 치환) / `translate_short_sentence` (템플릿 or NLLB 번역, 8개 언어 후처리 포함) 두 함수 제공
 - `slot_extractor.py`: 정규식 추출 + i18n 포매터 (태수님 작성, 세종 파트 연동)
 
 ## 실행 예시
@@ -100,6 +115,41 @@ python model/translation_tts/run_quality_eval.py
 | 용어사전 전/후 품질평가 | 39.0점 -> 89.6점 |
 
 공유용 요약은 `../../docs/share-summary-2026-04-28-quality-eval.md`에 정리했다.
+
+## 2026-05-22 번역 품질 강화
+
+### 템플릿 번역 시스템 도입 (8타입 × 8개 언어)
+
+- 준비물·제출·납부 등 구조화 문장을 NLLB 없이 템플릿으로 직접 번역
+- 동사 패턴 → item zone 추출 → glossary 치환 → 다국어 템플릿 채움
+- 용어 보존율 향상: NLLB 직접 입력 대비 핵심 용어 100% 보존
+
+### NLLB 8개 언어 후처리 확장 (vi 전용 → 전 언어)
+
+- NLLB 오역 패턴 진단 후 언어별 교정 함수 작성 (`_post_process_en/ru/ms/mn/zh/th/ja`)
+- 주요 교정 항목:
+  - EN: "ex-student" → all students, "math trip" → school trip
+  - ZH: "前学生" → 全校学生, "数学旅行" → 修学旅行, "主任" → 班主任
+  - JA: "裁判長" → 担任の先生, "数学旅行" → 修学旅行
+  - TH: 반복 hallucination 루프 차단 (`_TH_LOOP_RE`)
+  - MS: "pelajar terdahulu" → semua pelajar
+  - MN: "сургуулийн өмнөх боловсрол" → бүх сурагчид
+
+### 100문장 구조화 테스트셋 (eval_testset_v1.jsonl)
+
+위치: `translation-tts-lab/translation/eval_testset_v1.jsonl`
+
+- 8개 카테고리 × Easy/Hard/Negative/Adversarial 4단계
+- 5개 메트릭: template_hit_rate / template_fp_rate / item_capture_rate / place_capture_rate / place_fp_rate
+- 최종 결과: 99/100 (PLACE-H-001 known regex limit 1건 제외 전체 통과)
+- 실행: `python translation-tts-lab/translation/run_eval_testset.py`
+
+### 고유명사 보호 강화
+
+- `_JOSA_ENDING` 체크 → 조사 어미 단어 + 시설명 분리 슬롯 처리
+- `_GLOSSARY_WORD_PARTS` 도입 → 복합 glossary 용어 구성 단어 particle strip 오류 방지 (생활지도 → 생활지 버그 수정)
+
+---
 
 ## 2026-05-06 용어사전 확장 (176 → 319개)
 

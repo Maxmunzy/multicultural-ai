@@ -222,6 +222,12 @@ _FIELD_TRIP_CONTEXT_TERMS = (
     "\ud604\uc7a5\uccb4\ud5d8\ud559\uc2b5", "\uccb4\ud5d8\ud559\uc2b5",
     "\uc18c\ud48d", "\uc218\ub828\ud68c",
 )
+_ALLSTUDENT_CONTEXT_TERMS = ("\uc804\uad50\uc0dd",)
+_SCHOOL_TRIP_CONTEXT_TERMS = ("\uc218\ud559\uc5ec\ud589",)
+_SCHOOL_NOTICE_CONTEXT_TERMS = ("\uac00\uc815\ud1b5\uc2e0\ubb38",)
+_LUNCH_CONTEXT_TERMS = ("\uae09\uc2dd\ube44", "\uae09\uc2dd")
+_ELEMENTARY_CONTEXT_TERMS = ("\ucd08\ub4f1\ud559\uc0dd",)
+_INFANT_CONTEXT_TERMS = ("\uc720\uc544",)
 
 _STUDENT_PATTERNS = (
     re.compile(r"\bsinh vi(?:\u00ean|en)\b", re.IGNORECASE),
@@ -245,6 +251,112 @@ _FIELD_TRIP_PATTERNS = (
     re.compile(r"h(?:\u1ecdc|o)c t(?:\u1ead|a)p t(?:\u1ea1|a)i tr(?:\u01b0|u)(?:\u1edd|o)ng h(?:\u1ecdc|o)c", re.IGNORECASE),
 )
 
+# \u2500\u2500 EN post-processing patterns \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+_HOMEROOM_PATTERNS_EN = (
+    re.compile(r"\bvice[\s\-]?president\b", re.IGNORECASE),
+    re.compile(r"\bguarantor\b", re.IGNORECASE),
+)
+_ALLSTUDENT_PATTERNS_EN = (
+    re.compile(r"\bex[\s\-]?students?\b", re.IGNORECASE),
+    re.compile(r"\bformer\s+students?\b", re.IGNORECASE),
+)
+_SCHOOL_TRIP_PATTERNS_EN = (
+    re.compile(r"\bmath(?:ematics)?\s+trip\b", re.IGNORECASE),
+)
+_NEWSLETTER_PATTERNS_EN = (
+    re.compile(r"\bhome\s+news\b", re.IGNORECASE),
+)
+_FIELD_TRIP_PATTERNS_EN = (
+    re.compile(r"\bspring\s+vents?\b", re.IGNORECASE),
+    re.compile(r"\bfield\s+trials?\b", re.IGNORECASE),
+)
+
+# \u2500\u2500 RU post-processing patterns \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+_HOMEROOM_PATTERNS_RU = (
+    re.compile(r"\u0437\u0430\u0432\u0435\u0434(?:\u0443\u044e\u0449|\u0443\u0435\u0442)[\u0430-\u044f\u0451\u0410-\u042f\u0401]*\s+\u0434\u0438\u0440\u0435\u043a\u0442\u043e\u0440[\u0430-\u044f\u0451\u0410-\u042f\u0401]*", re.IGNORECASE),
+    re.compile(r"\b\u0433\u0430\u0440\u0430\u043d(?:\u0442\u0443|\u0442\u0430|\u0442\u043e\u043c|\u0442\u0438\u0439)\b", re.IGNORECASE),
+)
+_SCHOOL_TRIP_PATTERNS_RU = (
+    re.compile(r"\u043c\u0430\u0442\u0435\u043c\u0430\u0442\u0438\u0447[\u0430-\u044f\u0451\u0410-\u042f\u0401]+\s+\u043f\u0443\u0442\u0435\u0448\u0435\u0441\u0442\u0432[\u0430-\u044f\u0451\u0410-\u042f\u0401]+", re.IGNORECASE),
+)
+_NEWSLETTER_PATTERNS_RU = (
+    re.compile(r"\u0434\u043e\u043c\u0430\u0448\u043d[\u0430-\u044f\u0451\u0410-\u042f\u0401]+\s+\u0433\u0430\u0437\u0435\u0442[\u0430-\u044f\u0451\u0410-\u042f\u0401]+", re.IGNORECASE),
+)
+_PICNIC_PATTERNS_RU = (
+    re.compile(r"\u0432\u0435\u0441\u0435\u043d\u043d\u0438[\u0430-\u044f\u0451\u0410-\u042f\u0401]+\s+\u0432\u0435\u0442\u0435\u0440?[\u0430-\u044f\u0451\u0410-\u042f\u0401]*", re.IGNORECASE),
+)
+
+# \u2500\u2500 MS post-processing patterns \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+_HOMEROOM_PATTERNS_MS = (
+    re.compile(r"doktor\s+yang\s+bertanggungjawab\b", re.IGNORECASE),
+)
+_ALLSTUDENT_PATTERNS_MS = (
+    re.compile(r"pelajar[\s\-]pelajar\s+terdahulu\b", re.IGNORECASE),
+    re.compile(r"bekas\s+pelajar\b", re.IGNORECASE),
+)
+_SCHOOL_TRIP_PATTERNS_MS = (
+    re.compile(r"perjalanan\s+matematik\b", re.IGNORECASE),
+)
+_NEWSLETTER_PATTERNS_MS = (
+    re.compile(r"surat\s+khabar\s+rumah\b", re.IGNORECASE),
+)
+
+# \u2500\u2500 MN post-processing patterns \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+_ALLSTUDENT_PATTERNS_MN = (
+    re.compile(r"\u0441\u0443\u0440\u0433\u0443\u0443\u043b\u0438\u0439\u043d\s+\u04e9\u043c\u043d\u04e9\u0445\s+\u0431\u043e\u043b\u043e\u0432\u0441\u0440\u043e\u043b[\u0430-\u044f\u0451\u0410-\u042f\u0401]*", re.IGNORECASE),
+)
+_SCHOOL_TRIP_PATTERNS_MN = (
+    re.compile(r"\u043c\u0430\u0442\u0435\u043c\u0430\u0442\u0438\u043a\u0438\u0439\u043d\s+\u0430\u044f\u043b\u0430\u043b[\u0430-\u044f\u0451\u0410-\u042f\u0401]*", re.IGNORECASE),
+)
+
+# \u2500\u2500 ZH post-processing patterns \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+_HOMEROOM_PATTERNS_ZH = (
+    re.compile(r"(?<!\u73ed)\u4e3b\u4efb"),
+)
+_ALLSTUDENT_PATTERNS_ZH = (
+    re.compile(r"\u524d\u5b66\u751f"),
+)
+_SCHOOL_TRIP_PATTERNS_ZH = (
+    re.compile(r"\u6570\u5b66(?:\u8003\u8bd5\u7b7e\u8bc1|\u65c5\u884c)"),
+)
+_NEWSLETTER_PATTERNS_ZH = (
+    re.compile(r"\u5bb6\u5ead\u62a5\u9053"),
+)
+_LUNCH_PATTERNS_ZH = (
+    re.compile(r"\u5feb\u9910\u8d39\u7528"),
+)
+
+# \u2500\u2500 TH post-processing patterns \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# NLLB\uac00 TH\uc5d0\uc11c \uac19\uc740 \ub2e8\uc5b4\ub97c \uc218\ubc31 \ubc88 \ubc18\ubcf5 \ucd9c\ub825\ud558\ub294 hallucination \ubc84\uadf8 \ubc29\uc5b4
+_TH_LOOP_RE = re.compile(r"(.{3,12})\1{3,}")
+_ALLSTUDENT_PATTERNS_TH = (
+    re.compile(r"\u0e19\u0e31\u0e01\u0e40\u0e23\u0e35\u0e22\u0e19\u0e0a\u0e31\u0e49\u0e19(?:\u0e21\u0e31\u0e18\u0e22\u0e21|\u0e1b\u0e23\u0e30\u0e16\u0e21)(?:\u0e28\u0e36\u0e01\u0e29\u0e32)?(?:\u0e15\u0e2d\u0e19\u0e15\u0e49\u0e19|\u0e15\u0e2d\u0e19\u0e1b\u0e25\u0e32\u0e22)?"),
+)
+_ELEMENTARY_PATTERNS_TH = (
+    re.compile(r"\u0e19\u0e31\u0e01\u0e40\u0e23\u0e35\u0e22\u0e19\u0e0a\u0e31\u0e49\u0e19\u0e21\u0e31\u0e18\u0e22\u0e21\u0e28\u0e36\u0e01\u0e29\u0e32\u0e15\u0e2d\u0e19\u0e15\u0e49\u0e19"),
+)
+
+# \u2500\u2500 JA post-processing patterns \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+_HOMEROOM_PATTERNS_JA = (
+    re.compile(r"\u88c1\u5224\u9577"),
+    re.compile(r"\u8b66\u5831"),
+)
+_SCHOOL_TRIP_PATTERNS_JA = (
+    re.compile(r"\u6570\u5b66\u65c5\u884c"),
+)
+_NEWSLETTER_PATTERNS_JA = (
+    re.compile(r"\u5bb6\u5ead\u65b0\u805e"),
+)
+_ELEMENTARY_PATTERNS_JA = (
+    re.compile(r"\u5e7c\u7a1a\u5712\u306e\u5b50\u4f9b"),
+)
+_INFANT_PATTERNS_JA = (
+    re.compile(r"\u8d64\u3061\u3083\u3093"),
+)
+_LUNCH_PATTERNS_JA = (
+    re.compile(r"\u98df\u6599\u3092\u6025\u306b\u652f\u3048\u308b"),
+)
+
 
 def _has_any(text: str, terms: tuple[str, ...]) -> bool:
     return any(term in text for term in terms)
@@ -254,48 +366,183 @@ def _normalize_glossary_key(text: str) -> str:
     return re.sub(r"\s+", "", text or "")
 
 
-# ── Template-based translation (vi) ───────────────────────────────────────────
+# ── Template-based translation (all languages) ────────────────────────────────
 # 준비물/제출물 문장은 NLLB 대신 구조 분석 + glossary로 직접 번역.
 # 용어 보존율: NLLB 직접 입력 6% → 템플릿 100% (2026-05-07 실험)
+# 9개 언어 확장: vi 전용 → en/ru/ms/mn/zh/th/ja 전체 (2026-05-22)
 
 _SENTENCE_TYPES: dict[str, list[str]] = {
     "prepare": ["준비해 주세요", "준비해주세요", "준비하세요", "준비 바랍니다"],
-    "bring":   ["가져오세요", "챙겨 주세요", "챙겨주세요", "지참해 주세요", "지참하세요", "지참 바랍니다"],
+    "bring":   ["가져오세요", "가져와 주세요", "가져와주세요", "챙겨 주세요", "챙겨주세요", "지참해 주세요", "지참하세요", "지참 바랍니다", "착용하고 오세요", "착용해 주세요", "착용해주세요"],
     "submit":  ["제출해 주세요", "제출해주세요", "제출하세요", "내 주세요", "내주세요", "보내 주세요", "보내주세요", "제출 바랍니다", "제출바랍니다", "제출 부탁드립니다", "제출해 주시기"],
     "attend":  ["참석해 주세요", "참석해주세요", "참석하세요", "참여해 주세요", "참여해주세요", "참여하세요"],
     "pay":     ["납부해 주세요", "납부해주세요", "납부하세요", "입금해 주세요", "입금해주세요", "입금하세요"],
+    "check":   ["확인해 주세요", "확인해주세요", "확인하세요", "확인 바랍니다", "확인해 주시기 바랍니다"],
+    "fill":    ["작성해 주세요", "작성해주세요", "작성하세요", "작성 바랍니다", "기재해 주세요", "기재해주세요"],
+    "apply":   ["신청해 주세요", "신청해주세요", "신청하세요", "신청 바랍니다", "접수해 주세요", "접수해주세요"],
 }
 
-_VI_TEMPLATES: dict[str, str] = {
-    "prepare": "Vui lòng chuẩn bị {items}.",
-    "bring":   "Vui lòng mang theo {items}.",
-    "submit":  "Vui lòng nộp {items}.",
-    "attend":  "Vui lòng tham gia {items}.",
-    "pay":     "Vui lòng thanh toán {items}.",
+_LANG_TEMPLATES: dict[str, dict[str, str]] = {
+    "vi": {
+        "prepare": "Vui lòng chuẩn bị {items}.",
+        "bring":   "Vui lòng mang theo {items}.",
+        "submit":  "Vui lòng nộp {items}.",
+        "attend":  "Vui lòng tham gia {items}.",
+        "pay":     "Vui lòng thanh toán {items}.",
+        "check":   "Vui lòng kiểm tra {items}.",
+        "fill":    "Vui lòng điền vào {items}.",
+        "apply":   "Vui lòng đăng ký {items}.",
+    },
+    "en": {
+        "prepare": "Please prepare {items}.",
+        "bring":   "Please bring {items}.",
+        "submit":  "Please submit {items}.",
+        "attend":  "Please attend {items}.",
+        "pay":     "Please pay {items}.",
+        "check":   "Please check {items}.",
+        "fill":    "Please fill out {items}.",
+        "apply":   "Please apply for {items}.",
+    },
+    "ru": {
+        "prepare": "Пожалуйста, подготовьте {items}.",
+        "bring":   "Пожалуйста, принесите {items}.",
+        "submit":  "Пожалуйста, сдайте {items}.",
+        "attend":  "Пожалуйста, примите участие: {items}.",
+        "pay":     "Пожалуйста, оплатите {items}.",
+        "check":   "Пожалуйста, проверьте {items}.",
+        "fill":    "Пожалуйста, заполните {items}.",
+        "apply":   "Пожалуйста, запишитесь на {items}.",
+    },
+    "ms": {
+        "prepare": "Sila sediakan {items}.",
+        "bring":   "Sila bawa {items}.",
+        "submit":  "Sila hantar {items}.",
+        "attend":  "Sila hadir ke {items}.",
+        "pay":     "Sila bayar {items}.",
+        "check":   "Sila semak {items}.",
+        "fill":    "Sila isi {items}.",
+        "apply":   "Sila daftar untuk {items}.",
+    },
+    "mn": {
+        "prepare": "{items} бэлдэж өгнө үү.",
+        "bring":   "{items} авчирна уу.",
+        "submit":  "{items} өгнө үү.",
+        "attend":  "{items}-д оролцоно уу.",
+        "pay":     "{items} төлнө үү.",
+        "check":   "{items}-ийг шалгаж өгнө үү.",
+        "fill":    "{items}-ийг бөглөж өгнө үү.",
+        "apply":   "{items}-д бүртгүүлнэ үү.",
+    },
+    "zh": {
+        "prepare": "请准备{items}。",
+        "bring":   "请携带{items}。",
+        "submit":  "请提交{items}。",
+        "attend":  "请参加{items}。",
+        "pay":     "请缴纳{items}。",
+        "check":   "请确认{items}。",
+        "fill":    "请填写{items}。",
+        "apply":   "请申请{items}。",
+    },
+    "th": {
+        "prepare": "กรุณาเตรียม {items}",
+        "bring":   "กรุณานำ {items} มาด้วย",
+        "submit":  "กรุณาส่ง {items}",
+        "attend":  "กรุณาเข้าร่วม {items}",
+        "pay":     "กรุณาชำระ {items}",
+        "check":   "กรุณาตรวจสอบ {items}",
+        "fill":    "กรุณากรอก {items}",
+        "apply":   "กรุณาสมัคร {items}",
+    },
+    "ja": {
+        "prepare": "{items}をご準備ください。",
+        "bring":   "{items}をお持ちください。",
+        "submit":  "{items}を提出してください。",
+        "attend":  "{items}にご参加ください。",
+        "pay":     "{items}をお支払いください。",
+        "check":   "{items}をご確認ください。",
+        "fill":    "{items}にご記入ください。",
+        "apply":   "{items}をお申し込みください。",
+    },
 }
+
+# 항목 나열 시 언어별 접속사
+_LANG_CONJUNCTIONS: dict[str, str] = {
+    "vi": " và ",
+    "en": " and ",
+    "ru": " и ",
+    "ms": " dan ",
+    "mn": " болон ",
+    "zh": "和",
+    "th": "และ",
+    "ja": "と",
+}
+
+# submit 유형 제출처 표현 — "{recipient}" 자리에 수신인 삽입
+_LANG_RECIPIENT_SUFFIX: dict[str, str] = {
+    "vi": " cho {recipient}",
+    "en": " to {recipient}",
+    "ru": " для {recipient}",
+    "ms": " kepada {recipient}",
+    "mn": " {recipient}-д",
+    "zh": "，交给{recipient}",
+    "th": " ถึง{recipient}",
+    "ja":" ({recipient}へ)",
+}
+
+# 대상(audience) 접두 표현
+_LANG_AUDIENCE_PREFIX: dict[str, str] = {
+    "vi": "Dành cho {audience}: ",
+    "en": "For {audience}: ",
+    "ru": "Для {audience}: ",
+    "ms": "Untuk {audience}: ",
+    "mn": "{audience}-д: ",
+    "zh": "致{audience}：",
+    "th": "สำหรับ{audience}: ",
+    "ja": "{audience}へ：",
+}
+
+# 슬롯이 없는 순수 명사+동사 문장에서 명사구를 추출하기 위한 조사 패턴
+# 과/와 포함: "공책과 연필을" 같은 나열형에서 과/와를 조사로 올바르게 제거
+_KO_PARTICLES = re.compile(r"[을를이가은는도의에게로부터과와]$|까지$|으로$")
 
 # 청중/제출처는 term_glossary.csv의 role 컬럼(audience/recipient)으로 관리.
 # 코드 수정 없이 CSV 편집만으로 용어 추가 가능.
 _TEMPLATE_EXCLUDE_KO: frozenset[str] = frozenset()  # _build_role_sets() 호출 후 갱신
 _AUDIENCE_BY_LANG: dict[str, dict[str, str]] = {}   # lang → {ko: translated}
 _RECIPIENT_BY_LANG: dict[str, dict[str, str]] = {}  # lang → {ko: translated}
+# 복합 glossary 항목의 구성 단어 집합.
+# 예) "학생 생활지도" → {"학생", "생활지도"}
+# _get_item_zone에서 조사 제거 전 확인해 "생활지도→생활지" 오절삭을 방지.
+_GLOSSARY_WORD_PARTS: frozenset[str] = frozenset()
 _ROLE_SETS_BUILT = False
 
 
 def _build_role_sets(glossary: list) -> None:
-    """glossary rows에서 role=audience/recipient 항목을 언어별로 인덱싱."""
-    global _TEMPLATE_EXCLUDE_KO, _AUDIENCE_BY_LANG, _RECIPIENT_BY_LANG, _ROLE_SETS_BUILT
+    """glossary rows에서 role=audience/recipient 항목을 언어별로 인덱싱.
+
+    동시에 복합 glossary 항목("학생 생활지도" 등)의 구성 단어를
+    _GLOSSARY_WORD_PARTS에 등록해 _get_item_zone의 조사 오절삭을 방지한다.
+    """
+    global _TEMPLATE_EXCLUDE_KO, _AUDIENCE_BY_LANG, _RECIPIENT_BY_LANG
+    global _ROLE_SETS_BUILT, _GLOSSARY_WORD_PARTS
     if _ROLE_SETS_BUILT:
         return
     audience: dict[str, dict[str, str]] = {}
     recipient: dict[str, dict[str, str]] = {}
     exclude: set[str] = set()
+    word_parts: set[str] = set()
     for row in glossary:
-        role = row.get("role", "item").strip()
-        if role not in ("audience", "recipient"):
-            continue
         ko = row.get("korean", "").strip()
         if not ko:
+            continue
+        # 복합어(공백 포함)의 구성 단어 수집
+        parts = ko.split()
+        if len(parts) > 1:
+            for w in parts:
+                if len(w) >= 2:
+                    word_parts.add(w)
+        role = row.get("role", "item").strip()
+        if role not in ("audience", "recipient"):
             continue
         exclude.add(ko)
         for lang in LANG_TO_NLLB:
@@ -309,6 +556,7 @@ def _build_role_sets(glossary: list) -> None:
     _TEMPLATE_EXCLUDE_KO = frozenset(exclude)
     _AUDIENCE_BY_LANG = audience
     _RECIPIENT_BY_LANG = recipient
+    _GLOSSARY_WORD_PARTS = frozenset(word_parts)
     _ROLE_SETS_BUILT = True
 
 
@@ -320,11 +568,40 @@ def _classify_sentence(text: str) -> str:
     return "info"
 
 
-def _extract_template_items(text: str, glossary: list, target_lang: str) -> list[tuple[str, str]]:
-    """공급 용어(청중/제출처 제외)를 텍스트에서 추출, 출현 순서대로 반환."""
+def _get_item_zone(text: str, stype: str) -> str:
+    """동사 트리거 이전 텍스트 반환. 조사 정리.
+
+    ISSUE-03: 조사 제거 후 1자 이하가 되면 원형 유지.
+    Glossary-first: 복합 glossary 항목의 구성 단어(_GLOSSARY_WORD_PARTS)이면
+      조사 제거 없이 원형 유지. 예) '생활지도' → 도 제거 안 함.
+    """
+    for trigger in _SENTENCE_TYPES.get(stype, []):
+        idx = text.find(trigger)
+        if idx == -1:
+            continue
+        zone = text[:idx].strip()
+        tokens = zone.split()
+        cleaned = []
+        for t in tokens:
+            # Glossary-first: 복합 용어 구성 단어는 조사 제거 금지
+            if t in _GLOSSARY_WORD_PARTS:
+                cleaned.append(t)
+                continue
+            s = _KO_PARTICLES.sub("", t).strip()
+            if len(s) >= 2:
+                cleaned.append(s)
+            elif len(t) >= 2:
+                cleaned.append(t)
+            # else: 단독 1자 조사 토큰 → 버림
+        return " ".join(cleaned)
+    return ""
+
+
+def _extract_template_items(item_zone: str, glossary: list, target_lang: str) -> list[tuple[str, str]]:
+    """동사 이전 구간(item_zone)에서만 glossary 검색 — 동사 오염 원천 차단."""
     lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang
     preferred_col = f"preferred_{lang_key}"
-    text_norm = _normalize_glossary_key(text)
+    text_norm = _normalize_glossary_key(item_zone)
     spans: list[tuple[int, int, str, str]] = []
     occupied: list[tuple[int, int]] = []
     for row in sorted(glossary, key=lambda r: -len(r.get("korean", ""))):
@@ -359,31 +636,66 @@ def _extract_recipient(text: str, lang: str) -> str | None:
     return None
 
 
-def _join_vi_items(items: list[str]) -> str:
+def _join_items(items: list[str], lang: str) -> str:
     if not items:
         return ""
     if len(items) == 1:
         return items[0]
-    return ", ".join(items[:-1]) + " và " + items[-1]
+    conj = _LANG_CONJUNCTIONS.get(lang, " and ")
+    return ", ".join(items[:-1]) + conj + items[-1]
 
 
-def _build_from_template_vi(
+def _build_from_template(
     stype: str,
     items: list[tuple[str, str]],
+    lang: str,
     audience: str | None,
     recipient: str | None,
 ) -> str | None:
     if stype == "info" or not items:
         return None
-    tpl = _VI_TEMPLATES.get(stype)
+    lang_templates = _LANG_TEMPLATES.get(lang, {})
+    tpl = lang_templates.get(stype)
     if tpl is None:
         return None
-    sentence = tpl.format(items=_join_vi_items([vi for _, vi in items]))
+    sentence = tpl.format(items=_join_items([tr for _, tr in items], lang))
     if recipient and stype == "submit":
-        sentence = sentence.rstrip(".") + f" cho {recipient}."
+        suffix_tpl = _LANG_RECIPIENT_SUFFIX.get(lang, "")
+        if suffix_tpl:
+            # 언어별 문장 종결자 제거 후 수신인 접미 붙이기
+            sentence = sentence.rstrip(".。") + suffix_tpl.format(recipient=recipient)
+            if lang not in ("zh", "ja", "th", "mn"):
+                sentence += "."
     if audience:
-        sentence = f"Dành cho {audience}: {sentence}"
+        prefix_tpl = _LANG_AUDIENCE_PREFIX.get(lang, "")
+        if prefix_tpl:
+            sentence = prefix_tpl.format(audience=audience) + sentence
     return sentence
+
+
+def _extract_noun_for_template(text: str, stype: str) -> str:
+    """슬롯 없는 문장에서 동사구를 제거하고 명사구만 반환.
+
+    "체육복과 실내화를 준비해 주세요" → "체육복과 실내화"
+    슬롯 토큰(__SLOT0__)이 남아있으면 None 반환 — 슬롯 있는 문장은 NLLB가 처리.
+    """
+    if "__SLOT" in text:
+        return ""
+    for kw in _SENTENCE_TYPES.get(stype, []):
+        idx = text.find(kw)
+        if idx != -1:
+            noun_part = text[:idx]
+            tokens = noun_part.split()
+            cleaned = []
+            for tok in tokens:
+                s = _KO_PARTICLES.sub("", tok).strip()
+                if len(s) >= 2:
+                    cleaned.append(s)
+                elif len(tok) >= 2:
+                    cleaned.append(tok)
+                # else: 단독 1자 조사 토큰 → 버림 (ISSUE-03)
+            return " ".join(cleaned)
+    return ""
 
 
 def _find_glossary_hits_safe(text: str, glossary: list, target_lang: str) -> list[dict]:
@@ -433,6 +745,177 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
     return vi_text.strip()
 
 
+def _post_process_en(easy_ko: str, en_text: str) -> str:
+    if not en_text:
+        return en_text
+    if _has_any(easy_ko, _HOMEROOM_CONTEXT_TERMS):
+        for pat in _HOMEROOM_PATTERNS_EN:
+            en_text = pat.sub('homeroom teacher', en_text)
+    if _has_any(easy_ko, _ALLSTUDENT_CONTEXT_TERMS):
+        for pat in _ALLSTUDENT_PATTERNS_EN:
+            en_text = pat.sub('all students', en_text)
+    if _has_any(easy_ko, _SCHOOL_TRIP_CONTEXT_TERMS):
+        for pat in _SCHOOL_TRIP_PATTERNS_EN:
+            en_text = pat.sub('school trip', en_text)
+    if _has_any(easy_ko, _SCHOOL_NOTICE_CONTEXT_TERMS):
+        for pat in _NEWSLETTER_PATTERNS_EN:
+            en_text = pat.sub('school newsletter', en_text)
+    if _has_any(easy_ko, _FIELD_TRIP_CONTEXT_TERMS):
+        for pat in _FIELD_TRIP_PATTERNS_EN:
+            en_text = pat.sub('field trip', en_text)
+    return en_text.strip()
+
+
+def _post_process_ru(easy_ko: str, ru_text: str) -> str:
+    if not ru_text:
+        return ru_text
+    if _has_any(easy_ko, _HOMEROOM_CONTEXT_TERMS):
+        for pat in _HOMEROOM_PATTERNS_RU:
+            ru_text = pat.sub('классному руководителю', ru_text)
+    if _has_any(easy_ko, _SCHOOL_TRIP_CONTEXT_TERMS):
+        for pat in _SCHOOL_TRIP_PATTERNS_RU:
+            ru_text = pat.sub('школьной поездке', ru_text)
+    if _has_any(easy_ko, _SCHOOL_NOTICE_CONTEXT_TERMS):
+        for pat in _NEWSLETTER_PATTERNS_RU:
+            ru_text = pat.sub('школьному сообщению', ru_text)
+    if _has_any(easy_ko, _FIELD_TRIP_CONTEXT_TERMS):
+        for pat in _PICNIC_PATTERNS_RU:
+            ru_text = pat.sub('пикника', ru_text)
+    return ru_text.strip()
+
+
+def _post_process_ms(easy_ko: str, ms_text: str) -> str:
+    if not ms_text:
+        return ms_text
+    if _has_any(easy_ko, _HOMEROOM_CONTEXT_TERMS):
+        for pat in _HOMEROOM_PATTERNS_MS:
+            ms_text = pat.sub('guru kelas', ms_text)
+    if _has_any(easy_ko, _ALLSTUDENT_CONTEXT_TERMS):
+        for pat in _ALLSTUDENT_PATTERNS_MS:
+            ms_text = pat.sub('semua pelajar', ms_text)
+    if _has_any(easy_ko, _SCHOOL_TRIP_CONTEXT_TERMS):
+        for pat in _SCHOOL_TRIP_PATTERNS_MS:
+            ms_text = pat.sub('lawatan sambil belajar', ms_text)
+    if _has_any(easy_ko, _SCHOOL_NOTICE_CONTEXT_TERMS):
+        for pat in _NEWSLETTER_PATTERNS_MS:
+            ms_text = pat.sub('surat edaran sekolah', ms_text)
+    return ms_text.strip()
+
+
+def _post_process_mn(easy_ko: str, mn_text: str) -> str:
+    if not mn_text:
+        return mn_text
+    if _has_any(easy_ko, _ALLSTUDENT_CONTEXT_TERMS):
+        for pat in _ALLSTUDENT_PATTERNS_MN:
+            mn_text = pat.sub('бүх сурагчид', mn_text)
+    if _has_any(easy_ko, _SCHOOL_TRIP_CONTEXT_TERMS):
+        for pat in _SCHOOL_TRIP_PATTERNS_MN:
+            mn_text = pat.sub('сургуулийн аялалд', mn_text)
+    return mn_text.strip()
+
+
+def _post_process_zh(easy_ko: str, zh_text: str) -> str:
+    if not zh_text:
+        return zh_text
+    if _has_any(easy_ko, _HOMEROOM_CONTEXT_TERMS):
+        for pat in _HOMEROOM_PATTERNS_ZH:
+            zh_text = pat.sub('班主任', zh_text)
+    if _has_any(easy_ko, _ALLSTUDENT_CONTEXT_TERMS):
+        for pat in _ALLSTUDENT_PATTERNS_ZH:
+            zh_text = pat.sub('全校学生', zh_text)
+    if _has_any(easy_ko, _SCHOOL_TRIP_CONTEXT_TERMS):
+        for pat in _SCHOOL_TRIP_PATTERNS_ZH:
+            zh_text = pat.sub('修学旅行', zh_text)
+    if _has_any(easy_ko, _SCHOOL_NOTICE_CONTEXT_TERMS):
+        for pat in _NEWSLETTER_PATTERNS_ZH:
+            zh_text = pat.sub('家长通知书', zh_text)
+    if _has_any(easy_ko, _LUNCH_CONTEXT_TERMS):
+        for pat in _LUNCH_PATTERNS_ZH:
+            zh_text = pat.sub('餐费', zh_text)
+    return zh_text.strip()
+
+
+def _post_process_th(easy_ko: str, th_text: str) -> str:
+    if not th_text:
+        return th_text
+    # NLLB에서 TH 출력 반복 홍 hallucination 방어
+    th_text = _TH_LOOP_RE.sub(r'', th_text)
+    if _has_any(easy_ko, _ALLSTUDENT_CONTEXT_TERMS):
+        for pat in _ALLSTUDENT_PATTERNS_TH:
+            th_text = pat.sub('นักเรียนทุกคน', th_text)
+    if _has_any(easy_ko, _ELEMENTARY_CONTEXT_TERMS):
+        for pat in _ELEMENTARY_PATTERNS_TH:
+            th_text = pat.sub('นักเรียนชั้นประถมศึกษา', th_text)
+    return th_text.strip()
+
+
+def _post_process_ja(easy_ko: str, ja_text: str) -> str:
+    if not ja_text:
+        return ja_text
+    if _has_any(easy_ko, _HOMEROOM_CONTEXT_TERMS):
+        for pat in _HOMEROOM_PATTERNS_JA:
+            ja_text = pat.sub('担任の先生', ja_text)
+    if _has_any(easy_ko, _SCHOOL_TRIP_CONTEXT_TERMS):
+        for pat in _SCHOOL_TRIP_PATTERNS_JA:
+            ja_text = pat.sub('修学旅行', ja_text)
+    if _has_any(easy_ko, _SCHOOL_NOTICE_CONTEXT_TERMS):
+        for pat in _NEWSLETTER_PATTERNS_JA:
+            ja_text = pat.sub('学校からのお知らせ', ja_text)
+    if _has_any(easy_ko, _ELEMENTARY_CONTEXT_TERMS):
+        for pat in _ELEMENTARY_PATTERNS_JA:
+            ja_text = pat.sub('小学生の子供', ja_text)
+    if _has_any(easy_ko, _INFANT_CONTEXT_TERMS):
+        for pat in _INFANT_PATTERNS_JA:
+            ja_text = pat.sub('幼児', ja_text)
+    if _has_any(easy_ko, _LUNCH_CONTEXT_TERMS):
+        for pat in _LUNCH_PATTERNS_JA:
+            ja_text = pat.sub('給食費を支払う', ja_text)
+    return ja_text.strip()
+
+
+def _post_process(lang: str, easy_ko: str, text: str) -> str:
+    if lang == 'vi':
+        return _post_process_vi(easy_ko, text)
+    if lang == 'en':
+        return _post_process_en(easy_ko, text)
+    if lang == 'ru':
+        return _post_process_ru(easy_ko, text)
+    if lang == 'ms':
+        return _post_process_ms(easy_ko, text)
+    if lang == 'mn':
+        return _post_process_mn(easy_ko, text)
+    if lang == 'zh':
+        return _post_process_zh(easy_ko, text)
+    if lang == 'th':
+        return _post_process_th(easy_ko, text)
+    if lang == 'ja':
+        return _post_process_ja(easy_ko, text)
+    return text
+
+
+# 고유명사(장소명) 보호 — NLLB에 넣으면 오역되는 한국 고유 시설명을 한글 그대로 유지.
+# 복원 값 = 한글 원문 그대로 → 어느 언어 출력에서도 동일하게 보임.
+# NLLB는 __SLOT0__에서... 처럼 조사가 붙어있어도 위치 맥락을 파악해 tại/在 등 전치사 삽입.
+_PLACE_SUFFIX = (
+    r"(?:박물관|미술관|과학관|천문대|체험관|기념관|생태관|역사관"
+    r"|동물원|식물원|수목원|전시관|문화관|문화원|문화회관|기념회관"
+    r"|공연장|체육관|빙상장|수영장|야영장|캠핑장|공원|정원|회관|센터)"
+)
+_PROPER_PLACE = re.compile(
+    # 국립/시립 등 접두 + 최대 12자 한글 + 시설 접미 (서울특별시교육청과학전시관 등 커버)
+    r"(?:국립|시립|도립|구립|군립|사립|공립)[가-힣]{1,12}" + _PLACE_SUFFIX
+    # 고유명사 1-2단어(공백 포함) + 선택적 공백 + 시설 접미 (최대 12자로 확장)
+    + r"|[가-힣a-zA-Z]{1,12}(?:\s[가-힣a-zA-Z]{1,8})?\s?" + _PLACE_SUFFIX
+)
+# 시간/방향 부사나 조사로 끝나는 단어가 앞에 오면 오탐 발생
+# stash_place에서 첫 단어가 이 목록이거나 조사 어미로 끝나면 보호 제외
+_PLACE_NON_PREFIX: frozenset[str] = frozenset([
+    "금일", "오늘", "내일", "모레", "이번", "다음", "당일", "매일", "매주", "매월",
+    "현재", "현장", "해당", "관련", "각종", "여러", "일부", "방문", "견학",
+])
+# 조사/어미로 끝나는 단어 → 고유명사 아님 (학생들은, 어린이는, 학부모가 등)
+_JOSA_ENDING = re.compile(r"[은는이가을를도]$")
+
 # OCR 변환 과정에서 생기는 특수문자 제거. HWP 체크박스/불릿이 □·▣ 등으로 깨지는 패턴.
 _OCR_NOISE = re.compile(r"[□■▣▷◆◇▶◀►◄■-◿`]+")
 _MULTI_SPACE = re.compile(r"[ \t]{2,}")
@@ -473,6 +956,21 @@ def _mask_protected_entities(text: str, target_lang: str | None = None) -> tuple
 
     masked = _URL.sub(stash_match, text)
     masked = _PHONE.sub(stash_match, masked)
+
+    def stash_place(m: re.Match) -> str:
+        # 첫 단어가 시간/방향 부사면 보호 제외 (예: 금일 식물원, 오늘 체육관)
+        text = m.group(0)
+        first = text.split()[0]
+        if first in _PLACE_NON_PREFIX:
+            return text
+        # 첫 단어가 조사 어미로 끝나면 첫 단어만 제외하고 나머지 장소명은 슬롯 처리
+        # (예: 학생들은 국립해양박물관 → 학생들은 + [SLOT:국립해양박물관])
+        if _JOSA_ENDING.search(first):
+            rest = text[len(first):].lstrip()
+            return first + " " + stash_value(rest)
+        return stash_value(text)
+
+    masked = _PROPER_PLACE.sub(stash_place, masked)  # 고유명사 한글 그대로 보존
 
     if target_lang and target_lang != "ko_easy":
         slot_values: list[tuple[str, str]] = []
@@ -633,22 +1131,34 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
     if not re.search(r"[가-힣a-zA-Z]", _non_slot):
         return _restore_protected_entities(masked, placeholders)
 
-    # 2) Template-based (vi only): 문장 유형 분류 → glossary 직접 매핑 → 템플릿 조립
-    if target_lang in ("vi", "vi_demo"):
-        _vi_lang = "vi"  # vi_demo → vi for glossary/template lookups
+    # 2) Template-based (모든 언어): 문장 유형 분류 → glossary 직접 매핑 → 템플릿 조립
+    # ko_easy는 원문 그대로이므로 제외. LANG_TEMPLATES에 없는 언어는 자동 NLLB fallback.
+    lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang
+    if lang_key in _LANG_TEMPLATES:
         stype = _classify_sentence(text)
         if stype != "info":
             glossary = _get_glossary()
             _build_role_sets(glossary)
-            items = _extract_template_items(text, glossary, _vi_lang)
+            item_zone = _get_item_zone(text, stype)
+            items = _extract_template_items(item_zone, glossary, lang_key)
+            if not items:
+                # glossary 미감지 + 슬롯 없음 → 명사구만 NLLB 단독 번역 후 템플릿 채움
+                noun = _extract_noun_for_template(masked, stype)
+                if noun and re.search(r"[가-힣]", noun):
+                    try:
+                        noun_tr = _translate(noun, target_nllb=LANG_TO_NLLB.get(lang_key, "vie_Latn"))
+                        if noun_tr:
+                            items = [(noun, noun_tr)]
+                    except Exception:
+                        pass
             if items:
-                audience = _extract_audience(text, _vi_lang)
-                recipient = _extract_recipient(text, _vi_lang)
-                result = _build_from_template_vi(stype, items, audience, recipient)
+                audience = _extract_audience(text, lang_key)
+                recipient = _extract_recipient(text, lang_key)
+                result = _build_from_template(stype, items, lang_key, audience, recipient)
                 if result:
                     return _restore_protected_entities(result, placeholders)
 
-    # 3) NLLB fallback — info 유형, 비vi 언어, glossary 항목 미감지
+    # 3) NLLB fallback — info 유형, 템플릿 미지원 언어, glossary 항목 미감지
     glossary = _get_glossary()
     hits = _find_glossary_hits_safe(masked, glossary, target_lang)
     # glossary 용어를 __SLOT__으로 보호: "스쿨뱅킹(School Banking)" 주입 방식은
@@ -666,8 +1176,7 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
     target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
     try:
         translated = _translate(injected, target_nllb=target_nllb)
-        if target_lang == "vi":
-            translated = _post_process_vi(text, translated)
+        translated = _post_process(target_lang, text, translated)
     except Exception as error:
         print(f"[translator] translate_short_sentence failed: {error}")
         return ""
@@ -696,7 +1205,8 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
     nllb_originals: list[str] = []
 
     glossary = _get_glossary()
-    if target_lang == "vi":
+    lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang
+    if lang_key in _LANG_TEMPLATES:
         _build_role_sets(glossary)
 
     for i, text in enumerate(texts):
@@ -711,16 +1221,25 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
             results[i] = _restore_protected_entities(masked, placeholders)
             continue
 
-        # vi 템플릿 분기 — 매칭되면 NLLB 우회
-        if target_lang in ("vi", "vi_demo"):
-            _vi_lang = "vi"
+        # 템플릿 분기 (모든 언어) — 매칭되면 NLLB 우회
+        if lang_key in _LANG_TEMPLATES:
             stype = _classify_sentence(cleaned)
             if stype != "info":
-                items = _extract_template_items(cleaned, glossary, _vi_lang)
+                item_zone = _get_item_zone(cleaned, stype)
+                items = _extract_template_items(item_zone, glossary, lang_key)
+                if not items:
+                    noun = _extract_noun_for_template(masked, stype)
+                    if noun and re.search(r"[가-힣]", noun):
+                        try:
+                            noun_tr = _translate(noun, target_nllb=LANG_TO_NLLB.get(lang_key, "vie_Latn"))
+                            if noun_tr:
+                                items = [(noun, noun_tr)]
+                        except Exception:
+                            pass
                 if items:
-                    audience = _extract_audience(cleaned, _vi_lang)
-                    recipient = _extract_recipient(cleaned, _vi_lang)
-                    template_result = _build_from_template_vi(stype, items, audience, recipient)
+                    audience = _extract_audience(cleaned, lang_key)
+                    recipient = _extract_recipient(cleaned, lang_key)
+                    template_result = _build_from_template(stype, items, lang_key, audience, recipient)
                     if template_result:
                         results[i] = _restore_protected_entities(template_result, placeholders)
                         continue
@@ -752,8 +1271,7 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
         for idx, translated, ph, original in zip(
             nllb_indices, translated_batch, nllb_placeholders, nllb_originals,
         ):
-            if target_lang == "vi":
-                translated = _post_process_vi(original, translated)
+            translated = _post_process(target_lang, original, translated)
             results[idx] = _restore_protected_entities(translated, ph)
 
     return results
@@ -814,8 +1332,7 @@ def translate_and_review(notice_text: str, target_lang: str = "vi") -> dict:
     target_nllb = LANG_TO_NLLB.get(target_lang, "vie_Latn")
     try:
         translated = _translate(easy_ko_text, target_nllb=target_nllb)
-        if target_lang == "vi":
-            translated = _post_process_vi(easy_ko_text, translated)
+        translated = _post_process(target_lang, easy_ko_text, translated)
     except Exception as error:
         print(f"[translator] translate failed: {error}")
         translated = ""
