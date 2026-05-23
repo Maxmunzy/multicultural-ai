@@ -116,6 +116,59 @@ python model/translation_tts/run_quality_eval.py
 
 공유용 요약은 `../../docs/share-summary-2026-04-28-quality-eval.md`에 정리했다.
 
+## 2026-05-23 review_required 안전 가드
+
+### 위험 문장 자동 확정 번역 방지
+
+성능 향상이 아닌 서비스 안전장치 추가. `translate_short_sentence_reviewed()` 신규 함수.
+
+```python
+{
+  "translated_text": "...",
+  "review_required": true,
+  "review_reason": "NON_PARENT_TARGET"  # or "RISKY_CONTEXT" or null
+}
+```
+
+### 감지 패턴 3종
+
+| 코드 | 트리거 예시 | 의미 |
+|---|---|---|
+| `NON_PARENT_TARGET` | 교사는, 교무실로 제출, 행정실에서는 | 학부모 앱 노출 위험 |
+| `RISKY_CONTEXT` | 제출하지 않고, 가져오지, 희망자만, 선택 사항 | 부정/선택 조건 — 자동 확정 금지 |
+| `PLACE_KNOWN_LIMIT` | (추후) | 장소 regex 한계 문서화 |
+
+### item_zone safe boundary 적용
+
+절 경계(`,` / `.` / `읽고` / `확인한 뒤` / `확인 후` / `사항이며` / `이며`) 이후만 item zone으로 인정.
+- 개선 전: "제출 방법 안내문을 읽고 참가 신청서를 제출해 주세요" → item_zone = "제출 방법 안내문을 읽고 참가 신청서"
+- 개선 후: item_zone = "참가 신청서" (동사 오염 제거)
+
+### place_glossary 추가 (6개)
+
+regex 미지원 브랜드형 장소: 서울상상나라, 순천만습지, 서울특별시교육청과학전시관 남산분관, 대전오월드, 플라워랜드, 에코리움
+
+### 테스트 결과
+
+```
+기존 100문장 테스트 (run_eval_testset.py):
+- template_hit_rate:   67/67 = 100%
+- template_fp_rate:    0/33  = 0%
+- item_capture_rate:   65/65 = 100%
+- place_capture_rate:  10/10 = 100%
+- place_fp_rate:       1/90  = 1%  (PLACE-H-001 known limit)
+
+Adversarial 60문장 테스트 (run_adversarial_testset.py):
+- 자동 처리 가능:       50/60
+- review_required 처리: 10/60
+- 실패:                  0/60
+- known_limit:           3/60  (ADV-023 긴 기관명, ADV-049 오타, ADV-057 행정실로)
+```
+
+성공 기준 달성: 위험 문장(NON_PARENT_TARGET 1 + RISKY_CONTEXT 9)이 전부 자동 확정 번역 없이 review_required 처리.
+
+---
+
 ## 2026-05-22 번역 품질 강화
 
 ### 템플릿 번역 시스템 도입 (8타입 × 8개 언어)

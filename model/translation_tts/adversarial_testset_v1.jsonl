@@ -1,0 +1,60 @@
+{"id":"ADV-001","text":"참가 신청서는 제출하지 않고, 온라인 설문으로만 신청해 주세요.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"제출하지 않고 패턴 → RISKY_CONTEXT 플래그 필요"}
+{"id":"ADV-002","text":"참가 동의서는 이미 제출한 학생은 다시 제출하지 않아도 됩니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"제출 트리거 없음 → NLLB fallback, review 불필요"}
+{"id":"ADV-003","text":"체험학습에 참가하지 않는 학생도 불참 여부를 표시하여 회신해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"회신해 주세요 미등록 트리거 → NLLB fallback"}
+{"id":"ADV-004","text":"참가 신청서는 지난주에 제출했습니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"과거형 → 트리거 없음"}
+{"id":"ADV-005","text":"참가 동의서는 다음 안내장에서 제출 방법을 안내할 예정입니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"예정 안내 → 트리거 없음"}
+{"id":"ADV-006","text":"해당되는 가정만 개인정보 제공 동의서를 제출해 주세요.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"해당되는 가정만 → RISKY_CONTEXT 필요"}
+{"id":"ADV-007","text":"참가 동의서, 건강 조사서, 개인정보 수집 동의서를 모두 작성하여 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"복수 제출물 — 템플릿 hit 정상 처리"}
+{"id":"ADV-008","text":"보호자 서명이 포함된 참가 동의서를 4월 28일까지 담임선생님께 꼭 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"담임선생님께 (recipient 패턴) — NON_PARENT 아님, 정상"}
+{"id":"ADV-009","text":"제출 방법 안내문을 읽고 참가 신청서를 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":{"stype":"submit","must_contain":["참가 신청서"],"must_not_contain":["제출 방법 안내문"]},"known_limit":false,"notes":"읽고 safe boundary → 동사 오염 방어, 참가 신청서만 추출"}
+{"id":"ADV-010","text":"생활지도 동의서를 작성하여 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"작성하여 비경계 → 정상 submit 처리"}
+{"id":"ADV-011","text":"급식비는 이번 달에 납부하지 않습니다.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"납부하지 → RISKY_CONTEXT"}
+{"id":"ADV-012","text":"체험학습비는 스쿨뱅킹 계좌에서 자동 출금될 예정입니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"자동출금 예정 → 트리거 없음"}
+{"id":"ADV-013","text":"행사 취소 시 납부한 체험학습비는 전액 환불됩니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"환불 안내 → 트리거 없음"}
+{"id":"ADV-014","text":"자세한 참가비는 추후 안내드리겠습니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"추후 안내 → 트리거 없음"}
+{"id":"ADV-015","text":"입장료 5,000원과 버스비 12,000원을 합산하여 17,000원을 납부해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"납부해 주세요 → pay 정상 처리, 금액 slot"}
+{"id":"ADV-016","text":"체험학습비 납부 후 영수증을 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"pay+submit 혼합 — 최종 submit 처리"}
+{"id":"ADV-017","text":"도시락은 학교에서 제공하므로 가져오지 않아도 됩니다.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"가져오지 → RISKY_CONTEXT"}
+{"id":"ADV-018","text":"모자는 선택 사항이며, 개인 물병은 반드시 가져와 주세요.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"선택 사항 → RISKY_CONTEXT"}
+{"id":"ADV-019","text":"색연필은 학교에 있으니 따로 준비하지 않아도 됩니다.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"준비하지 않아도 → RISKY_CONTEXT"}
+{"id":"ADV-020","text":"물, 모자 및 여벌 옷을 준비하고, 휴대전화는 가져오지 마세요.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"가져오지 → RISKY_CONTEXT"}
+{"id":"ADV-021","text":"이번 주 체육관 행사 안내입니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"트리거 없음 → NLLB fallback"}
+{"id":"ADV-022","text":"교실에서 안전교육을 실시합니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"일반 명사 장소 → 정책상 슬롯 처리 안 함"}
+{"id":"ADV-023","text":"서울특별시교육청과학전시관 남산분관에서 체험학습을 진행합니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":true,"notes":"KNOWN-LIMIT: 긴 기관명 regex partial match 가능 (PLACE-H-001 동일)"}
+{"id":"ADV-024","text":"서울상상나라에서 어린이 체험활동을 진행합니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"place_glossary 추가로 보호"}
+{"id":"ADV-025","text":"국립부산과학관 어린이과학관에서 과학 체험을 진행합니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"복합 장소 → NLLB fallback"}
+{"id":"ADV-026","text":"순천만국가정원과 순천만습지를 견학합니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"순천만습지 place_glossary 추가"}
+{"id":"ADV-027","text":"국립중앙박물관 참가 신청서를 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"장소+제출물 결합 — submit 정상 처리"}
+{"id":"ADV-028","text":"우리나라 전통문화 체험활동을 실시합니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"나라 오탐 방지 — 트리거 없음"}
+{"id":"ADV-029","text":"이번 주 금요일까지 참가 여부를 알려 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"상대 날짜 → NLLB fallback"}
+{"id":"ADV-030","text":"4월 22일부터 4월 26일까지 신청 기간입니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"신청 기간 안내 → 트리거 없음"}
+{"id":"ADV-031","text":"행사는 오전 9시 30분부터 11시 10분까지 진행됩니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"시간 범위 → NLLB fallback"}
+{"id":"ADV-032","text":"우천 시 체험학습 일정은 다음 주로 연기될 수 있습니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"일정 변경 가능성 → 트리거 없음"}
+{"id":"ADV-033","text":"신청 인원이 적을 경우 프로그램이 취소될 수 있습니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"조건부 취소 → 트리거 없음"}
+{"id":"ADV-034","text":"3학년 학생 중 희망자만 참가 신청서를 제출해 주세요.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"희망자만 → RISKY_CONTEXT"}
+{"id":"ADV-035","text":"1~2학년은 체육복을, 3~6학년은 간편한 복장을 착용해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"학년별 준비물 — , boundary로 마지막 절 추출"}
+{"id":"ADV-036","text":"신청서를 작성한 뒤 보호자 서명을 받아 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"다중 행동 — 최종 submit 처리"}
+{"id":"ADV-037","text":"신청서는 금요일까지 제출해 주세요. 준비물은 물과 모자입니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"두 문장 혼합 — 첫 트리거 기준 처리"}
+{"id":"ADV-038","text":"준비물: 개인 물병, 모자 / 제출물: 참가 동의서","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"콜론 구조 → 트리거 없음, NLLB fallback"}
+{"id":"ADV-039","text":"참가 동의서(보호자 서명 필수)를 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"괄호 포함 — submit 정상 처리"}
+{"id":"ADV-040","text":"O/X 표시 후 회신서를 보내 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"보내 주세요 submit 트리거 정상"}
+{"id":"ADV-041","text":"아래 링크 https://school.example.com 으로 접속하여 신청해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"URL 보호 + apply 트리거"}
+{"id":"ADV-042","text":"문의는 051-123-4567로 연락해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"전화 슬롯 보호 — 연락해 주세요 미등록"}
+{"id":"ADV-043","text":"신청서는 teacher@example.com으로 보내 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"이메일+submit 보내 주세요 트리거"}
+{"id":"ADV-044","text":"개인 간식은 가져오지 않도록 지도해 주세요.","expect_review_required":true,"expect_review_reason":"RISKY_CONTEXT","safe_boundary":null,"known_limit":false,"notes":"가져오지 → RISKY_CONTEXT"}
+{"id":"ADV-045","text":"학생들이 안전하고 즐겁게 참여할 수 있도록 가정에서도 지도 부탁드립니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"안내성 문장 → 트리거 없음"}
+{"id":"ADV-046","text":"세부 준비물과 납부 금액은 추후 다시 안내드리겠습니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"추후 안내 — 트리거 있어도 현재 action 아님"}
+{"id":"ADV-047","text":"참가 동의서 제출 관련 안내","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"제목형 — 트리거 없음, NLLB fallback"}
+{"id":"ADV-048","text":"부산 영화체험박물관 현장학습 안내","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"장소 슬롯 가능 — 트리거 없음"}
+{"id":"ADV-049","text":"참가 동의서를 제츨해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":true,"notes":"KNOWN-LIMIT: 오타 '제츨' → 트리거 미매칭, NLLB fallback (정상)"}
+{"id":"ADV-050","text":"참가동의서를4월28일까지제출해주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"OCR 붙여쓰기 — 제출해주세요 트리거 인식"}
+{"id":"ADV-051","text":"참가 동의서를를 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"이중 조사 오류 — submit 정상 처리"}
+{"id":"ADV-052","text":"준비물 - 물/모자/개인수건(필수)","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"separator 다양성 — 트리거 없음"}
+{"id":"ADV-053","text":"체험학습비는 1만 5천 원입니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"금액 단위 변형 — 트리거 없음"}
+{"id":"ADV-054","text":"2026.04.28.(화)까지 회신해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"날짜 dot 형식 + 회신 미등록 → NLLB fallback"}
+{"id":"ADV-055","text":"보호자께서는 학생의 건강 상태를 고려하시어 참가 여부를 결정해 주시기 바랍니다.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"경어체 안내 — 템플릿 미해당, NLLB fallback"}
+{"id":"ADV-056","text":"담임교사는 회신서를 수합하여 교무실로 제출해 주세요.","expect_review_required":true,"expect_review_reason":"NON_PARENT_TARGET","safe_boundary":null,"known_limit":false,"notes":"교사는 + 교무실로 제출 → NON_PARENT_TARGET (1순위 케이스)"}
+{"id":"ADV-057","text":"납부 관련 문의는 행정실로 연락해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":true,"notes":"KNOWN-LIMIT: 행정실로 ≠ 행정실에서는 패턴 미매칭 — 추후 패턴 확장 필요"}
+{"id":"ADV-058","text":"박물관 참가 신청서를 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"장소+제출물 모호 — submit 정상 처리"}
+{"id":"ADV-059","text":"체육관람 활동 신청서를 제출해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"체육관 오탐 방지 — submit 정상 처리"}
+{"id":"ADV-060","text":"4월 28일까지 참가 동의서를 제출하고, 당일에는 물과 모자를 준비해 주세요.","expect_review_required":false,"expect_review_reason":null,"safe_boundary":null,"known_limit":false,"notes":"submit+prepare 복합 — 준비해 주세요 트리거 기준 처리"}
