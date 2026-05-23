@@ -102,25 +102,32 @@ public class MainActivity extends Activity {
     // 학부모 PDF 업로드 요청 코드
     private static final int REQUEST_PICK_FILE_PARENT = 1003;
 
-    // ── Daon design tokens ──
-    private static final int COLOR_PEACH        = Color.parseColor("#DBEAFE"); // light blue
-    private static final int COLOR_PEACH_DEEP   = Color.parseColor("#3B67FF"); // primary blue
-    private static final int COLOR_PEACH_INK    = Color.parseColor("#1A237E"); // dark navy
-    private static final int COLOR_MINT         = Color.parseColor("#DCFCE7"); // light green
-    private static final int COLOR_MINT_DEEP    = Color.parseColor("#22C55E"); // success green
-    private static final int COLOR_MINT_INK     = Color.parseColor("#15803D"); // dark green
-    private static final int COLOR_LEMON        = Color.parseColor("#FEF9C3"); // light yellow
-    private static final int COLOR_LEMON_INK    = Color.parseColor("#854D0E"); // amber
-    private static final int COLOR_LAVENDER     = Color.parseColor("#EEF2FF"); // light indigo
-    private static final int COLOR_LAVENDER_INK = Color.parseColor("#3B67FF"); // primary blue
-    private static final int COLOR_SKY          = Color.parseColor("#DBEAFE"); // light blue
-    private static final int COLOR_PAPER        = Color.parseColor("#FFFFFF"); // white
-    private static final int COLOR_PAPER2       = Color.parseColor("#EEF2FF"); // very light blue
-    private static final int COLOR_INK          = Color.parseColor("#111827"); // near black
-    private static final int COLOR_INK2         = Color.parseColor("#374151"); // dark gray
-    private static final int COLOR_INK3         = Color.parseColor("#6B7280"); // medium gray
-    private static final int COLOR_INK4         = Color.parseColor("#9CA3AF"); // light gray
-    private static final int COLOR_LINE         = Color.parseColor("#E5E7EB"); // border gray
+    // ── Daon design tokens (CSS: daon-shared.css v2) ──
+    // Brand — indigo (--brand)
+    private static final int COLOR_PEACH        = Color.parseColor("#EEF2FF"); // --brand-light
+    private static final int COLOR_PEACH_DEEP   = Color.parseColor("#4F46E5"); // --brand
+    private static final int COLOR_PEACH_INK    = Color.parseColor("#3730A3"); // --brand-deep
+    // AI accent — violet (--ai)
+    private static final int COLOR_AI           = Color.parseColor("#7C3AED"); // --ai
+    private static final int COLOR_AI_LIGHT     = Color.parseColor("#F5F3FF"); // --ai-light
+    private static final int COLOR_AI_MID       = Color.parseColor("#DDD6FE"); // --ai-mid
+    // Category & semantic
+    private static final int COLOR_MINT         = Color.parseColor("#D1FAE5"); // --cat-submit-bg
+    private static final int COLOR_MINT_DEEP    = Color.parseColor("#10B981"); // --cat-submit
+    private static final int COLOR_MINT_INK     = Color.parseColor("#059669"); // --success
+    private static final int COLOR_LEMON        = Color.parseColor("#FEF3C7"); // --cat-supply-bg
+    private static final int COLOR_LEMON_INK    = Color.parseColor("#D97706"); // --warning
+    private static final int COLOR_LAVENDER     = Color.parseColor("#EEF2FF"); // --brand-light
+    private static final int COLOR_LAVENDER_INK = Color.parseColor("#4F46E5"); // --brand
+    private static final int COLOR_SKY          = Color.parseColor("#E0F2FE"); // --cat-schedule-bg
+    private static final int COLOR_PAPER        = Color.parseColor("#FFFFFF"); // --surface
+    private static final int COLOR_PAPER2       = Color.parseColor("#F8FAFF"); // --surface2
+    // Neutral (--ink)
+    private static final int COLOR_INK          = Color.parseColor("#1E1B4B"); // --ink
+    private static final int COLOR_INK2         = Color.parseColor("#374151"); // --ink2
+    private static final int COLOR_INK3         = Color.parseColor("#6B7280"); // --ink3
+    private static final int COLOR_INK4         = Color.parseColor("#9CA3AF"); // --ink4
+    private static final int COLOR_LINE         = Color.parseColor("#E5E7EB"); // --line
 
     private static final String[] LANG_CODES  = {"vi_demo", "en", "ru", "ms", "mn", "vi", "zh", "th", "ja"};
     private static final String[] LANG_LABELS = {"🇻🇳 Tiếng Việt (시연용)", "🇺🇸 English", "🇷🇺 Русский", "🇲🇾 Bahasa Melayu", "🇲🇳 Монгол", "🇻🇳 Tiếng Việt", "🇨🇳 中文", "🇹🇭 ไทย", "🇯🇵 日本語"};
@@ -689,7 +696,6 @@ public class MainActivity extends Activity {
         inboxListBox.addView(inboxEmptyText);
 
         content.addView(outlineButton("🔄  " + uiText("refresh_inbox"), v -> loadInbox()));
-        content.addView(outlineButton("📥  통신문 직접 올리기", v -> showUploadDialog()));
         content.addView(smallTextButton("← " + uiText("logout"), v -> logout()));
 
         loadInbox();
@@ -938,7 +944,7 @@ public class MainActivity extends Activity {
         root.setPadding(0, 0, 0, dp(28));
         scroll.addView(root);
 
-        // 탑 액션 바: ← back  (spacer)  ✨ AI 번역
+        // 탑 액션 바: ← back  (spacer)  타이틀
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
@@ -955,8 +961,9 @@ public class MainActivity extends Activity {
         centerLabel.setGravity(Gravity.CENTER);
         topBar.addView(centerLabel);
 
-        Button aiBtn = aiPillButton(v -> showAIOverlay(notice));
-        topBar.addView(aiBtn);
+        // 우상단 언어 칩 (lang pill)
+        langPillBtn = makeLangPillButton();
+        topBar.addView(langPillBtn);
         root.addView(topBar);
 
         // 본문 영역
@@ -1009,35 +1016,65 @@ public class MainActivity extends Activity {
             content.addView(cardWithView("한국어 원문", body, Color.WHITE));
         }
 
-        // AI 안내 카드 (탑재형 모듈 강조)
-        LinearLayout aiHint = new LinearLayout(this);
-        aiHint.setOrientation(LinearLayout.HORIZONTAL);
-        aiHint.setGravity(Gravity.CENTER_VERTICAL);
-        aiHint.setPadding(dp(14), dp(12), dp(14), dp(12));
-        aiHint.setLayoutParams(spacedParams());
-        GradientDrawable hbg = new GradientDrawable(
-                GradientDrawable.Orientation.TL_BR, cardGradient(COLOR_LEMON));
-        hbg.setCornerRadius(dp(16));
-        aiHint.setBackground(hbg);
-        TextView hi = new TextView(this);
-        hi.setText("✨");
-        hi.setTextSize(20);
-        LinearLayout.LayoutParams hip = new LinearLayout.LayoutParams(
+        // AI 번역하기 CTA 카드 (demo parent.html Screen 2 · ai-cta)
+        LinearLayout aiCta = new LinearLayout(this);
+        aiCta.setOrientation(LinearLayout.VERTICAL);
+        aiCta.setGravity(Gravity.CENTER_HORIZONTAL);
+        aiCta.setPadding(dp(16), dp(16), dp(16), dp(16));
+        aiCta.setLayoutParams(spacedParams());
+        GradientDrawable ctaBg = new GradientDrawable();
+        ctaBg.setColor(COLOR_AI_LIGHT);
+        ctaBg.setStroke(dp(1), COLOR_AI_MID);
+        ctaBg.setCornerRadius(dp(16));
+        aiCta.setBackground(ctaBg);
+
+        // AI 아이콘 박스
+        LinearLayout iconBox = new LinearLayout(this);
+        iconBox.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams ibp = new LinearLayout.LayoutParams(dp(44), dp(44));
+        ibp.setMargins(0, 0, 0, dp(10));
+        iconBox.setLayoutParams(ibp);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setColor(COLOR_AI);
+        iconBg.setCornerRadius(dp(14));
+        iconBox.setBackground(iconBg);
+        TextView iconEmoji = new TextView(this);
+        iconEmoji.setText("✨");
+        iconEmoji.setTextSize(20);
+        iconEmoji.setGravity(Gravity.CENTER);
+        iconBox.addView(iconEmoji);
+        aiCta.addView(iconBox);
+
+        TextView ctaTitle = text("AI 번역하기", 15, COLOR_AI, true);
+        ctaTitle.setGravity(Gravity.CENTER);
+        aiCta.addView(ctaTitle);
+
+        TextView ctaSub = text("9개 언어 자동 번역 · TTS 음성 포함", 12, COLOR_AI, false);
+        ctaSub.setGravity(Gravity.CENTER);
+        ctaSub.setAlpha(0.75f);
+        LinearLayout.LayoutParams subp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
-        hip.setMargins(0, 0, dp(10), 0);
-        hi.setLayoutParams(hip);
-        aiHint.addView(hi);
-        LinearLayout hcol = new LinearLayout(this);
-        hcol.setOrientation(LinearLayout.VERTICAL);
-        hcol.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
-        TextView ht = text("우측 상단 ✨ 버튼을 누르면", 13, COLOR_LEMON_INK, true);
-        hcol.addView(ht);
-        TextView hd = text("AI가 모국어로 번역하고 체크리스트를 만들어드려요", 11, COLOR_LEMON_INK, false);
-        hd.setAlpha(0.85f);
-        hd.setPadding(0, dp(2), 0, 0);
-        hcol.addView(hd);
-        aiHint.addView(hcol);
-        content.addView(aiHint);
+        subp.setMargins(0, dp(3), 0, dp(14));
+        ctaSub.setLayoutParams(subp);
+        aiCta.addView(ctaSub);
+
+        Button ctaBtn = new Button(this);
+        ctaBtn.setText("AI 번역하기 →");
+        ctaBtn.setTextColor(Color.WHITE);
+        ctaBtn.setTextSize(15);
+        ctaBtn.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        ctaBtn.setAllCaps(false);
+        ctaBtn.setPadding(dp(16), dp(13), dp(16), dp(13));
+        GradientDrawable ctaBtnBg = new GradientDrawable();
+        ctaBtnBg.setColor(COLOR_AI);
+        ctaBtnBg.setCornerRadius(dp(999));
+        ctaBtn.setBackground(ctaBtnBg);
+        LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        ctaBtn.setLayoutParams(btnLp);
+        ctaBtn.setOnClickListener(v -> showAIOverlay(notice));
+        aiCta.addView(ctaBtn);
+        content.addView(aiCta);
 
         // 하단 mock 액션 행
         LinearLayout actionRow = new LinearLayout(this);
@@ -2494,22 +2531,9 @@ public class MainActivity extends Activity {
                         JSONObject json = new JSONObject(result.body);
                         JSONObject d = json.optJSONObject("data");
                         String noticeId = safeString(d, "notice_id");
-                        setSendResult("✅ 발송 완료 (파일 첨부)\n→ " + parentId
-                                + " · #" + shorten(noticeId, 8), true);
-                        // 발송 후 첨부 + 미리보기 클리어 (재발송 방지) + 텍스트 입력란 복귀
-                        pendingFileBytes = null;
-                        pendingFilename = null;
-                        pendingPreviewUrl = null;
-                        pendingPreviewMime = null;
-                        if (teacherPreviewBox != null) {
-                            teacherPreviewBox.removeAllViews();
-                            teacherPreviewBox.setVisibility(View.GONE);
-                        }
-                        if (teacherTitleCard != null) teacherTitleCard.setVisibility(View.VISIBLE);
-                        if (teacherBodyCard != null) teacherBodyCard.setVisibility(View.VISIBLE);
-                        // 추출된 텍스트 클리어 — 발송 후 빈 입력란으로 복귀
-                        if (titleInput != null) titleInput.setText("");
-                        if (bodyInput != null) bodyInput.setText("");
+                        pendingFileBytes = null; pendingFilename = null;
+                        pendingPreviewUrl = null; pendingPreviewMime = null;
+                        showTeacherSendComplete(noticeId, parentId);
                     } catch (Exception error) {
                         setSendResult("응답 파싱 실패\n" + result.body, false);
                     }
@@ -2540,7 +2564,7 @@ public class MainActivity extends Activity {
                 JSONObject json = new JSONObject(result.body);
                 JSONObject data = json.optJSONObject("data");
                 String noticeId = safeString(data, "notice_id");
-                setSendResult("✅ 발송 완료\n→ " + parentId + " · #" + shorten(noticeId, 8), true);
+                showTeacherSendComplete(noticeId, parentId);
             } catch (Exception error) {
                 setSendResult("응답 파싱 실패\n" + result.body, false);
             }
@@ -2552,6 +2576,107 @@ public class MainActivity extends Activity {
         sendResultText.setVisibility(View.VISIBLE);
         sendResultText.setText(value);
         sendResultText.setTextColor(success ? COLOR_MINT_INK : Color.parseColor("#B33A3A"));
+    }
+
+    // ============================================================
+    //  SCREEN 3 · TEACHER — 발송 완료 (demo teacher.html Screen 3)
+    // ============================================================
+    private void showTeacherSendComplete(String noticeId, String parentId) {
+        clearScreenRefs();
+        buildScreen(null, "발송 완료 ✓", "학부모 앱으로 전달됐습니다", false, -1, false);
+
+        // 발송 정보 칩 행
+        LinearLayout chips = new LinearLayout(this);
+        chips.setOrientation(LinearLayout.HORIZONTAL);
+        chips.setLayoutParams(spacedParams());
+        chips.addView(statusChip("FCM 푸시 전송", COLOR_MINT, COLOR_MINT_INK));
+        chips.addView(statusChip("9개 언어", COLOR_PEACH, COLOR_PEACH_INK));
+        chips.addView(statusChip("TTS 포함", COLOR_AI_LIGHT, COLOR_AI));
+        content.addView(chips);
+
+        // 340개 용어사전 배지
+        LinearLayout chips2 = new LinearLayout(this);
+        chips2.setOrientation(LinearLayout.HORIZONTAL);
+        chips2.setLayoutParams(spacedParams());
+        chips2.addView(statusChip("용어사전 340개", COLOR_LEMON, COLOR_LEMON_INK));
+        chips2.addView(statusChip("Claude Haiku 4.5", COLOR_AI_LIGHT, COLOR_AI));
+        content.addView(chips2);
+
+        // 추출 항목 요약 카드
+        content.addView(sectionLabel("학부모가 받는 내용"));
+        content.addView(extractSummaryRow("📅", "일정", "캘린더 자동 저장", COLOR_SKY, Color.parseColor("#0EA5E9")));
+        content.addView(extractSummaryRow("🎒", "준비물", "체크리스트 생성", COLOR_LEMON, COLOR_LEMON_INK));
+        content.addView(extractSummaryRow("🌐", "번역 · 음성", "9개 언어 + TTS", COLOR_AI_LIGHT, COLOR_AI));
+
+        // 회신 현황 버튼
+        content.addView(sectionLabel("다음"));
+        content.addView(bigPrimaryButton("회신 현황 보기 →", v -> notImplementedToast("회신 현황")));
+        content.addView(outlineButton("새 통신문 작성", v -> showTeacherHome()));
+        content.addView(smallTextButton("← 홈으로", v -> showTeacherHome()));
+    }
+
+    private LinearLayout statusChip(String label, int bgColor, int inkColor) {
+        TextView chip = text(label, 11, inkColor, true);
+        chip.setPadding(dp(10), dp(5), dp(10), dp(5));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(bgColor);
+        bg.setCornerRadius(dp(999));
+        chip.setBackground(bg);
+        LinearLayout wrap = new LinearLayout(this);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        p.setMargins(0, 0, dp(6), 0);
+        chip.setLayoutParams(p);
+        wrap.addView(chip);
+        LinearLayout.LayoutParams wp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        wp.setMargins(0, 0, dp(6), 0);
+        wrap.setLayoutParams(wp);
+        return wrap;
+    }
+
+    private LinearLayout extractSummaryRow(String emoji, String label, String desc,
+                                           int bgColor, int accentColor) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(14), dp(13), dp(14), dp(13));
+        row.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(1), COLOR_LINE);
+        row.setBackground(bg);
+
+        LinearLayout iconBox = new LinearLayout(this);
+        iconBox.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams ibp = new LinearLayout.LayoutParams(dp(36), dp(36));
+        ibp.setMargins(0, 0, dp(12), 0);
+        iconBox.setLayoutParams(ibp);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setColor(bgColor);
+        iconBg.setCornerRadius(dp(10));
+        iconBox.setBackground(iconBg);
+        TextView em = new TextView(this);
+        em.setText(emoji);
+        em.setTextSize(16);
+        em.setGravity(Gravity.CENTER);
+        iconBox.addView(em);
+        row.addView(iconBox);
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        TextView lbl = text(label, 14, COLOR_INK, true);
+        col.addView(lbl);
+        TextView dsc = text(desc, 11, COLOR_INK3, false);
+        dsc.setPadding(0, dp(2), 0, 0);
+        col.addView(dsc);
+        row.addView(col);
+
+        TextView check = text("✓", 16, accentColor, true);
+        row.addView(check);
+        return row;
     }
 
     private void fillSampleNotice() {
