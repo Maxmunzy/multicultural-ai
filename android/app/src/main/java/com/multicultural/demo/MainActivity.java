@@ -1159,6 +1159,99 @@ public class MainActivity extends Activity {
     }
 
     // ============================================================
+    //  LOCAL FILE PREVIEW CARD  (서버 preview URL 없는 경우 — HWP 등)
+    //  PDF이면 첫 페이지를 PdfRenderer로 직접 렌더링, 그 외는 파일 정보 카드만 표시
+    // ============================================================
+    private LinearLayout buildLocalFilePreviewCard(String filename, byte[] fileBytes, int charCount) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setLayoutParams(spacedParams());
+        card.setPadding(dp(14), dp(12), dp(14), dp(14));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(1), COLOR_LINE);
+        card.setBackground(bg);
+
+        // 헤더: 파일명 + 첨부 상태 칩
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams hp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        hp.setMargins(0, 0, 0, dp(10));
+        header.setLayoutParams(hp);
+
+        TextView fileIcon = new TextView(this);
+        fileIcon.setText(filename.toLowerCase().endsWith(".pdf") ? "📄" : "📋");
+        fileIcon.setTextSize(20);
+        LinearLayout.LayoutParams fip = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        fip.setMargins(0, 0, dp(10), 0);
+        fileIcon.setLayoutParams(fip);
+        header.addView(fileIcon);
+
+        LinearLayout nameCol = new LinearLayout(this);
+        nameCol.setOrientation(LinearLayout.VERTICAL);
+        nameCol.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        TextView nameView = text(filename, 13, COLOR_INK, true);
+        nameView.setMaxLines(2);
+        nameCol.addView(nameView);
+        TextView sizeView = text(charCount + "자 추출됨", 11, COLOR_INK3, false);
+        sizeView.setPadding(0, dp(2), 0, 0);
+        nameCol.addView(sizeView);
+        header.addView(nameCol);
+
+        TextView attachedChip = text("첨부됨", 10, COLOR_MINT_INK, true);
+        attachedChip.setPadding(dp(8), dp(4), dp(8), dp(4));
+        GradientDrawable chipBg = new GradientDrawable();
+        chipBg.setColor(COLOR_MINT);
+        chipBg.setCornerRadius(dp(999));
+        attachedChip.setBackground(chipBg);
+        header.addView(attachedChip);
+        card.addView(header);
+
+        // PDF이면 첫 페이지 로컬 렌더링
+        boolean isPdf = filename.toLowerCase().endsWith(".pdf")
+                || (fileBytes.length > 4
+                    && fileBytes[0] == 0x25 && fileBytes[1] == 0x50  // %P
+                    && fileBytes[2] == 0x44 && fileBytes[3] == 0x46); // DF
+        if (isPdf && fileBytes != null) {
+            ImageView iv = new ImageView(this);
+            iv.setScaleType(ImageView.ScaleType.FIT_CENTER);
+            LinearLayout.LayoutParams ivp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, dp(320));
+            ivp.setMargins(0, 0, 0, dp(6));
+            iv.setLayoutParams(ivp);
+            card.addView(iv);
+
+            TextView statusTv = text("PDF 렌더링 중...", 11, COLOR_INK3, false);
+            card.addView(statusTv);
+
+            executor.execute(() -> {
+                File tmpPdf = null;
+                try {
+                    tmpPdf = File.createTempFile("preview_local", ".pdf", getCacheDir());
+                    try (FileOutputStream fos = new FileOutputStream(tmpPdf)) {
+                        fos.write(fileBytes);
+                    }
+                    final File pdfFile = tmpPdf;
+                    runOnUiThread(() -> renderPdfPage(pdfFile, 0, iv, statusTv, new LinearLayout(MainActivity.this)));
+                } catch (Exception e) {
+                    final String err = e.getMessage();
+                    runOnUiThread(() -> statusTv.setText("PDF 미리보기 실패: " + err));
+                }
+            });
+        } else {
+            // HWP 등 비PDF — 추출 텍스트 미리보기
+            TextView hint = text("원본 파일은 서버에서 텍스트로 변환됩니다.\n아래 본문을 확인하고 발송하세요.", 12, COLOR_INK3, false);
+            hint.setLineSpacing(0, 1.5f);
+            card.addView(hint);
+        }
+        return card;
+    }
+
+    // ============================================================
     //  ORIGINAL FILE CARD  (PDF / image / fallback)
     // ============================================================
     private LinearLayout buildOriginalFileCard(NoticeItem notice) {
@@ -2900,13 +2993,19 @@ public class MainActivity extends Activity {
                     pendingFilename = filename;
                     pendingPreviewUrl = previewUrl.isEmpty() ? null : previewUrl;
                     pendingPreviewMime = previewMime.isEmpty() ? null : previewMime;
-                    // 선생님 화면에 PDF/이미지 미리보기 카드 추가 + 텍스트 입력란 숨기기
-                    if (pendingPreviewUrl != null && teacherPreviewBox != null) {
+                    // 선생님 화면 — 원본 파일 뷰어 카드 (항상 표시)
+                    if (teacherPreviewBox != null) {
                         teacherPreviewBox.removeAllViews();
-                        NoticeItem previewItem = new NoticeItem(
-                                "preview", currentUserId, extractedText,
-                                pendingPreviewUrl, filename, pendingPreviewMime);
-                        teacherPreviewBox.addView(buildOriginalFileCard(previewItem));
+                        if (pendingPreviewUrl != null) {
+                            // 서버 preview URL 있는 경우 — 기존 buildOriginalFileCard 사용
+                            NoticeItem previewItem = new NoticeItem(
+                                    "preview", currentUserId, extractedText,
+                                    pendingPreviewUrl, filename, pendingPreviewMime);
+                            teacherPreviewBox.addView(buildOriginalFileCard(previewItem));
+                        } else {
+                            // preview URL 없는 경우 (HWP 등) — 로컬 뷰어 시도
+                            teacherPreviewBox.addView(buildLocalFilePreviewCard(filename, bytes, charCount));
+                        }
                         teacherPreviewBox.setVisibility(View.VISIBLE);
                         if (teacherTitleCard != null) teacherTitleCard.setVisibility(View.GONE);
                         if (teacherBodyCard != null) teacherBodyCard.setVisibility(View.GONE);
