@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ko">
 <head>
 <meta charset="utf-8" />
@@ -632,7 +632,7 @@
         <span class="caption">새 통신문</span>
       </div>
 
-      <!-- 4단계 스텝바 -->
+      <!-- 2단계 스텝바 -->
       <div class="step-bar">
         <div class="step-node">
           <div class="step-circle current">1</div>
@@ -641,16 +641,6 @@
         <div class="step-connector"></div>
         <div class="step-node">
           <div class="step-circle">2</div>
-          <div class="step-label">미리보기</div>
-        </div>
-        <div class="step-connector"></div>
-        <div class="step-node">
-          <div class="step-circle">3</div>
-          <div class="step-label">번역 확인</div>
-        </div>
-        <div class="step-connector"></div>
-        <div class="step-node">
-          <div class="step-circle">4</div>
           <div class="step-label">발송</div>
         </div>
       </div>
@@ -706,18 +696,18 @@
           <svg width="15" height="15"><use href="#ic-spark"/></svg>
         </div>
         <div class="aa-body">
-          <div class="aa-title">텍스트를 확인하고 AI 분석을 시작하세요</div>
-          <div class="aa-sub">일정·준비물·마감일 추출 · 9개국어 번역 · TTS 음성</div>
+          <div class="aa-title">발송하면 학부모 앱에서 AI 번역이 자동 제공됩니다</div>
+          <div class="aa-sub">일정·준비물·마감일 추출 · 9개 언어 번역 · TTS 음성</div>
         </div>
       </div>
     </div>
 
     <div class="action-bar">
       <div class="action-row">
-        <button class="btn ghost sm">임시 저장</button>
-        <button class="btn ai analyze-btn">
-          <svg width="14" height="14"><use href="#ic-spark"/></svg>
-          발송 전 미리보기 →
+        <button type="button" class="btn ghost sm">임시 저장</button>
+        <button type="button" class="btn primary action-send">
+          <svg width="14" height="14"><use href="#ic-send"/></svg>
+          24명에게 발송
         </button>
       </div>
     </div>
@@ -730,12 +720,12 @@
   <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
     <path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
-  <span>발송 전 미리보기</span>
+  <span>발송</span>
 </div>
 
 
 <!-- ════════════════════════════════════
-     SCREEN 3 · 발송 전 미리보기 — 학부모 AI 분석 결과 미리보기
+     SCREEN 3 · 발송 완료
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -750,7 +740,8 @@
         </svg>
         <svg width="24" height="12" viewBox="0 0 24 12">
           <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
-          <rect x="2" y="2" width="13" height="8" rx="1.5" fill="currentColor"/>
+          <rect x="2" y="2" width="16" height="8" rx="1.5" fill="currentColor"/>
+          <path d="M22 4v4c.7-.3 1.3-1 1.3-2s-.6-1.7-1.3-2z" fill="currentColor"/>
         </svg>
       </span>
     </div>
@@ -761,338 +752,77 @@
     </div>
 
     <div class="body-area">
-      <div class="back-nav">
-        <div class="back-btn">
-          <svg width="14" height="14"><use href="#ic-back"/></svg>
-        </div>
-        <span class="caption">발송 전 미리보기 · AI 분석</span>
-      </div>
+      <div class="greet">현장체험학습 안내</div>
+      <div class="title-xl">발송 완료</div>
 
-      <!-- 4단계 스텝바 (현재: 2단계) -->
-      <div class="step-bar">
-        <div class="step-node">
-          <div class="step-circle done">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
-              <path d="M20 6L9 17l-5-5" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
+      <!-- 발송 성공 히어로 -->
+      <div class="card hero">
+        <div class="hero-content">
+          <div class="hero-chips">
+            <span class="chip white">24명 발송</span>
+            <span class="chip white">FCM 푸시 전송</span>
           </div>
-          <div class="step-label done">작성</div>
-        </div>
-        <div class="step-connector done"></div>
-        <div class="step-node">
-          <div class="step-circle current">2</div>
-          <div class="step-label current">미리보기</div>
-        </div>
-        <div class="step-connector"></div>
-        <div class="step-node">
-          <div class="step-circle">3</div>
-          <div class="step-label">번역 확인</div>
-        </div>
-        <div class="step-connector"></div>
-        <div class="step-node">
-          <div class="step-circle">4</div>
-          <div class="step-label">발송</div>
+          <div class="title-lg hero-title">학부모 앱으로 전달됐습니다</div>
+          <div class="hero-sub">학부모가 AI 번역 버튼을 누르면 자동 분석됩니다</div>
+          <div class="hero-chip-row">
+            <span class="chip white">9개 언어</span>
+            <span class="chip white">용어사전 340개</span>
+            <span class="chip white">TTS 포함</span>
+          </div>
         </div>
       </div>
 
-      <!-- 제목 + 미리보기 안내 + 모델 배지 -->
-      <div class="title-lg">학부모 AI 분석 미리보기</div>
-      <div class="caption mt3">발송 후 학부모가 AI 번역 탭 시 표시될 결과</div>
-      <div class="model-badges">
-        <span class="llm-badge">
-          <svg width="10" height="10"><use href="#ic-haiku"/></svg>
-          Claude Haiku 정제
-        </span>
-        <span class="ai-badge">KoELECTRA 추출</span>
-        <span class="ai-badge">KcELECTRA 분류</span>
-        <span class="data-badge">공공데이터</span>
-      </div>
-
-      <!-- ★ 문장별 카테고리 분석 (핵심 시각화) ★ -->
-      <div class="section-label">원문 문장 분석 · 4문장</div>
-
-      <div class="card analysis">
-
-        <!-- 분석 대상 외 문장 (회색) -->
-        <div class="sentence-mark unmarked">
-          <span class="sm-text">안녕하십니까. 서울초 3학년 2반 학부모님께 안내드립니다.</span>
-          <span class="sm-chip"><span class="cat-chip other">일반</span></span>
-        </div>
-
-        <!-- 일정 추출 문장 (파란 배경) -->
-        <div class="sentence-mark schedule">
-          <span class="sm-text">
-            5월 16일(목) 3-2반은 <b>국립과천과학관</b>으로 현장체험학습을 갑니다. 9시까지 등교해 주세요.
-          </span>
-          <span class="sm-chip"><span class="cat-chip schedule">일정</span></span>
-        </div>
-
-        <!-- 준비물 추출 문장 (노란 배경) -->
-        <div class="sentence-mark supply">
-          <span class="sm-text">
-            <b>도시락·물·모자·명찰</b>을 준비해 주세요.
-          </span>
-          <span class="sm-chip"><span class="cat-chip supply">준비물</span></span>
-        </div>
-
-        <!-- 제출/회신 추출 문장 (초록 배경) -->
-        <div class="sentence-mark submit">
-          <span class="sm-text">
-            <b>5월 14일까지</b> 참여 동의 회신 부탁드립니다.
-          </span>
-          <span class="sm-chip"><span class="cat-chip submit">제출</span></span>
-        </div>
-
-      </div>
-
-      <!-- 추출된 핵심 정보 (구조화된 결과) -->
-      <div class="section-label">추출된 핵심 정보</div>
+      <!-- 학부모에게 자동 제공되는 기능 -->
+      <div class="section-label">학부모 앱에서 자동 제공</div>
 
       <div class="extract-item">
         <span class="cat-chip schedule">일정</span>
         <div class="ei-body">
-          <div class="ei-value">5/16 (목) 09:00 — 15:00</div>
-          <div class="ei-sub">현장체험학습 · 국립과천과학관</div>
-        </div>
-      </div>
-
-      <div class="extract-item">
-        <span class="cat-chip submit">제출</span>
-        <div class="ei-body">
-          <div class="ei-value">5/14 마감</div>
-          <div class="ei-sub">참여 동의 회신</div>
+          <div class="ei-value">달력 자동 등록</div>
+          <div class="ei-sub">5/16 현장체험학습 · 5/14 제출 마감</div>
         </div>
       </div>
 
       <div class="extract-item">
         <span class="cat-chip supply">준비물</span>
         <div class="ei-body">
-          <div class="ei-value">도시락, 물, 모자, 명찰</div>
-          <div class="ei-sub">4개 항목</div>
+          <div class="ei-value">체크리스트 자동 생성</div>
+          <div class="ei-sub">도시락 · 물 · 모자 · 명찰 · 4개 항목</div>
         </div>
       </div>
 
-      <!-- 정규식 추출 슬롯 (extract_summary_regex_slots 결과) -->
-      <div class="section-label">정규식 추출 데이터</div>
-      <div class="regex-slot-grid">
-
-        <div class="regex-slot">
-          <div class="rs-icon schedule">
-            <svg width="13" height="13"><use href="#ic-calendar"/></svg>
-          </div>
-          <div>
-            <div class="rs-value">5/16 09:00</div>
-            <div class="rs-key">날짜·시간</div>
-          </div>
+      <div class="extract-item">
+        <span class="cat-chip submit">번역·음성</span>
+        <div class="ei-body">
+          <div class="ei-value">9개 언어 번역 + TTS</div>
+          <div class="ei-sub">학부모가 직접 언어 선택 · 음성 안내 포함</div>
         </div>
-
-        <div class="regex-slot">
-          <div class="rs-icon cost">
-            <svg width="13" height="13"><use href="#ic-coin"/></svg>
-          </div>
-          <div>
-            <div class="rs-value">₩15,000</div>
-            <div class="rs-key">금액</div>
-          </div>
-        </div>
-
-        <div class="regex-slot">
-          <div class="rs-icon submit">
-            <svg width="13" height="13"><use href="#ic-clock"/></svg>
-          </div>
-          <div>
-            <div class="rs-value">5/14 마감</div>
-            <div class="rs-key">제출 기한</div>
-          </div>
-        </div>
-
-        <div class="regex-slot">
-          <div class="rs-icon supply">
-            <svg width="13" height="13"><use href="#ic-pin"/></svg>
-          </div>
-          <div>
-            <div class="rs-value">과천과학관</div>
-            <div class="rs-key">장소</div>
-          </div>
-        </div>
-
       </div>
 
-    </div><!-- /body-area -->
+    </div>
 
-    <div class="action-bar">
-      <div class="action-row">
-        <button type="button" class="btn ghost action-back">
-          <svg width="14" height="14"><use href="#ic-back"/></svg>
-          원문 수정
-        </button>
-        <button type="button" class="btn primary action-send">
-          <svg width="14" height="14"><use href="#ic-globe"/></svg>
-          9개 언어로 번역 →
-        </button>
-      </div>
+    <div class="tabbar">
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-group"/></svg></div><span>우리반</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-edit"/></svg></div><span>작성</span></div>
+      <div class="tab active"><div class="ic"><svg width="18" height="18"><use href="#ic-chart"/></svg></div><span>현황</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-reply"/></svg></div><span>답장</span></div>
+      <div class="tab"><div class="ic"><svg width="18" height="18"><use href="#ic-person"/></svg></div><span>나</span></div>
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">3 · 발송 전 미리보기 · AI 분석</div>
+  <div class="phone-label">3 · 발송 완료</div>
 </div>
 
 <div class="flow-arrow">
   <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
     <path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>
-  <span>번역 미리보기</span>
+  <span>회신 현황</span>
 </div>
 
 
 <!-- ════════════════════════════════════
-     SCREEN 4 · 발송 전 미리보기 — 번역 확인 · 발송
-════════════════════════════════════ -->
-<div class="phone-wrap">
-  <div class="phone"><div class="screen">
-    <div class="statusbar">
-      <span>9:44</span>
-      <span class="icons">
-        <svg width="17" height="11" viewBox="0 0 17 11">
-          <rect x="0" y="7" width="3" height="4" rx="0.7" fill="currentColor"/>
-          <rect x="4.5" y="5" width="3" height="6" rx="0.7" fill="currentColor"/>
-          <rect x="9" y="2.5" width="3" height="8.5" rx="0.7" fill="currentColor"/>
-          <rect x="13.5" y="0" width="3" height="11" rx="0.7" fill="currentColor"/>
-        </svg>
-        <svg width="24" height="12" viewBox="0 0 24 12">
-          <rect x="0.5" y="0.5" width="20" height="11" rx="3" stroke="currentColor" fill="none"/>
-          <rect x="2" y="2" width="11" height="8" rx="1.5" fill="currentColor"/>
-        </svg>
-      </span>
-    </div>
-    <div class="lang-pill">
-      <span class="flag">KR</span>
-      <span>한국어</span>
-      <span class="chev">▾</span>
-    </div>
-
-    <div class="body-area">
-      <div class="back-nav">
-        <div class="back-btn">
-          <svg width="14" height="14"><use href="#ic-back"/></svg>
-        </div>
-        <span class="caption">발송 전 미리보기 · 번역 확인</span>
-      </div>
-
-      <!-- 스텝바 (현재: 3단계) -->
-      <div class="step-bar">
-        <div class="step-node">
-          <div class="step-circle done">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="step-label done">작성</div>
-        </div>
-        <div class="step-connector done"></div>
-        <div class="step-node">
-          <div class="step-circle done">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div class="step-label done">미리보기</div>
-        </div>
-        <div class="step-connector done"></div>
-        <div class="step-node">
-          <div class="step-circle current">3</div>
-          <div class="step-label current">번역 확인</div>
-        </div>
-        <div class="step-connector"></div>
-        <div class="step-node">
-          <div class="step-circle">4</div>
-          <div class="step-label">발송</div>
-        </div>
-      </div>
-
-      <div class="title-lg">번역 확인</div>
-      <div class="caption mt3">발송 후 학부모가 보게 될 번역 화면 미리보기</div>
-
-      <!-- 언어 탭 스크롤 -->
-      <div class="lang-tab-row">
-        <div class="lang-tab">
-          <span class="lt-flag">KO</span>
-          <span>12명</span>
-        </div>
-        <div class="lang-tab active">
-          <span class="lt-flag">VN</span>
-          <span>5명</span>
-        </div>
-        <div class="lang-tab">
-          <span class="lt-flag">CN</span>
-          <span>4명</span>
-        </div>
-        <div class="lang-tab">
-          <span class="lt-flag">EN</span>
-          <span>2명</span>
-        </div>
-        <div class="lang-tab">
-          <span class="lt-flag">TH</span>
-          <span>1명</span>
-        </div>
-      </div>
-
-      <!-- 번역 결과 카드 -->
-      <div class="card trans-body">
-        <div class="title-sm">Thông báo dã ngoại học tập</div>
-        <p class="body mt8">
-          Kính gửi quý phụ huynh, lớp 3-2 sẽ đi
-          <b>dã ngoại học tập</b> đến <b>Bảo tàng Khoa học Quốc gia Gwacheon</b>
-          vào <b>thứ Năm, ngày 16/5</b>.
-        </p>
-        <p class="body mt6">
-          Phản hồi đồng ý <b>trước ngày 14/5</b>. Xin cảm ơn.
-        </p>
-      </div>
-
-      <!-- 번역 품질 + 용어사전 적용 (공공데이터 심사 포인트) -->
-      <div class="quality-row">
-        <svg width="14" height="14" class="quality-icon"><use href="#ic-check-circle"/></svg>
-        <span class="quality-label">자연스러운 번역 확인됨</span>
-        <span class="data-badge">학교용어사전 적용</span>
-      </div>
-
-      <!-- 용어 매핑 -->
-      <div class="section-label">사용된 학교 용어 · 2개 적용</div>
-
-      <div class="glossary-row">
-        <span class="gr-ko">현장체험학습</span>
-        <span class="gr-arr">→</span>
-        <span class="gr-tr">dã ngoại học tập</span>
-      </div>
-      <div class="glossary-row">
-        <span class="gr-ko">학부모</span>
-        <span class="gr-arr">→</span>
-        <span class="gr-tr">quý phụ huynh</span>
-      </div>
-
-    </div><!-- /body-area -->
-
-    <div class="action-bar">
-      <div class="action-row">
-        <button class="btn ghost action-edit">수정</button>
-        <button class="btn primary action-dispatch">
-          <svg width="14" height="14"><use href="#ic-send"/></svg>
-          24명에게 발송
-        </button>
-      </div>
-    </div>
-    <div class="home-indicator"></div>
-  </div></div>
-  <div class="phone-label">4 · 발송 전 미리보기 · 번역 확인</div>
-</div>
-
-<div class="flow-arrow">
-  <svg width="20" height="14" viewBox="0 0 24 14" fill="none">
-    <path d="M1 7h21m0 0l-6-6m6 6l-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-  </svg>
-  <span>발송 후 현황</span>
-</div>
-
-
-<!-- ════════════════════════════════════
-     SCREEN 5 · 회신 현황 트래킹
+     SCREEN 4 · 회신 현황 트래킹
 ════════════════════════════════════ -->
 <div class="phone-wrap">
   <div class="phone"><div class="screen">
@@ -1225,7 +955,7 @@
     </div>
     <div class="home-indicator"></div>
   </div></div>
-  <div class="phone-label">5 · 회신 현황</div>
+  <div class="phone-label">4 · 회신 현황</div>
 </div>
 
 </div><!-- /canvas -->
