@@ -21,6 +21,8 @@ from pathlib import Path
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
+import csv as _csv
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
@@ -34,10 +36,21 @@ from app.services.translator import (  # noqa: E402
     _extract_audience,
     _extract_recipient,
     _build_role_sets,
-    _get_glossary,
     _mask_protected_entities,
     _restore_protected_entities,
 )
+
+_DOCKER_GLOSSARY = Path("/app/external_model/translation_tts/term_glossary.csv")
+_LOCAL_GLOSSARY  = Path(__file__).parent / "term_glossary.csv"
+
+
+def _load_glossary() -> list:
+    """Docker 경로 우선, 없으면 로컬 repo 경로로 fallback."""
+    path = _DOCKER_GLOSSARY if _DOCKER_GLOSSARY.exists() else _LOCAL_GLOSSARY
+    if not path.exists():
+        return []
+    with open(path, encoding="utf-8-sig") as f:
+        return list(_csv.DictReader(f))
 
 # ── 평가용 문장 세트 ──────────────────────────────────────────────────────────
 # (한국어 원문, 유형, 예상 포함 용어 목록)
@@ -80,7 +93,7 @@ def _term_preserved(output: str, expected_terms_ko: list[str], glossary: list, l
 
 
 def run() -> None:
-    glossary = _get_glossary()
+    glossary = _load_glossary()
     _build_role_sets(glossary)
 
     OUT_DIR = Path(__file__).parent / "outputs" / "template_coverage"
