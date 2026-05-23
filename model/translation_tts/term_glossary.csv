@@ -339,3 +339,86 @@ e알리미,e-Alimi(e알리미),e-Alimi(e알리미),e-Alimi(e알리미),e-Alimi(e
 1박 2일간,1 đêm 2 ngày,1 night 2 days,1晚2天,1 คืน 2 วัน,1 malam 2 hari,1 шөнө 2 өдөр,1 ночь 2 дня,1泊2日,item,수학여행/현장체험학습 숙박 일정
 도시락,hộp cơm,lunch box,便当,กล่องข้าว,bekas makanan,хоол хайрцаг,ланч-бокс,お弁当,item,NLLB 오번역 방지 - 학교 도시락
 박람회,triển lãm,exhibition,展览会,นิทรรศการ,pameran,үзэсгэлэн,выставка,博覧会,item,행사 전시회 - NLLB 오번역 방지
+진단서,giấy chứng nhận y tế,medical certificate,诊断书,ใบรับรองแพทย์,sijil perubatan,эмнэлгийн гэрчилгээ,медицинская справка,診断書,item,서류 - 의료
+의견서,phiếu ý kiến,opinion form,意见书,แบบแสดงความคิดเห็น,borang pendapat,санал хуудас,форма обратной связи,意見書,item,서류 - 설문/의견
+구비서류,hồ sơ cần chuẩn bị,required documents,所需文件,เอกสารที่ต้องเตรียม,dokumen yang diperlukan,шаардлагатай баримт бичиг,необходимые документы,必要書類,item,서류 - 제출 서류 묶음
+검사지,phiếu kiểm tra,screening form,检查表,แบบฟอร์มตรวจสอบ,borang pemeriksaan,шалгалтын хуудас,опросник,検査用紙,item,서류 - 검진/설문
+위임장,giấy ủy quyền,authorization form,委任书,หนังสือมอบอำนาจ,surat kuasa,итгэмжлэл,доверенность,委任状,item,서류 - 위임/대리
+문진표,phiếu khám bệnh,health questionnaire,健康问卷,แบบสอบถามสุขภาพ,borang kesihatan,эрүүл мэндийн асуулга,анкета здоровья,問診票,item,서류 - 건강 문진
+아동급식,hỗ trợ bữa ăn học sinh,child meal support,儿童餐食补贴,สนับสนุนอาหารกลางวันนักเรียน,sokongan makanan kanak-kanak,хүүхдийн хоол тэтгэмж,поддержка питания детей,給食支援,item,급식 - 저소득층 지원
+우유급식,chương trình sữa học đường,school milk program,学校供奶计划,โครงการนมโรงเรียน,program susu sekolah,сургуулийн сүү хөтөлбөр,программа школьного молока,学校牛乳プログラム,item,급식 - 우유 지원
+개인도시락,hộp cơm cá nhân,personal packed lunch,自备便当,กล่องข้าวส่วนตัว,bekal peribadi,өөрийн хоол,личный ланч-бокс,個人弁当,item,준비물 - 도시락
+핫팩,túi sưởi tay,hand warmer,暖手包,ถุงความร้อน,pek penghangat tangan,гарын дулааны уут,грелка для рук,使い捨てカイロ,item,준비물 - 겨울
+장갑,găng tay,gloves,手套,ถุงมือ,sarung tangan,бээлий,перчатки,手袋,item,준비물 - 겨울
+목도리,khăn quàng cổ,scarf,围巾,ผ้าพันคอ,selendang,хүзүүвч,шарф,マフラー,item,준비물 - 겨울
+두꺼운 외투,áo khoác dày,heavy coat,厚外套,เสื้อกันหนาวหนา,jaket tebal,зузаан цув,тёплое пальто,厚手のコート,item,준비물 - 겨울
+교복,đồng phục học sinh,school uniform,校服,ชุดนักเรียน,pakaian seragam sekolah,сургуулийн дүрэмт хувцас,школьная форма,制服,item,의복
+생활복,trang phục thường ngày,casual clothes,便服,ชุดสวมใส่ประจำวัน,pakaian biasa,өдөр тутмын хувцас,повседневная одежда,普段着,item,의복
+운동화,giày thể thao,sneakers,运动鞋,รองเท้ากีฬา,kasut sukan,пүүз,кроссовки,スニーカー,item,준비물 - 신발
+신발주머니,túi đựng giày,shoe bag,鞋袋,ถุงใส่รองเท้า,beg kasut,гутлын уут,мешок для обуви,上履き袋,item,준비물 - 가방류
+선크림,kem chống nắng,sunscreen,防晒霜,ครีมกันแดด,krim pelindung matahari,нарнаас хамгаалах тос,солнцезащитный крем,日焼け止め,item,준비물 - 여름
+물티슈,khăn ướt,wet wipes,湿纸巾,ทิชชู่เปียก,tisu basah,нойтон алчуур,влажные салфетки,ウェットティッシュ,item,준비물 - 위생
+비상약,thuốc cấp cứu,emergency medicine,急救药品,ยาฉุกเฉิน,ubat kecemasan,яаралтай тусламжийн эм,лекарство первой помощи,常備薬,item,준비물 - 건강
+단소,sáo truyền thống Hàn Quốc,Korean bamboo flute,韩国传统竹笛,ขลุ่ยไม้ไผ่เกาหลี,seruling tradisional Korea,Солонгос хулсан лимбэ,корейская бамбуковая флейта,短簫,item,준비물 - 악기
+설문지,phiếu khảo sát,survey form,调查问卷,แบบสอบถาม,borang soal selidik,асуулга маягт,анкета,アンケート用紙,item,서류 - 설문
+방과후학교비,học phí lớp sau giờ học,after-school program fee,课后班费用,ค่าธรรมเนียมชมรมหลังเรียน,yuran program selepas sekolah,цагаас хойшхи хичээлийн төлбөр,оплата внешкольного кружка,放課後教室費,item,비용 - 방과후
+캠프비,phí trại,camp fee,营地费用,ค่าธรรมเนียมค่าย,yuran kem,кэмпийн төлбөр,стоимость лагеря,キャンプ費用,item,비용 - 캠프
+늘봄교실,chương trình chăm sóc ngày dài,extended care program,全天托管教室,โปรแกรมดูแลแบบขยายเวลา,program penjagaan lanjutan,өргөтгөсөн үйлчилгээний анги,продлённый день,延長保育プログラム,item,프로그램 - 늘봄(2024년 정부 정책)
+참가 신청서,phiếu đăng ký tham gia,participation application form,参加申请书,ใบสมัครเข้าร่วม,borang permohonan penyertaan,оролцоны өргөдлийн маягт,форма заявки на участие,参加申込書,item,서류 - 신청
+가정통신문 회신서,phiếu trả lời thông báo,reply slip,回执单,ใบตอบรับ,slip balasan,хариуны хуудас,бланк ответа,返信票,item,서류 - 회신
+개인정보 수집 및 이용 동의서,giấy đồng ý thu thập và sử dụng thông tin cá nhân,personal information consent form,个人信息收集及使用同意书,หนังสือยินยอมการเก็บและใช้ข้อมูลส่วนตัว,borang persetujuan pengumpulan maklumat peribadi,хувийн мэдээлэл цуглуулах зөвшөөрлийн маягт,форма согласия на сбор персональных данных,個人情報収集・利用同意書,item,서류 - 개인정보
+제출 기한,hạn nộp,submission deadline,提交截止日期,วันสุดท้ายของการส่ง,tarikh akhir penyerahan,хүргэх эцсийн хугацаа,срок сдачи,提出期限,item,일정 - 마감
+희망 여부,xác nhận mong muốn,preference confirmation,意愿确认,การยืนยันความต้องการ,pengesahan pilihan,хүслийн баталгаажуулалт,подтверждение пожелания,希望の確認,item,서류 - 희망조사
+개인 준비물,đồ dùng cá nhân cần chuẩn bị,personal supplies,个人准备物品,อุปกรณ์ส่วนตัวที่ต้องเตรียม,bekalan peribadi,хувийн бэлтгэх зүйлс,личные принадлежности,個人の持ち物,item,준비물
+간편한 복장,trang phục thoải mái,casual attire,轻便服装,ชุดสบาย,pakaian santai,тохилог хувцас,удобная одежда,動きやすい服装,item,준비물 - 복장
+필기도구,dụng cụ viết,writing supplies,书写文具,อุปกรณ์การเขียน,alat tulis,бичгийн хэрэгсэл,письменные принадлежности,筆記用具,item,준비물 - 문구
+싸인펜,bút lông,felt-tip pen,记号笔,ปากกาเมจิก,pen marker,фломастер,фломастер,サインペン,item,준비물 - 사인펜 동의어
+풀,keo dán,glue,胶水,กาว,gam,цавуу,клей,のり,item,준비물 - 문구
+집합 장소,điểm tập trung,assembly point,集合地点,จุดนัดหมาย,titik perhimpunan,цуглах газар,место сбора,集合場所,item,장소 - 집합
+출발 시간,giờ xuất phát,departure time,出发时间,เวลาออกเดินทาง,masa berlepas,хөдлөх цаг,время отправления,出発時刻,item,시간 - 이동
+도착 예정 시간,giờ dự kiến đến,estimated arrival time,预计到达时间,เวลาถึงโดยประมาณ,masa ketibaan anggaran,ирэх таамагласан цаг,расчётное время прибытия,到着予定時刻,item,시간 - 이동
+우비,áo mưa,raincoat,雨衣,เสื้อกันฝน,baju hujan,бороонос цув,дождевик,レインコート,item,준비물 - 우천
+학습지,phiếu bài tập,worksheet,学习单,ใบงานเรียน,lembaran kerja,хичээлийн дасгал хуудас,рабочий лист,学習プリント,item,학습 - 서류
+활동지,phiếu hoạt động,activity sheet,活动单,ใบกิจกรรม,lembaran aktiviti,үйл ажиллагааны хуудас,лист заданий,活動プリント,item,학습 - 서류
+소감문,bài cảm nhận,reflection essay,感想文,บทสะท้อนความคิด,esei refleksi,сэтгэгдэлийн эссэ,эссе-отзыв,感想文,item,학습 - 과제
+QR코드,mã QR,QR code,二维码,รหัส QR,kod QR,QR код,QR-код,QRコード,item,신청 - 온라인
+수련원,trại học ngoại khóa,training camp,研修中心,ค่ายฝึกอบรม,pusat latihan,дадлагын лагерь,учебный лагерь,研修センター,item,장소 - 수련
+귀가 시간,giờ về nhà,return home time,回家时间,เวลากลับบ้าน,masa pulang,гэртээ харих цаг,время возвращения,帰宅時刻,item,시간 - 하교
+집합 시간,giờ tập trung,assembly time,集合时间,เวลานัดพบ,masa perhimpunan,цуглах цаг,время сбора,集合時刻,item,시간 - 집합
+납부 기한,hạn thanh toán,payment deadline,缴费截止日期,วันสุดท้ายชำระเงิน,tarikh akhir pembayaran,төлбөрийн эцсийн хугацаа,срок оплаты,納付期限,item,비용 - 마감
+수요 조사,khảo sát nhu cầu,needs survey,需求调查,การสำรวจความต้องการ,kajian keperluan,хэрэгцээний судалгаа,опрос потребностей,需要調査,item,신청 - 조사
+개인정보 제공 동의서,giấy đồng ý cung cấp thông tin cá nhân,personal information provision consent,个人信息提供同意书,หนังสือยินยอมเปิดเผยข้อมูลส่วนตัว,borang persetujuan perkongsian maklumat peribadi,хувийн мэдээлэл дамжуулах зөвшөөрлийн маягт,согласие на передачу персональных данных,個人情報提供同意書,item,서류 - 개인정보
+보호자 동의서,giấy đồng ý của phụ huynh,guardian consent form,监护人同意书,หนังสือยินยอมจากผู้ปกครอง,borang kebenaran penjaga,асран хамгаалагчийн зөвшөөрлийн маягт,согласие родителей,保護者同意書,item,서류 - 동의
+학부모 확인서,phiếu xác nhận của phụ huynh,parent confirmation form,家长确认书,แบบยืนยันผู้ปกครอง,borang pengesahan ibu bapa,эцэг эхийн баталгааны маягт,форма подтверждения родителей,保護者確認書,item,서류 - 확인
+필수 준비물,đồ dùng cần thiết,required supplies,必备物品,อุปกรณ์จำเป็น,bekalan wajib,заавал бэлтгэх зүйлс,обязательные принадлежности,必携品,item,준비물
+여벌 옷,quần áo thay,spare clothes,备用衣服,เสื้อผ้าสำรอง,pakaian ganti,нөөц хувцас,смена одежды,着替え,item,준비물 - 의복
+여벌 마스크,khẩu trang dự phòng,spare mask,备用口罩,หน้ากากสำรอง,topeng muka ganti,нөөц маск,запасная маска,予備マスク,item,준비물 - 위생
+수영복,đồ bơi,swimsuit,泳衣,ชุดว่ายน้ำ,baju renang,усны хувцас,купальный костюм,水着,item,준비물 - 수영
+수영모,mũ bơi,swim cap,泳帽,หมวกว่ายน้ำ,topi renang,усны малгай,шапочка для плавания,水泳帽,item,준비물 - 수영
+버스비,tiền xe buýt,bus fare,巴士费,ค่าโดยสารรถบัส,tambang bas,автобусны үнэ,плата за автобус,バス代,item,비용 - 교통
+입장료,phí vào cửa,admission fee,入场费,ค่าเข้าชม,yuran masuk,орох төлбөр,плата за вход,入場料,item,비용
+보험료,phí bảo hiểm,insurance fee,保险费,ค่าประกัน,premium insurans,даатгалын шимтгэл,страховой взнос,保険料,item,비용 - 보험
+환불 신청,yêu cầu hoàn tiền,refund request,退款申请,การขอคืนเงิน,permohonan bayaran balik,буцаалтын хүсэлт,заявка на возврат,返金申請,item,서류 - 환불
+건강 조사서,phiếu khảo sát sức khỏe,health survey form,健康调查表,แบบสำรวจสุขภาพ,borang tinjauan kesihatan,эрүүл мэндийн судалгааны маягт,анкета о состоянии здоровья,健康調査票,item,서류 - 건강
+응급 연락처,số điện thoại khẩn cấp,emergency contact,紧急联系人,ข้อมูลติดต่อฉุกเฉิน,kenalan kecemasan,яаралтай холбоо барих,экстренный контакт,緊急連絡先,item,건강 - 응급
+식품 알레르기,dị ứng thực phẩm,food allergy,食物过敏,อาการแพ้อาหาร,alergi makanan,хоолны харшлал,пищевая аллергия,食物アレルギー,item,건강 - 알레르기
+전세버스,xe buýt thuê bao,charter bus,包车,รถบัสเช่าเหมา,bas sewaan,түрээсийн автобус,арендованный автобус,チャーターバス,item,이동 - 차량
+수행평가,đánh giá thực hành,performance assessment,实践评价,การประเมินผลปฏิบัติ,penilaian prestasi,гүйцэтгэлийн үнэлгээ,практическая оценка,パフォーマンス評価,item,학습 - 평가
+단원평가,kiểm tra đơn vị,unit test,单元测验,การทดสอบหน่วย,ujian unit,нэгжийн шалгалт,контрольная по разделу,単元テスト,item,학습 - 평가
+체험 보고서,báo cáo trải nghiệm,experience report,体验报告,รายงานประสบการณ์,laporan pengalaman,туршлагын тайлан,отчёт о практике,体験レポート,item,학습 - 과제
+하교 시간,giờ tan trường,dismissal time,放学时间,เวลาเลิกเรียน,masa balik sekolah,тарах цаг,время окончания занятий,下校時刻,item,일정 - 하교
+학생 건강검진,kiểm tra sức khỏe học sinh,student health checkup,学生健康检查,การตรวจสุขภาพนักเรียน,pemeriksaan kesihatan pelajar,сурагчийн эрүүл мэндийн үзлэг,медосмотр учащихся,生徒健康診断,item,건강 - 검진
+상담 시간,giờ tư vấn,consultation hours,咨询时간,เวลาให้คำปรึกษา,waktu kaunseling,зөвлөгөөний цаг,время консультации,相談時間,item,일정 - 상담
+급식 신청서,đơn đăng ký bữa ăn,school lunch application form,餐食申请表,ใบสมัครอาหารกลางวัน,borang permohonan makan,хоолны бүртгэлийн маягт,заявление на питание,給食申込書,item,서류 - 급식
+현장체험학습 참가 신청서,đơn đăng ký tham gia học trải nghiệm,field trip participation form,校外体验活动参加申请表,ใบสมัครเข้าร่วมทัศนศึกษา,borang permohonan lawatan sambil belajar,сургалтын аялалд бүртгүүлэх маягт,заявка на участие в учебной экскурсии,校外学習参加申込書,item,서류 - 체험학습
+수학여행 참가 신청서,đơn đăng ký tham gia du học,school trip participation form,修学旅行参加申请表,ใบสมัครเข้าร่วมทัศนศึกษา,borang permohonan lawatan sekolah,сургалтын аяллын бүртгэлийн маягт,заявка на участие в школьной поездке,修学旅行参加申込書,item,서류 - 수학여행
+농촌유학 참가 신청서,đơn đăng ký học ở nông thôn,rural study program application form,农村留学参加申请表,ใบสมัครโครงการเรียนชนบท,borang permohonan program luar bandar,хөдөө суралцах хөтөлбөрт бүртгэлийн маягт,заявка на участие в сельской программе,農村留学参加申込書,item,서류 - 농촌유학
+봉사활동 확인서,giấy xác nhận hoạt động tình nguyện,volunteer activity certificate,志愿活动确认书,ใบยืนยันกิจกรรมจิตอาสา,sijil aktiviti sukarela,сайн дурын үйл ажиллагааны гэрчилгээ,справка об общественной деятельности,ボランティア活動証明書,item,서류 - 봉사
+등교 시간,giờ đến trường,school arrival time,到校时间,เวลามาโรงเรียน,waktu tiba ke sekolah,сургуульд ирэх цаг,время прихода в школу,登校時間,item,일정 - 등교
+학생 구강검진,kiểm tra răng miệng học sinh,student dental checkup,学生口腔检查,การตรวจช่องปากนักเรียน,pemeriksaan gigi pelajar,сурагчийн шүдний үзлэг,стоматологический осмотр учащихся,生徒口腔検診,item,건강 - 검진
+예방접종 안내문,thông báo tiêm chủng,vaccination notice,疫苗接种通知,หนังสือแจ้งการฉีดวัคซีน,notis vaksinasi,дархлаажуулалтын мэдэгдэл,уведомление о вакцинации,予防接種のお知らせ,item,서류 - 건강
+스쿨뱅킹 자동이체,chuyển khoản tự động School Banking,School Banking auto-transfer,School Banking自动转账,School Banking ตัดเงินอัตโนมัติ,pemindahan automatik School Banking,Сургуулийн банкны автоматаар шилжүүлэг,Автоперевод School Banking,スクールバンキング自動振替,item,비용 - 납부
+출석인정 결석,vắng mặt được chấp nhận,excused absence,认定缺勤,การขาดเรียนที่ได้รับการยอมรับ,ketidakhadiran yang dibenarkan,зөвшөөрөгдсөн хоцрогдол,уважительный пропуск,出席認定欠席,item,출결 - 결석
+학생 생활지도,hướng dẫn sinh hoạt học sinh,student guidance,学生生活指导,การแนะแนวนักเรียน,bimbingan kehidupan pelajar,сурагчийн амьдралын зөвлөгөө,воспитательная работа с учащимися,生活指導,item,생활지도
+학교급식 설문지,phiếu khảo sát bữa ăn trường học,school lunch survey,学校供餐调查问卷,แบบสอบถามอาหารกลางวัน,borang soal selidik makan sekolah,сургуулийн хоолны судалгааны маягт,анкета о школьном питании,学校給食アンケート,item,서류 - 급식
+교재 재료비,tiền tài liệu và vật liệu,textbook and material fee,教材材料费,ค่าตำราและวัสดุ,yuran buku teks dan bahan,сурах бичиг материалын төлбөр,оплата учебников и материалов,教材・材料費,item,비용 - 교육
