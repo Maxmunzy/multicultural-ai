@@ -2608,10 +2608,16 @@ public class MainActivity extends Activity {
         content.addView(extractSummaryRow("🎒", "준비물", "체크리스트 생성", COLOR_LEMON, COLOR_LEMON_INK));
         content.addView(extractSummaryRow("🌐", "번역 · 음성", "9개 언어 + TTS", COLOR_AI_LIGHT, COLOR_AI));
 
-        // 회신 현황 버튼
+        // 회신 현황 (확장 예정 — 아직 미구현)
         content.addView(sectionLabel("다음"));
-        content.addView(bigPrimaryButton("회신 현황 보기 →", v -> notImplementedToast("회신 현황")));
-        content.addView(outlineButton("새 통신문 작성", v -> showTeacherHome()));
+        content.addView(outlineButton("📊  회신 현황 보기 (출시 예정)", v -> notImplementedToast("회신 현황 기능은 다음 버전에서 제공됩니다")));
+        content.addView(bigPrimaryButton("새 통신문 작성 →", v -> {
+            pendingFileBytes = null;
+            pendingFilename = null;
+            pendingPreviewUrl = null;
+            pendingPreviewMime = null;
+            showTeacherHome();
+        }));
         content.addView(smallTextButton("← 홈으로", v -> showTeacherHome()));
     }
 
