@@ -114,7 +114,7 @@ OLD/                  과거 실험 기록과 구버전 산출물 보관
 | `/notice/upload-self` | POST | parent 본인 | 학부모 자가 업로드 (종이 통신문 사진 촬영 → OcrActivity → 서버 전송) |
 | `/notice/inbox/{parent_id}` | GET | parent 본인 | 학부모 본인 수신함 조회 |
 | `/notice/inbox/{parent_id}` | DELETE | parent 본인 | 본인 수신함 초기화 (시연용) |
-| `/notice/analyze/{notice_id}` | POST | parent 본인 | body의 `target_language`(vi/en/ru/ms/mn/zh/th/ja/ko_easy)로 분석 결과 생성. ko_easy는 폐지 예정 — UI에서는 미노출 |
+| `/notice/analyze/{notice_id}` | POST | parent 본인 | body의 `target_language`(vi/en/ru/ms/mn/zh/th/ja/ko_easy)로 분석 결과 생성. **번역 선택 UI는 8개 외국어**; ko_easy(쉬운한국어)는 API 유효하나 UI 미노출·폐지 예정 |
 | `/tts/generate` | POST | — | 텍스트 → 음성 파일 생성 (선택 언어별 Edge-TTS) |
 | `/user/{id}` | GET | — | 사용자 프로파일 조회 |
 | `/user/` | POST | — | 사용자 프로파일 저장 |
