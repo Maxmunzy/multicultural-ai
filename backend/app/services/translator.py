@@ -366,6 +366,55 @@ def _normalize_glossary_key(text: str) -> str:
     return re.sub(r"\s+", "", text or "")
 
 
+# ── Review Required Guard ─────────────────────────────────────────────────────
+# 교사/행정실 대상 문장: 부모 앱에 자동 확정 번역 금지
+NON_PARENT_TARGET_PATTERNS: tuple[str, ...] = (
+    "담임교사는",
+    "교사는",
+    "담임 선생님은",
+    "각 반 담임",
+    "업무 담당자는",
+    "행정실에서는",
+    "학교에서는",
+    "인솔 교사는",
+    "교무실로 제출",
+)
+
+# 부정문/조건문/선택사항: 자동 템플릿 결과라도 검수 필요
+RISKY_CONTEXT_PATTERNS: tuple[str, ...] = (
+    "제출하지 않고",
+    "가져오지",
+    "준비하지 않아도",
+    "납부하지",
+    "해당되는 가정만",
+    "희망자만",
+    "선택 사항",
+)
+
+# item_zone 오염 방어 — 절 경계 이후만 item으로 인정
+# "작성하여", "서명 후", "표시하여"는 오탐 가능성으로 제외
+SAFE_CLAUSE_BOUNDARIES: tuple[str, ...] = (
+    ",",
+    ".",
+    "읽고",
+    "확인한 뒤",
+    "확인 후",
+    "사항이며",
+    "이며",
+)
+
+
+def detect_non_parent_target(text: str) -> bool:
+    return any(p in text for p in NON_PARENT_TARGET_PATTERNS)
+
+
+def detect_risky_context(text: str) -> str | None:
+    for p in RISKY_CONTEXT_PATTERNS:
+        if p in text:
+            return p
+    return None
+
+
 # ── Template-based translation (all languages) ────────────────────────────────
 # 준비물/제출물 문장은 NLLB 대신 구조 분석 + glossary로 직접 번역.
 # 용어 보존율: NLLB 직접 입력 6% → 템플릿 100% (2026-05-07 실험)
@@ -579,7 +628,14 @@ def _get_item_zone(text: str, stype: str) -> str:
         idx = text.find(trigger)
         if idx == -1:
             continue
-        zone = text[:idx].strip()
+        before = text[:idx]
+        # safe boundary: 절 경계 이후만 item zone으로 인정 (item_zone 오염 방어)
+        last_pos = -1
+        for boundary in SAFE_CLAUSE_BOUNDARIES:
+            pos = before.rfind(boundary)
+            if pos != -1:
+                last_pos = max(last_pos, pos + len(boundary))
+        zone = (before[last_pos:] if last_pos != -1 else before).strip()
         tokens = zone.split()
         cleaned = []
         for t in tokens:
@@ -607,7 +663,7 @@ def _extract_template_items(item_zone: str, glossary: list, target_lang: str) ->
     for row in sorted(glossary, key=lambda r: -len(r.get("korean", ""))):
         korean = row.get("korean", "").strip()
         preferred = row.get(preferred_col, "").strip()
-        if not korean or not preferred or len(korean) <= 1 or korean in _TEMPLATE_EXCLUDE_KO:
+        if not korean or not preferred or korean in _TEMPLATE_EXCLUDE_KO:
             continue
         ko_norm = _normalize_glossary_key(korean)
         start = text_norm.find(ko_norm)
@@ -1182,6 +1238,45 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
         return ""
 
     return _restore_protected_entities(translated, placeholders)
+
+
+def translate_short_sentence_reviewed(text: str, target_lang: str) -> dict:
+    """review_required 메타데이터 포함 번역.
+
+    반환:
+        {
+            "translated_text": str,
+            "review_required": bool,
+            "review_reason": "NON_PARENT_TARGET" | "RISKY_CONTEXT" | None,
+        }
+
+    - NON_PARENT_TARGET: 교사/행정실 대상 문장 → 부모 앱 자동 확정 금지
+    - RISKY_CONTEXT: 부정문/조건문/선택사항 → 템플릿 결과라도 검수 필요
+    번역은 항상 실행 (앱 화면 보존). review_required=True이면 UI에서 검수 표시.
+    """
+    if not text or not text.strip():
+        return {"translated_text": "", "review_required": False, "review_reason": None}
+    if target_lang == "ko_easy":
+        return {"translated_text": text, "review_required": False, "review_reason": None}
+
+    review_required = False
+    review_reason: str | None = None
+
+    if detect_non_parent_target(text):
+        review_required = True
+        review_reason = "NON_PARENT_TARGET"
+    else:
+        risky = detect_risky_context(text)
+        if risky:
+            review_required = True
+            review_reason = "RISKY_CONTEXT"
+
+    translated = translate_short_sentence(text, target_lang)
+    return {
+        "translated_text": translated,
+        "review_required": review_required,
+        "review_reason": review_reason,
+    }
 
 
 def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[str]:

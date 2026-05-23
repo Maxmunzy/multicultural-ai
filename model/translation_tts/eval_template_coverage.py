@@ -21,6 +21,8 @@ from pathlib import Path
 if hasattr(sys.stdout, "buffer"):
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
 
+import csv as _csv
+
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "backend"))
 
@@ -34,30 +36,92 @@ from app.services.translator import (  # noqa: E402
     _extract_audience,
     _extract_recipient,
     _build_role_sets,
-    _get_glossary,
     _mask_protected_entities,
     _restore_protected_entities,
 )
 
+_DOCKER_GLOSSARY = Path("/app/external_model/translation_tts/term_glossary.csv")
+_LOCAL_GLOSSARY  = Path(__file__).parent / "term_glossary.csv"
+
+
+def _load_glossary() -> list:
+    """Docker 경로 우선, 없으면 로컬 repo 경로로 fallback."""
+    path = _DOCKER_GLOSSARY if _DOCKER_GLOSSARY.exists() else _LOCAL_GLOSSARY
+    if not path.exists():
+        return []
+    with open(path, encoding="utf-8-sig") as f:
+        return list(_csv.DictReader(f))
+
 # ── 평가용 문장 세트 ──────────────────────────────────────────────────────────
 # (한국어 원문, 유형, 예상 포함 용어 목록)
 EVAL_SENTENCES: list[tuple[str, str, list[str]]] = [
-    # prepare
+    # ── prepare (6) ──
     ("수채화 물감과 붓을 준비해 주세요.", "prepare", ["수채화 물감", "붓"]),
     ("도화지와 색칠 도구를 준비해 주세요.", "prepare", ["도화지", "색칠 도구"]),
     ("체육복과 실내화를 준비해 주세요.", "prepare", ["체육복", "실내화"]),
     ("풍선과 찰흙을 준비해 주세요.", "prepare", ["풍선", "찰흙"]),
-    # bring
+    ("우비와 여벌 옷을 준비해 주세요.", "prepare", ["우비", "여벌 옷"]),
+    ("마스크와 개인 물통을 준비해 주세요.", "prepare", ["마스크", "물통"]),
+    # ── bring (5) ──
     ("물통과 실내화를 챙겨 주세요.", "bring", ["물통", "실내화"]),
     ("체육복을 지참해 주세요.", "bring", ["체육복"]),
-    # submit
+    ("개인도시락을 챙겨 주세요.", "bring", ["개인도시락"]),
+    ("비상약을 지참해 주세요.", "bring", ["비상약"]),
+    ("필기도구를 가져와 주세요.", "bring", ["필기도구"]),
+    # ── submit (5) ──
     ("동의서를 담임선생님께 제출해 주세요.", "submit", ["동의서"]),
     ("받아쓰기 공책을 제출해 주세요.", "submit", ["받아쓰기 공책"]),
-    # attend
+    ("보호자 동의서를 제출해 주세요.", "submit", ["보호자 동의서"]),
+    ("수학여행 참가 신청서를 제출해 주세요.", "submit", ["수학여행 참가 신청서"]),
+    ("학부모 확인서를 제출해 주세요.", "submit", ["학부모 확인서"]),
+    # ── attend (3) ──
     ("학부모 총회에 참석해 주세요.", "attend", ["학부모 총회"]),
-    # pay
-    ("급식비를 납부해 주세요.", "pay", []),           # glossary 미등록 명사 → noun extraction
-    ("방과후학교 수강비를 납부해 주세요.", "pay", []),  # 동일
+    ("학부모 상담에 참여해 주세요.", "attend", []),
+    ("수업 참관에 참석해 주세요.", "attend", []),
+    # ── pay (4) ──
+    ("급식비를 납부해 주세요.", "pay", []),
+    ("방과후학교 수강비를 납부해 주세요.", "pay", []),
+    ("체험학습비를 납부해 주세요.", "pay", []),
+    ("버스비를 입금해 주세요.", "pay", ["버스비"]),
+    # ── check (3) ──
+    ("가정통신문을 확인해 주세요.", "check", ["가정통신문"]),
+    ("급식 신청서를 확인해 주세요.", "check", ["급식 신청서"]),
+    ("알림장을 확인해 주세요.", "check", []),
+    # ── fill (2) ──
+    ("설문지를 작성해 주세요.", "fill", ["설문지"]),
+    ("학교급식 설문지를 작성해 주세요.", "fill", ["학교급식 설문지"]),
+    # ── apply (3) ──
+    ("현장체험학습 참가 신청서를 접수해 주세요.", "apply", ["현장체험학습 참가 신청서"]),
+    ("방과후학교를 신청해 주세요.", "apply", []),
+    ("수요 조사에 신청해 주세요.", "apply", ["수요 조사"]),
+    # ── 추가 prepare (4) ──
+    ("수영복과 수영모를 준비해 주세요.", "prepare", ["수영복", "수영모"]),
+    ("장갑과 목도리를 준비해 주세요.", "prepare", ["장갑", "목도리"]),
+    ("핫팩과 두꺼운 외투를 준비해 주세요.", "prepare", ["핫팩", "두꺼운 외투"]),
+    ("싸인펜과 풀을 준비해 주세요.", "prepare", ["싸인펜"]),  # 풀: 1글자
+    # ── 추가 bring (4) ──
+    ("신발주머니를 지참해 주세요.", "bring", ["신발주머니"]),
+    ("장갑과 목도리를 챙겨 주세요.", "bring", ["장갑", "목도리"]),
+    ("활동지와 학습지를 가져와 주세요.", "bring", ["활동지", "학습지"]),
+    ("체육복과 수영복을 챙겨 주세요.", "bring", ["체육복", "수영복"]),
+    # ── 추가 submit (4) ──
+    ("진단서를 제출해 주세요.", "submit", ["진단서"]),
+    ("위임장을 제출해 주세요.", "submit", ["위임장"]),
+    ("봉사활동 확인서를 제출해 주세요.", "submit", ["봉사활동 확인서"]),
+    ("의견서를 담임선생님께 제출해 주세요.", "submit", ["의견서"]),
+    # ── 추가 pay (2) ──
+    ("캠프비를 납부해 주세요.", "pay", ["캠프비"]),
+    ("입장료를 입금해 주세요.", "pay", ["입장료"]),
+    # ── 추가 check (3) ──
+    ("QR코드를 확인해 주세요.", "check", ["QR코드"]),
+    ("식품 알레르기를 확인해 주세요.", "check", ["식품 알레르기"]),
+    ("학생 건강검진을 확인해 주세요.", "check", ["학생 건강검진"]),
+    # ── 추가 fill (2) ──
+    ("의견서를 작성해 주세요.", "fill", ["의견서"]),
+    ("체험 보고서를 작성해 주세요.", "fill", ["체험 보고서"]),
+    # ── 추가 apply (2) ──
+    ("출석인정 결석을 신청해 주세요.", "apply", ["출석인정 결석"]),
+    ("스쿨뱅킹 자동이체를 신청해 주세요.", "apply", ["스쿨뱅킹 자동이체"]),
 ]
 
 LANGS = list(_LANG_TEMPLATES.keys())  # vi, en, ru, ms, mn, zh, th, ja
@@ -80,7 +144,7 @@ def _term_preserved(output: str, expected_terms_ko: list[str], glossary: list, l
 
 
 def run() -> None:
-    glossary = _get_glossary()
+    glossary = _load_glossary()
     _build_role_sets(glossary)
 
     OUT_DIR = Path(__file__).parent / "outputs" / "template_coverage"
