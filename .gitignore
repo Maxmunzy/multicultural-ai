@@ -28,6 +28,9 @@ model/classification/checkpoints/
 # 컨테이너 작업 영역 (학습 데이터·OCR·임시 변환물)
 backend/data/
 
+# 평가 스크립트 실행 결과물 (재생성 가능)
+model/translation_tts/outputs/
+
 # Android build outputs and local settings
 android/.gradle/
 android/.idea/
