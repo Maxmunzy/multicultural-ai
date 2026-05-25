@@ -1,0 +1,61 @@
+totalCount: 77
+items 수: 77
+
+=== 첫 3건 ===
+{
+  "id": "1",
+  "opnSn": null,
+  "ornuNm": "2기",
+  "srvyYr": "2023",
+  "srvyExmnCycl": "5",
+  "rspnsMnbdNm": "학부모",
+  "otptCtgryNm": "다문화적 특성(▶[외국인 학부모]만)-언어 능력-한국어 공부 경험 여부",
+  "svbnClsfCd": "BANN020100",
+  "svbnVrblCn": "전체",
+  "srvyQitemId": "ko_language_a1_w5",
+  "cbookQitemCn": "한국어 학습 경험: 한국어 공부 경험 여부",
+  "rspvl": "1",
+  "rspnsNm": "예",
+  "aiCrtYn": null,
+  "caseCnt": "273",
+  "freqRt": "15.6"
+}
+
+{
+  "id": "2",
+  "opnSn": null,
+  "ornuNm": "2기",
+  "srvyYr": "2023",
+  "srvyExmnCycl": "5",
+  "rspnsMnbdNm": "학부모",
+  "otptCtgryNm": "다문화적 특성(▶[외국인 학부모]만)-언어 능력-한국어 공부 경험 여부",
+  "svbnClsfCd": "BANN020100",
+  "svbnVrblCn": "전체",
+  "srvyQitemId": "ko_language_a1_w5",
+  "cbookQitemCn": "한국어 학습 경험: 한국어 공부 경험 여부",
+  "rspvl": "2",
+  "rspnsNm": "아니오",
+  "aiCrtYn": null,
+  "caseCnt": "1477",
+  "freqRt": "84.4"
+}
+
+{
+  "id": "3",
+  "opnSn": null,
+  "ornuNm": "2기",
+  "srvyYr": "2023",
+  "srvyExmnCycl": "5",
+  "rspnsMnbdNm": "학부모",
+  "otptCtgryNm": "다문화적 특성(▶[외국인 학부모]만)-언어 능력-한국어 공부 방식",
+  "svbnClsfCd": "BANN020100",
+  "svbnVrblCn": "전체",
+  "srvyQitemId": "ko_language_a6_01_w5",
+  "cbookQitemCn": "한국어 학습 경험: 한국어 학습 방식(복수응답)",
+  "rspvl": "1",
+  "rspnsNm": "다문화가족지원센터, 복지관 등에 가서 교육을 받았다",
+  "aiCrtYn": null,
+  "caseCnt": "94",
+  "freqRt": "34.3"
+}
+
