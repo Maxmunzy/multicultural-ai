@@ -1,0 +1,145 @@
+{
+  "model": "kcelectra",
+  "version": "v4",
+  "base_model": "beomi/kcelectra-base",
+  "macro_f1": 0.8365,
+  "macro_precision": 0.8464,
+  "macro_recall": 0.8293,
+  "per_class": {
+    "일정": {
+      "precision": 0.8983,
+      "recall": 0.8196,
+      "f1": 0.8571,
+      "support": 194.0,
+      "v3_2_f1": 0.8665,
+      "delta_f1": -0.0094
+    },
+    "준비물": {
+      "precision": 0.9474,
+      "recall": 0.8182,
+      "f1": 0.878,
+      "support": 44.0,
+      "v3_2_f1": 0.8736,
+      "delta_f1": 0.0044
+    },
+    "제출": {
+      "precision": 0.8276,
+      "recall": 0.8354,
+      "f1": 0.8315,
+      "support": 316.0,
+      "v3_2_f1": 0.8233,
+      "delta_f1": 0.0082
+    },
+    "비용": {
+      "precision": 0.7955,
+      "recall": 0.8333,
+      "f1": 0.814,
+      "support": 84.0,
+      "v3_2_f1": 0.8095,
+      "delta_f1": 0.0045
+    },
+    "건강·안전": {
+      "precision": 0.7662,
+      "recall": 0.8271,
+      "f1": 0.7955,
+      "support": 214.0,
+      "v3_2_f1": 0.8034,
+      "delta_f1": -0.0079
+    },
+    "기타": {
+      "precision": 0.8432,
+      "recall": 0.8421,
+      "f1": 0.8427,
+      "support": 741.0,
+      "v3_2_f1": 0.8479,
+      "delta_f1": -0.0052
+    }
+  },
+  "confusion_matrix": [
+    [
+      159,
+      0,
+      8,
+      2,
+      2,
+      23
+    ],
+    [
+      0,
+      36,
+      0,
+      0,
+      2,
+      6
+    ],
+    [
+      2,
+      0,
+      264,
+      4,
+      0,
+      46
+    ],
+    [
+      1,
+      1,
+      1,
+      70,
+      0,
+      11
+    ],
+    [
+      1,
+      0,
+      6,
+      0,
+      177,
+      30
+    ],
+    [
+      14,
+      1,
+      40,
+      12,
+      50,
+      624
+    ]
+  ],
+  "labels": [
+    "일정",
+    "준비물",
+    "제출",
+    "비용",
+    "건강·안전",
+    "기타"
+  ],
+  "data_version": "v4_schoolalimi_20260525",
+  "augment_source": "교육부_학교알리미_공공데이터",
+  "augment_counts": {
+    "건강·안전": 301,
+    "일정": 185,
+    "비용": 78
+  },
+  "train_size": 13210,
+  "val_size": 1709,
+  "test_size": 1593,
+  "epochs_trained": 16,
+  "best_val_f1": 0.8401,
+  "lr": 2e-05,
+  "batch_size": 16,
+  "warmup_ratio": 0.1,
+  "weighted_loss": true,
+  "class_weights": [
+    1.2307,
+    6.1499,
+    0.8716,
+    2.9793,
+    1.1774,
+    0.3714
+  ],
+  "early_stopping": true,
+  "patience": 5,
+  "v3_2_macro_f1": 0.8374,
+  "delta_from_v3_2": -0.0009,
+  "simple_baseline_f1": 0.759
+}
