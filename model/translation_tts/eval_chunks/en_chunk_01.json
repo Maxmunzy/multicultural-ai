@@ -1,0 +1,241 @@
+[
+  {
+    "id": "T-001_en",
+    "source_id": "T-001",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "참가 동의서를 4월 28일까지 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit Participation consent form by April 28.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "4월 28일",
+      "참가 동의서"
+    ],
+    "expected_terms": [
+      "참가 동의서"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-002_en",
+    "source_id": "T-002",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "체험학습비 15,000원을 4월 25일까지 납부해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please pay Field trip fee of 15,000 won by April 25.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "pay",
+    "expected_slots": [
+      "15,000원",
+      "4월 25일"
+    ],
+    "expected_terms": [
+      "체험학습비"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-003_en",
+    "source_id": "T-003",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "개인 물병, 도시락, 편한 운동화를 준비해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please prepare Water bottle, Lunch box and sneakers.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "prepare",
+    "expected_slots": [
+      "물병",
+      "도시락",
+      "운동화"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-004_en",
+    "source_id": "T-004",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "알림장을 매일 담임교사에게 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit Notice book to Homeroom teacher every day.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "알림장",
+      "담임교사"
+    ],
+    "expected_terms": [
+      "알림장",
+      "담임교사"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-005_en",
+    "source_id": "T-005",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "방과후 신청서를 이번 주 금요일까지 담임교사에게 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit After-school program application form by this Friday.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "금요일",
+      "방과후 신청서"
+    ],
+    "expected_terms": [
+      "방과후 신청서"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-006_en",
+    "source_id": "T-006",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "수업비 40,000원을 다음 주 월요일까지 납부해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please pay Class fee of 40,000 won by next Monday.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "pay",
+    "expected_slots": [
+      "40,000원",
+      "월요일"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-007_en",
+    "source_id": "T-007",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "현장체험학습 동의서를 5월 3일까지 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit Field trip consent form by May 3.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "5월 3일",
+      "현장체험학습 동의서"
+    ],
+    "expected_terms": [
+      "현장체험학습"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-008_en",
+    "source_id": "T-008",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "내일 준비물은 색종이, 풀, 가위입니다.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Things to bring tomorrow: Colored paper, glue and Scissors.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "prepare",
+    "expected_slots": [
+      "색종이",
+      "풀",
+      "가위"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-009_en",
+    "source_id": "T-009",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "스쿨뱅킹을 통해 급식비 65,000원을 납부해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please pay Lunch fee of 65,000 won through School Banking.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "pay",
+    "expected_slots": [
+      "65,000원",
+      "스쿨뱅킹"
+    ],
+    "expected_terms": [
+      "스쿨뱅킹",
+      "급식비"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-010_en",
+    "source_id": "T-010",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "가정통신문 하단의 회신서를 작성하여 담임교사에게 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit School notice to parents and Reply to Homeroom teacher.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "회신서",
+      "담임교사"
+    ],
+    "expected_terms": [
+      "가정통신문",
+      "회신서"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  }
+]
