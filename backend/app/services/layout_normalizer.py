@@ -216,27 +216,90 @@ def extract_sentences(
     text: str = "",
     inline_data: tuple[bytes, str] | None = None,
 ) -> tuple[dict, str, float]:
-    """LLM(Gemini/Claude)으로 통신문 본문 정제 → {document_title, cleaned_text} 반환.
+    """PDF/text → {document_title, cleaned_text, sentence_list} 추출.
 
-    Provider 토글: LLM_PROVIDER=gemini (기본) | claude
-    Gemini 503 폭주 시 Claude로 전환 가능 (다른 인프라).
+    자체 Hybrid 모델 (LayoutXLM frozen + KoCharELECTRA + BIO + CRF + parser dedup) 사용.
+    LLM API 의존 X — 변형 0 보장 (encoder + classifier only, generation 없음).
 
-    함수 이름은 호환성 위해 그대로 유지. 내부적으론 sentence_list 분해 안 함.
-
-    두 가지 모드:
-    - **text 모드** (기본): text 인자 사용, inline_data=None.
-    - **Vision 모드**: inline_data=(raw_bytes, mime_type) 전달. PDF/이미지 첨부.
-
-    실패 시 빈 dict({"document_title":"", "cleaned_text":""}) + status 반환.
+    - **PDF 모드** (inline_data 사용): HybridInferer로 page별 sentence 추출
+    - **text 모드** (text 사용): LLM 없으니 줄 단위 단순 분리 (구조화 X)
 
     Returns:
         (structured, status, elapsed_seconds)
     """
-    # Provider 분기 — Claude 우선
+    started = time.monotonic()
+
+    if inline_data is not None:
+        raw_bytes, mime_type = inline_data
+        if not raw_bytes:
+            return _empty_structured(), "skip:empty", 0.0
+        if mime_type != "application/pdf":
+            logger.warning(
+                "extract_sentences hybrid: unsupported mime %s (PDF only)",
+                mime_type,
+            )
+            return _empty_structured(), f"skip:unsupported_mime:{mime_type}", 0.0
+        try:
+            from app.services.hybrid_extractor import extract_sentences_from_pdf_bytes
+            sents = extract_sentences_from_pdf_bytes(raw_bytes)
+        except Exception as e:
+            logger.exception("hybrid extract failed")
+            return (
+                _empty_structured(),
+                f"error:hybrid:{type(e).__name__}",
+                time.monotonic() - started,
+            )
+        elapsed = time.monotonic() - started
+        structured = {
+            "document_title": "",
+            "cleaned_text": "\n".join(sents),
+            "sentence_list": [
+                {
+                    "sentence_id": f"s{i:04d}",
+                    "text": s,
+                    "role_hint": "",
+                    "source_order": i,
+                    "is_action_candidate": False,
+                }
+                for i, s in enumerate(sents)
+            ],
+        }
+        logger.warning(
+            "extract_sentences hybrid OK: sentences=%d elapsed=%.2fs",
+            len(sents), elapsed,
+        )
+        return structured, "ok:hybrid", elapsed
+
+    # text 모드 — LLM 없이 줄 분리 passthrough (raw text 그대로)
+    if not text or not text.strip():
+        return _empty_structured(), "skip:empty", 0.0
+    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
+    elapsed = time.monotonic() - started
+    structured = {
+        "document_title": "",
+        "cleaned_text": "\n".join(lines),
+        "sentence_list": [
+            {
+                "sentence_id": f"s{i:04d}",
+                "text": ln,
+                "role_hint": "",
+                "source_order": i,
+                "is_action_candidate": False,
+            }
+            for i, ln in enumerate(lines)
+        ],
+    }
+    return structured, "ok:hybrid_text_passthrough", elapsed
+
+
+def _extract_sentences_llm_legacy(
+    text: str = "",
+    inline_data: tuple[bytes, str] | None = None,
+) -> tuple[dict, str, float]:
+    """LLM 기반 옛 구현 — 교차 검증/회귀 확인용. production 호출 X."""
     if LLM_PROVIDER == "claude":
         return _call_claude(text, inline_data)
 
-    # 기본 Gemini 분기
     if not GEMINI_API_KEY:
         return _empty_structured(), "skip:no_key", 0.0
 

@@ -1,6 +1,6 @@
 from enum import Enum
 from typing import Any
-from pydantic import BaseModel
+from pydantic import BaseModel, computed_field
 
 
 class KoreanLevel(str, Enum):
@@ -15,6 +15,40 @@ class Category(str, Enum):
     cost = "비용"
     health = "건강·안전"
     other = "기타"
+
+    @property
+    def slug(self) -> str:
+        """frontend CSS class용 영문 slug (demo/index.html cat-chip class와 일치)."""
+        return _CATEGORY_SLUGS[self]
+
+
+_CATEGORY_SLUGS: dict["Category", str] = {}
+
+
+def _init_category_slugs() -> None:
+    _CATEGORY_SLUGS.update({
+        Category.schedule: "schedule",
+        Category.supplies: "supply",
+        Category.submission: "submit",
+        Category.cost: "cost",
+        Category.health: "health",
+        Category.other: "other",
+    })
+
+
+_init_category_slugs()
+
+
+def _category_slug_from(value: Any) -> str | None:
+    """Category 또는 한국어 라벨 → slug. 매칭 실패 시 None."""
+    if value is None:
+        return None
+    if isinstance(value, Category):
+        return value.slug
+    try:
+        return Category(value).slug
+    except (ValueError, KeyError):
+        return None
 
 
 class TodoItem(BaseModel):
@@ -128,6 +162,12 @@ class AnalyzeItem(BaseModel):
     note_ko: str | None = None          # 조건부 메모 (예: "날씨가 흐릴 경우")
     note_translated: str | None = None
 
+    @computed_field
+    @property
+    def category_slug(self) -> str:
+        """frontend CSS class 용 영문 slug — demo/index.html cat-chip class와 일치."""
+        return self.category.slug
+
 
 class ChecklistItem(BaseModel):
     """행동 항목 — 학부모가 챙김/제출/납부/신청 후 체크할 단위.
@@ -160,6 +200,12 @@ class SlotCard(BaseModel):
     importance: float = 0.5              # 정렬용 (높은 순)
     due_date: str | None = None          # 윤정님 todo.due_date — 통합 체크리스트 마감일 정렬용
     checklist: list[ChecklistItem] = []  # 행동 항목 — 비어있으면 안드 UI 체크박스 영역 미표시
+
+    @computed_field
+    @property
+    def chip_slug(self) -> str | None:
+        """frontend CSS class 용 영문 slug — chip이 Category 한국어 값이면 매핑, 아니면 None."""
+        return _category_slug_from(self.chip)
 
 
 class CalendarAction(BaseModel):
@@ -214,6 +260,12 @@ class NoticeHighlight(BaseModel):
     importance: float = 0.5
     translated: str = ""
     easy_ko: str = ""
+
+    @computed_field
+    @property
+    def category_slug(self) -> str | None:
+        """frontend CSS class 용 영문 slug."""
+        return self.category.slug if self.category else None
 
 
 class NoticeAnalyzeResponse(BaseModel):
