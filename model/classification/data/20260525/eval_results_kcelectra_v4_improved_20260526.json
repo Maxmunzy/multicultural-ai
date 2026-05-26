@@ -1,0 +1,151 @@
+{
+  "model": "kcelectra",
+  "version": "v4_improved",
+  "base_model": "beomi/kcelectra-base",
+  "macro_f1": 0.8431,
+  "macro_precision": 0.8408,
+  "macro_recall": 0.8459,
+  "per_class": {
+    "일정": {
+      "precision": 0.8571,
+      "recall": 0.866,
+      "f1": 0.8615,
+      "support": 194,
+      "v3_2_f1": 0.8665,
+      "delta_f1": -0.005
+    },
+    "준비물": {
+      "precision": 0.881,
+      "recall": 0.8409,
+      "f1": 0.8605,
+      "support": 44,
+      "v3_2_f1": 0.8736,
+      "delta_f1": -0.0131
+    },
+    "제출": {
+      "precision": 0.8062,
+      "recall": 0.8291,
+      "f1": 0.8175,
+      "support": 316,
+      "v3_2_f1": 0.8233,
+      "delta_f1": -0.0058
+    },
+    "비용": {
+      "precision": 0.8222,
+      "recall": 0.881,
+      "f1": 0.8506,
+      "support": 84,
+      "v3_2_f1": 0.8095,
+      "delta_f1": 0.0411
+    },
+    "건강·안전": {
+      "precision": 0.8216,
+      "recall": 0.8178,
+      "f1": 0.8197,
+      "support": 214,
+      "v3_2_f1": 0.8034,
+      "delta_f1": 0.0163
+    },
+    "기타": {
+      "precision": 0.8569,
+      "recall": 0.8408,
+      "f1": 0.8488,
+      "support": 741,
+      "v3_2_f1": 0.8479,
+      "delta_f1": 0.0009
+    }
+  },
+  "confusion_matrix": [
+    [
+      168,
+      0,
+      6,
+      1,
+      1,
+      18
+    ],
+    [
+      1,
+      37,
+      0,
+      0,
+      1,
+      5
+    ],
+    [
+      3,
+      0,
+      262,
+      4,
+      0,
+      47
+    ],
+    [
+      1,
+      0,
+      2,
+      74,
+      1,
+      6
+    ],
+    [
+      4,
+      1,
+      6,
+      0,
+      175,
+      28
+    ],
+    [
+      19,
+      4,
+      49,
+      11,
+      35,
+      623
+    ]
+  ],
+  "labels": [
+    "일정",
+    "준비물",
+    "제출",
+    "비용",
+    "건강·안전",
+    "기타"
+  ],
+  "data_version": "v4_schoolalimi_20260525",
+  "augment_source": "교육부_학교알리미_공공데이터",
+  "train_size": 13210,
+  "val_size": 1596,
+  "test_size": 1593,
+  "val_purity": "original_only",
+  "epochs_trained": 25,
+  "best_val_f1": 0.8362,
+  "lr": 3e-05,
+  "batch_size": 32,
+  "warmup_ratio": 0.1,
+  "label_smoothing": 0.05,
+  "scheduler": "cosine_annealing",
+  "weighted_loss": true,
+  "class_weights": [
+    1.2307,
+    6.1499,
+    0.8716,
+    2.9793,
+    1.1774,
+    0.3714
+  ],
+  "early_stopping": true,
+  "patience": 7,
+  "v3_2_macro_f1": 0.8374,
+  "delta_from_v3_2": 0.0057,
+  "simple_baseline_f1": 0.759,
+  "improvements_from_v4": [
+    "val/test: original only (val 오염 제거 — 핵심 수정)",
+    "LR: 2e-5 → 3e-05",
+    "BatchSize: 16 → 32",
+    "Scheduler: linear → cosine annealing",
+    "Loss: weighted CE → LabelSmoothingCE (ε=0.05)",
+    "Patience: 5 → 7"
+  ]
+}

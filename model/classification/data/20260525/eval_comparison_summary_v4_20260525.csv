@@ -1,0 +1,4 @@
+﻿model,macro_f1,macro_precision,macro_recall,f1_일정,f1_준비물,f1_제출,f1_비용,f1_건강·안전,f1_기타
+"KcELECTRA v3_2 (baseline, beomi/kcelectra-base)",0.8374,0.841,0.8369,0.8665,0.8736,0.8233,0.8095,0.8034,0.8479
+"Simple v4 (TF-IDF + LogReg, 증강 데이터)",0.7625,0.7389,0.7984,0.7395,0.8276,0.7289,0.7784,0.75,0.7508
+KcELECTRA v4 (beomi/kcelectra-base + 학교알리미 증강),0.8365,0.8464,0.8293,0.8571,0.878,0.8315,0.814,0.7955,0.8427
