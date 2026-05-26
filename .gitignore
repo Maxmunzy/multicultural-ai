@@ -102,3 +102,23 @@ backend/firebase-admin-key.json
 
 # 발표 자료 작업 임시 폴더 (xlsx 풀어서 분석한 결과)
 tmp_extract/
+
+# sentence_extraction 학습 데이터/원본 PDF/임시 산출물 (대용량, 재생성 가능)
+sentence_extraction/data/all_pdfs/
+sentence_extraction/data/converted_pdfs/
+sentence_extraction/data/heldout_20/
+sentence_extraction/data/hwp/
+sentence_extraction/data/hwp_to_pdf/
+sentence_extraction/data/page_images/
+sentence_extraction/data/extra_*/
+sentence_extraction/data/seongnam_pdfs/
+sentence_extraction/data/taepyeong_pdfs/
+sentence_extraction/data/90장/
+sentence_extraction/data/v5_pilot/
+sentence_extraction/data/test_unseen_*.pdf
+sentence_extraction/data/*.jsonl
+sentence_extraction/data/*.log
+# Colab 업로드 묶음 (PDF zip/tar + 사본 jsonl) — 학습 끝나면 폐기
+sentence_extraction/colab_upload_*/pdfs.zip
+sentence_extraction/colab_upload_*/pdfs.tar
+sentence_extraction/colab_upload_*/*.jsonl
