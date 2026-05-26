@@ -95,18 +95,47 @@ https://www.data.go.kr/data/15050501/fileData.do#
 
 C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\Business_Plan\By_region\외국인_국적별_현황_20260524201426.csv
 
-## 그 외 오픈 API
-1. XML JSON 성평등가족부_전국다문화가족실태조사 통계 데이터 정보 서비스
-https://www.data.go.kr/data/15078218/openapi.do
+## 그 외 오픈 API — 탐색 결과 및 결론
 
-2. XML JSON 성평등가족부_전국다문화가족실태조사 마이크로데이터 정보 서비스
+### 1. XML JSON 성평등가족부_전국다문화가족실태조사 마이크로데이터 정보 서비스
 https://www.data.go.kr/data/15078202/openapi.do
 
-3. 연계데이터 
-지역별 다문화 가족 분포 정보
-https://www.data.go.kr/data/844871/linkedData.do
+- End Point: `https://apis.data.go.kr/1383000/stis/srvyMltCltrFmlyMcrDataService`
+- 제공 기능: `getServeyMulticulturalFamliyTargetList` (조사 대상 목록) → `getServeyMulticulturalFamliyDataList` (마이크로데이터)
 
-## Maybe폴더: SchoolBridge가 활용할 수 있는 데이터인지 정확한 확인 필요.
+**실제 API 호출 탐색 결과 (인증키로 직접 확인)**
+
+| 조사연도 | 데이터 유무 | 비고 |
+|----------|-------------|------|
+| 2024 | ❌ 없음 | |
+| 2023 | ❌ 없음 | |
+| 2022 | ❌ 없음 | |
+| 2021 | ❌ 없음 | 3년 주기 조사인데도 API 미등록 |
+| 2020 | ❌ 없음 | |
+| 2019 | ❌ 없음 | |
+| **2018** | ✅ 57,739건 | 최신 — 등록일 2021-03-22 |
+| 2015 | ✅ 존재 | |
+| 2012 | ✅ 존재 | |
+
+**결론: SchoolBridge에 불필요**
+- 최신 데이터가 2018년에 멈춰 있고, 2021·2024년 조사 결과는 API에 올라오지 않음
+- 발표자료에 인용된 여가부 2024 수치(읽기 3.82, 쓰기 3.68, 학부모 모임 비참여 71.6%)는 이 API가 아니라 여가부 PDF 보고서에서 직접 가져온 것이므로 API 없이도 동일하게 인용 가능
+
+---
+
+### 2. 연계데이터 — 지역별 다문화 가족 분포 정보
+https://www.data.go.kr/data/844871/linkedData.do  
+실제 데이터 위치: https://www.bigdata-culture.kr (한국청소년활동진흥원 KYWA)
+
+**탐색 결과**
+- 제공 데이터: 2019년, 2020년 두 해뿐
+- 상태: "센터와 협의가 종료된 상태로 상품 업데이트 및 상담이 불가" → 사실상 폐기
+
+**결론: SchoolBridge에 불필요**
+- By_region/ 폴더에 이미 2023~2026년 최신 CSV(11개 데이터셋)가 있어 완전히 대체 가능
+- 더 오래되고 업데이트도 안 되는 데이터를 추가할 이유 없음
+
+## Maybe폴더: SchoolBridge가 활용할 수 있는 데이터인지 정확한 확인 필요. --> 안 할 거임.
 C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\Business_Plan\Maybe
 
 1. CSV 한국건강가정진흥원_전국 다문화가족지원센터 통번역 지원사 배치현황
