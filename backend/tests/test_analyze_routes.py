@@ -40,7 +40,7 @@ def _patch_models(monkeypatch, *, todos=None, category=None,
     monkeypatch.setattr("app.routers.notice.translate_term",
                         lambda text, target_lang: f"[T]{text}")
 
-    async def fake_tts(text, target_lang="vi"):
+    async def fake_tts(text, target_lang="vi", tts_engine="edge"):
         return tts_url
     monkeypatch.setattr("app.routers.notice.generate_tts_file", fake_tts)
 
