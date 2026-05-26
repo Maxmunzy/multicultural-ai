@@ -1,0 +1,487 @@
+[
+  {
+    "id": "T-001_ms",
+    "source_id": "T-001",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "submit_deadline",
+    "text_ko": "참가 동의서를 4월 28일까지 제출해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila hantar borang izin penyertaan sebelum 28/4.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "4월 28일"
+    ],
+    "expected_terms": [
+      "참가 동의서"
+    ],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "submit+deadline 기본형"
+  },
+  {
+    "id": "T-007_ms",
+    "source_id": "T-007",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "submit_deadline",
+    "text_ko": "현장체험학습 동의서를 5월 3일까지 제출해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila hantar borang kebenaran lawatan sambil belajar sebelum 3/5.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "5월 3일"
+    ],
+    "expected_terms": [
+      "현장체험학습"
+    ],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "compound term 현장체험학습 언어별 용어 테스트"
+  },
+  {
+    "id": "T-009_ms",
+    "source_id": "T-009",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "pay_method",
+    "text_ko": "스쿨뱅킹을 통해 급식비 65,000원을 납부해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila bayar yuran makan sebanyak 65,000 won melalui School Banking.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "65,000원"
+    ],
+    "expected_terms": [
+      "스쿨뱅킹",
+      "급식비"
+    ],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "pay+method+amount — vi에서 amount slot drop 알려진 케이스"
+  },
+  {
+    "id": "T-008_ms",
+    "source_id": "T-008",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "prepare_list",
+    "text_ko": "내일 준비물은 색종이, 풀, 가위입니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Barang yang perlu dibawa esok: kertas warna, gam dan gunting.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "색종이",
+      "풀",
+      "가위"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "3-item prepare list — 언어별 열거 자연스러움 테스트"
+  },
+  {
+    "id": "T-011_ms",
+    "source_id": "T-011",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "prepare_deadline",
+    "text_ko": "체육복과 운동화를 3월 10일까지 준비해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila sediakan baju sukan dan kasut sukan sebelum 10/3.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "3월 10일"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "prepare+deadline 기본형"
+  },
+  {
+    "id": "T-031_ms",
+    "source_id": "T-031",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "apply_date_range",
+    "text_ko": "방과후 수업 신청을 10월 1일부터 10월 5일까지 해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila daftar untuk kelas selepas sekolah dari 1/10 hingga 5/10.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "10월 1일",
+      "10월 5일"
+    ],
+    "expected_terms": [
+      "방과후 수업"
+    ],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "P9 apply 기간 범위 — 8개 언어 range template 동작 확인"
+  },
+  {
+    "id": "T-034_ms",
+    "source_id": "T-034",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "fill_form",
+    "text_ko": "상담 신청서를 작성해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila isi borang permohonan kaunseling.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [],
+    "expected_terms": [
+      "상담"
+    ],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "P9 glossary fix — 언어별 '신청서' 표현 확인"
+  },
+  {
+    "id": "C05-F015_ms",
+    "source_id": "C05-F015",
+    "type": "template",
+    "category": "template_stable",
+    "subcategory": "pay_method_amount",
+    "text_ko": "스쿨뱅킹으로 체험학습비 15,000원을 5월 15일까지 납부해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila bayar yuran lawatan sebanyak 15,000 won melalui School Banking sebelum 15/5.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "15,000원",
+      "5월 15일"
+    ],
+    "expected_terms": [
+      "스쿨뱅킹",
+      "체험학습비"
+    ],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "P8 pay regression 기준 케이스 (F-015 chunk05) — 언어별 100점 기준"
+  },
+  {
+    "id": "F-002_ms",
+    "source_id": "F-002",
+    "type": "fallback",
+    "category": "fallback_info",
+    "subcategory": "url_check",
+    "text_ko": "자세한 내용은 학교 홈페이지(www.school.kr)에서 확인하실 수 있습니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Maklumat lanjut boleh didapati di laman web sekolah (www.school.kr)",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "www.school.kr"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "URL slot 보존 — 8개 언어 URL 처리 확인"
+  },
+  {
+    "id": "F-005_ms",
+    "source_id": "F-005",
+    "type": "fallback",
+    "category": "fallback_info",
+    "subcategory": "event_datetime",
+    "text_ko": "학부모 총회는 4월 15일 오후 7시에 개최됩니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "mesyuarat ibu bapa diadakan pada 15/4 19:00.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "4월 15일",
+      "오후 7시"
+    ],
+    "expected_terms": [
+      "학부모 총회"
+    ],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "date+time 복합 slot — 오후 시간 AM/PM 언어별 처리"
+  },
+  {
+    "id": "F-004_ms",
+    "source_id": "F-004",
+    "type": "fallback",
+    "category": "fallback_info",
+    "subcategory": "event_datetime_location",
+    "text_ko": "졸업식은 2월 14일 오전 10시에 강당에서 진행됩니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Perayaan tamat sekolah akan diadakan di aula pada hari 14/2 10:00.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "2월 14일",
+      "오전 10시",
+      "강당"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "date+time+location 3-slot — 언어별 slot 보존 전체 테스트"
+  },
+  {
+    "id": "F-012_ms",
+    "source_id": "F-012",
+    "type": "fallback",
+    "category": "fallback_info",
+    "subcategory": "time_range_info",
+    "text_ko": "등교 시간은 오전 8시 30분에서 9시 사이입니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "waktu tiba ke sekolah adalah antara 8:30 dan 9:00.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "오전 8시 30분",
+      "9시"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "시간 범위 정보문 — 8시 30분 분 단위 slot 보존"
+  },
+  {
+    "id": "F-003_ms",
+    "source_id": "F-003",
+    "type": "fallback",
+    "category": "fallback_info",
+    "subcategory": "notify_teacher",
+    "text_ko": "건강 상태가 좋지 않은 학생은 담임선생님께 미리 알려 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Jika pelajar yang tidak sihat, sila beritahu kepada guru kelas terlebih dahulu.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "담임선생님 알림 — P8/P10 phrase rule 검증 기준 문장"
+  },
+  {
+    "id": "F-001_ms",
+    "source_id": "F-001",
+    "type": "fallback",
+    "category": "fallback_info",
+    "subcategory": "guide_phrase",
+    "text_ko": "학생들이 안전하고 즐겁게 참여할 수 있도록 가정에서도 지도 부탁드립니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Saya minta bimbingan di rumah supaya pelajar dapat mengambil bahagian dengan selamat dan menyenangkan.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "지도 동음이의어 phrase — 언어별 NLLB 처리 비교"
+  },
+  {
+    "id": "R-001_ms",
+    "source_id": "R-001",
+    "type": "risk",
+    "category": "risk",
+    "subcategory": "conditional_submit",
+    "text_ko": "해당되는 가정만 참가 동의서를 제출해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila hantar borang izin penyertaan.",
+    "review_required": true,
+    "review_reason": "RISKY_CONTEXT",
+    "expected_slots": [
+      "참가 동의서"
+    ],
+    "expected_terms": [
+      "참가 동의서"
+    ],
+    "expected_risk": true,
+    "should_review_required": true,
+    "notes": "RISKY_CONTEXT — 해당되는 가정만 조건 → rr=True 언어 무관 유지 확인"
+  },
+  {
+    "id": "R-002_ms",
+    "source_id": "R-002",
+    "type": "risk",
+    "category": "risk",
+    "subcategory": "negative_action",
+    "text_ko": "도시락은 학교에서 제공하므로 가져오지 않아도 됩니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Mereka tidak perlu membawa makanan itu kerana mereka disediakan di sekolah.",
+    "review_required": true,
+    "review_reason": "RISKY_CONTEXT",
+    "expected_slots": [
+      "도시락"
+    ],
+    "expected_terms": [],
+    "expected_risk": true,
+    "should_review_required": true,
+    "notes": "RISKY_CONTEXT 부정문 — 가져오지 않아도 됨 → 언어별 부정 표현 보존"
+  },
+  {
+    "id": "R-004_ms",
+    "source_id": "R-004",
+    "type": "risk",
+    "category": "risk",
+    "subcategory": "optional_submit",
+    "text_ko": "희망자만 방과후 신청서를 제출하시면 됩니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Hanya anda yang boleh mengemukakan permohonan borang permohonan program selepas sekolah.",
+    "review_required": true,
+    "review_reason": "RISKY_CONTEXT",
+    "expected_slots": [
+      "방과후 신청서"
+    ],
+    "expected_terms": [
+      "방과후 신청서"
+    ],
+    "expected_risk": true,
+    "should_review_required": true,
+    "notes": "RISKY_CONTEXT — 희망자만 조건 → condition slot future PR 대상"
+  },
+  {
+    "id": "R-003_ms",
+    "source_id": "R-003",
+    "type": "risk",
+    "category": "risk",
+    "subcategory": "non_parent_target",
+    "text_ko": "담임교사는 회신서를 수합하여 교무실로 제출해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila hantar hantar balasan dan bilik guru kepada guru kelas.",
+    "review_required": true,
+    "review_reason": "NON_PARENT_TARGET",
+    "expected_slots": [
+      "회신서",
+      "교무실"
+    ],
+    "expected_terms": [
+      "담임교사",
+      "회신서"
+    ],
+    "expected_risk": true,
+    "should_review_required": true,
+    "notes": "NON_PARENT_TARGET — 교사 대상 문장 → rr=True 언어 무관 유지 확인"
+  },
+  {
+    "id": "C05-F011_ms",
+    "source_id": "C05-F011",
+    "type": "regression",
+    "category": "regression",
+    "subcategory": "phrase_drop_p10",
+    "text_ko": "학생들이 안전하게 귀가할 수 있도록 가정에서도 지도 부탁드립니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Saya minta bimbingan di rumah supaya pelajar dapat pulang dengan selamat.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "P10 NLLB 말미 드롭 — vi/en 50점대, 다른 언어 비교"
+  },
+  {
+    "id": "C05-F012_ms",
+    "source_id": "C05-F012",
+    "type": "regression",
+    "category": "regression",
+    "subcategory": "phrase_drop_p10",
+    "text_ko": "건강 상태가 좋지 않은 학생은 담임선생님께 미리 알려 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Jika pelajar yang tidak sihat, sila beritahu kepada guru kelas terlebih dahulu.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "P10 EN 44점 퇴행 — VI 79점 대비, 다른 언어 위치 확인"
+  },
+  {
+    "id": "C05-F013_ms",
+    "source_id": "C05-F013",
+    "type": "regression",
+    "category": "regression",
+    "subcategory": "condition_slot",
+    "text_ko": "방학 중 보충 수업 참가 희망자만 신청서를 제출해 주세요.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Sila hantar Pemohon yang berminat dan borang permohonan semasa cuti.",
+    "review_required": true,
+    "review_reason": "RISKY_CONTEXT",
+    "expected_slots": [],
+    "expected_terms": [
+      "보충 수업"
+    ],
+    "expected_risk": true,
+    "should_review_required": true,
+    "notes": "condition slot 이중 조건 — 8개 언어 review_required 유지 확인"
+  },
+  {
+    "id": "N-002_ms",
+    "source_id": "N-002",
+    "type": "regression",
+    "category": "regression",
+    "subcategory": "negative_should_review",
+    "text_ko": "무상급식 대상 학생은 급식비를 내지 않아도 됩니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Pelajar yang mendapat makanan percuma tidak perlu membayar makan segera.",
+    "review_required": true,
+    "review_reason": "RISKY_CONTEXT",
+    "expected_slots": [
+      "급식비"
+    ],
+    "expected_terms": [
+      "급식비",
+      "무상급식"
+    ],
+    "expected_risk": true,
+    "should_review_required": true,
+    "notes": "부정문 + 면제 — 언어별 '내지 않아도 됨' 표현 + rr 확인"
+  },
+  {
+    "id": "R-007_ms",
+    "source_id": "R-007",
+    "type": "regression",
+    "category": "regression",
+    "subcategory": "exemption_conditional",
+    "text_ko": "저소득 가정 학생은 체험학습비가 면제됩니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Pelajar yang berpendapatan rendah dikecualikan daripada yuran lawatan.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "저소득 가정"
+    ],
+    "expected_terms": [
+      "체험학습비"
+    ],
+    "expected_risk": true,
+    "should_review_required": false,
+    "notes": "면제 조건 정보문 — should_rr=False지만 위험 성격"
+  },
+  {
+    "id": "F-022_ms",
+    "source_id": "F-022",
+    "type": "regression",
+    "category": "regression",
+    "subcategory": "event_datetime_location",
+    "text_ko": "운동회는 5월 14일 오전 10시에 운동장에서 진행됩니다.",
+    "target_lang": "ms",
+    "schoolbridge_output": "Pertandingan sukan akan diadakan di stadium 14/5 10:00.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_slots": [
+      "5월 14일",
+      "오전 10시",
+      "운동장"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false,
+    "notes": "date+time+location 3-slot fallback — slot 보존 회귀 확인"
+  }
+]

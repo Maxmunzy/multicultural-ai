@@ -1,0 +1,226 @@
+[
+  {
+    "id": "T-011_en",
+    "source_id": "T-011",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "체육복과 운동화를 3월 10일까지 준비해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please prepare Gym clothes and sneakers by March 10.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "prepare",
+    "expected_slots": [
+      "체육복",
+      "운동화",
+      "3월 10일"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-012_en",
+    "source_id": "T-012",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "교육비 지원 신청서를 3월 15일까지 담임교사에게 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit Education fee support application form by March 15.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "3월 15일",
+      "담임교사"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-013_en",
+    "source_id": "T-013",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "방과후 수업 신청서를 담임교사에게 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit After-school class application form to Homeroom teacher.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "방과후 수업 신청서",
+      "담임교사"
+    ],
+    "expected_terms": [
+      "방과후 수업 신청서"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-014_en",
+    "source_id": "T-014",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "학생 건강검진 결과서를 5월 말까지 담임교사에게 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit Student health checkup result form by the end of May.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "5월 말",
+      "담임교사"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-015_en",
+    "source_id": "T-015",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "통학 차량 신청서를 3월 7일까지 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit School bus application form by March 7.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "3월 7일"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-016_en",
+    "source_id": "T-016",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "소풍 당일 도시락, 음료수, 간식을 준비해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please prepare Lunch box, Drinks and Snack on the picnic day.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "prepare",
+    "expected_slots": [
+      "도시락",
+      "음료수",
+      "간식"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-017_en",
+    "source_id": "T-017",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "학교폭력 예방 서약서를 3월 20일까지 서명하여 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit Anti-bullying pledge form by March 20.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "3월 20일"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-018_en",
+    "source_id": "T-018",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "생존 수영 동의서를 5월 31일까지 제출해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please submit Survival swimming consent form by May 31.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "submit",
+    "expected_slots": [
+      "5월 31일",
+      "생존 수영 동의서"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-019_en",
+    "source_id": "T-019",
+    "type": "template",
+    "difficulty": "easy",
+    "text_ko": "현장체험학습비 20,000원을 5월 10일까지 납부해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please pay Field trip fee of 20,000 won by May 10.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "pay",
+    "expected_slots": [
+      "20,000원",
+      "5월 10일"
+    ],
+    "expected_terms": [
+      "현장체험학습비"
+    ],
+    "expected_risk": false,
+    "should_review_required": false
+  },
+  {
+    "id": "T-020_en",
+    "source_id": "T-020",
+    "type": "template",
+    "difficulty": "medium",
+    "text_ko": "교복 구입비 150,000원을 3월 15일까지 납부해 주세요.",
+    "target_lang": "en",
+    "raw_nllb_output": null,
+    "slot_masked_nllb_output": null,
+    "glossary_nllb_output": null,
+    "schoolbridge_output": "Please pay school uniform of 150,000 won by March 15.",
+    "review_required": false,
+    "review_reason": null,
+    "expected_action": "pay",
+    "expected_slots": [
+      "150,000원",
+      "3월 15일"
+    ],
+    "expected_terms": [],
+    "expected_risk": false,
+    "should_review_required": false
+  }
+]

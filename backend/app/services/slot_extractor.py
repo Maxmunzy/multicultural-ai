@@ -37,6 +37,11 @@ _TIME_AMPM = re.compile(
     r"(?P<ampm>오전|오후)\s*(?P<hour>\d{1,2})\s*시(?:\s*(?P<minute>\d{1,2})\s*분)?"
 )
 _TIME_24H = re.compile(r"(?<!\d)(?P<hour>\d{1,2}):(?P<minute>\d{2})(?!\d)")
+# P11-D: bare Korean hour "9시" (no 오전/오후 prefix, no HH:MM format) — catches time range endpoints
+# (?!\s*간) prevents matching "9시간"(9 hours); optional 분 group handles "9시 30분" without AMPM
+_TIME_KO_BARE = re.compile(
+    r"(?P<hour>\d{1,2})\s*시(?!\s*간)(?:\s*(?P<minute>\d{1,2})\s*분)?"
+)
 
 _AMOUNT_KRW = re.compile(r"(?P<num>\d{1,3}(?:,\d{3})+|\d+)\s*원")
 _AMOUNT_KO = re.compile(r"(?P<num>\d+)\s*(?P<unit>만|천|억)\s*원")
@@ -137,11 +142,13 @@ def extract_dates(text: str) -> list[dict]:
 def extract_times(text: str) -> list[dict]:
     out: list[dict] = []
     seen: set[str] = set()
+    _ampm_spans: list[tuple[int, int]] = []
     for m in _TIME_AMPM.finditer(text):
         ko = m.group(0).strip()
         if ko in seen:
             continue
         seen.add(ko)
+        _ampm_spans.append((m.start(), m.end()))
         out.append({
             "ko": ko,
             "hour": int(m.group("hour")),
@@ -165,6 +172,22 @@ def extract_times(text: str) -> list[dict]:
             "minute": minute,
             "ampm": None,
         })
+    # P11-D: bare Korean hour "9시" — covers time-range endpoints like "8시 30분에서 9시 사이"
+    # Skip positions already covered by _TIME_AMPM spans to avoid double-capturing "8시" inside "오전 8시 30분"
+    for m in _TIME_KO_BARE.finditer(text):
+        if any(s <= m.start() < e for s, e in _ampm_spans):
+            continue
+        hour = int(m.group("hour"))
+        minute = int(m.group("minute")) if m.group("minute") else 0
+        if not (0 <= hour <= 23 and 0 <= minute <= 59):
+            continue
+        ko = m.group(0).strip()
+        ko_norm = f"{hour:02d}:{minute:02d}"
+        if ko_norm in seen or ko in seen:
+            continue
+        seen.add(ko_norm)
+        seen.add(ko)
+        out.append({"ko": ko, "hour": hour, "minute": minute, "ampm": None})
     return out
 
 
@@ -296,6 +319,11 @@ def format_time(t: dict, target_lang: str) -> str:
         return f"{prefix}{body}"
     if target_lang == "ko_easy":
         return t["ko"]
+    # P11-C: mn/th/ru/ms — convert to 24h format when AM/PM is known (was outputting bare H:MM without AM/PM indicator)
+    if ampm == "오후" and h < 12:
+        h = h + 12
+    elif ampm == "오전" and h == 12:
+        h = 0
     return f"{h}:{mm:02d}"
 
 

@@ -44,6 +44,7 @@
 자동이체,trừ tiền tự động,Auto-pay,自动转账,การหักบัญชีอัตโนมัติ,potongan automatik,автомат шилжүүлэг,автоплатеж,引き落とし,item,비용 행동
 교육비,tiền học phí,Tuition,教育费,ค่าเล่าเรียน,yuran sekolah,сургалтын төлбөр,плата за обучение,教育費,item,비용
 급식비,tiền ăn ở trường,Lunch fee,伙食费,ค่าอาหารกลางวัน,yuran makan,хоолны мөнгө,плата за питание,給食費,item,비용
+무상급식,bữa ăn miễn phí tại trường,free school meals,免费营养餐,อาหารกลางวันฟรีของโรงเรียน,makanan percuma di sekolah,чөлөөт хоол,бесплатное питание,無償給食,item,무상급식 오역(fast food) 방지
 체험학습비,phí trải nghiệm,Field trip fee,校外活动费,ค่ากิจกรรมทัศนศึกษา,yuran lawatan,аяллын зардал,оплата за экскурсию,体験学習費,item,비용
 등교,đi học,Coming to school,上学,การไปโรงเรียน,datang ke sekolah,хичээлд ирэх,приход в школу,登校,item,초등학교 등교
 하교,tan học,Going home,放学,กลับบ้านจากโรงเรียน,balik dari sekolah,хичээл тарах,уход из школы,下校,item,초등학교 하교
@@ -62,13 +63,15 @@
 공개수업,tiết học dự giờ,Open house class,公开课,การเปิดห้องเรียนให้เข้าชม,kelas terbuka,нээлттэй хичээл,открытый урок,授業参観,item,일정
 학부모 총회,họp phụ huynh đầu năm,General parent meeting,家长会,งานประชุมผู้ปกครอง,mesyuarat ibu bapa,эцэг эхийн хурал,родительское собрание,保護者会,item,일정
 운동회,hội thao,Field day,运动会,งานกีฬาสี,hari sukan,спортын өдөрлөг,спортивный праздник,運動会,item,행사
+운동장,sân trường,school grounds,操场,สนามโรงเรียน,padang sekolah,сургуулийн талбай,школьный двор,校庭,item,체육관·경기장 오역 방지
+강당,hội trường,auditorium,礼堂,หอประชุม,dewan sekolah,их танхим,актовый зал,講堂,item,교실 오역 방지
 학예회,buổi biểu diễn văn nghệ,Talent show,才艺表演,งานแสดงผลงานนักเรียน,hari persembahan,урлагийн наадам,школьный фестиваль,学習発表会,item,행사
 소풍,đi dã ngoại,School picnic,郊游,การไปทัศนศึกษา,berkelah,салхинд гарах,пикник,遠足,item,행사
 수련회,buổi sinh hoạt tập thể,School retreat,研学营,การเข้าค่าย,kem sekolah,зуслан,поездка в лагерь,宿泊学習,item,일정
 방학,kỳ nghỉ,School break,假期,ปิดเทอม,cuti sekolah,амралт,каникулы,長期休み,item,일정
 개학,ngày bắt đầu học kỳ mới,First day of school,开学,เปิดเทอม,sekolah buka semula,хичээл эхлэх,начало учебы,始業日,item,일정
 입학식,lễ nhập học,Entrance ceremony,入学典礼,พิธีเข้าเรียน,hari pendaftaran,элсэлтийн баяр,церемония поступления,入学式・入園式,item,행사
-졸업식,lễ tốt nghiệp,Graduation,毕业典礼,งานจบการศึกษา,majlis graduasi,төгсөлтийн баяр,выпускной,卒業式・卒園式,item,행사
+졸업식,lễ tốt nghiệp,Graduation,毕业典礼,งานจบการศึกษา,majlis graduasi,төгсөлтийн баяр,выпускной,卒業式,item,행사
 종업식,lễ bế giảng năm học,Last day of school,结业典礼,พิธีปิดภาคเรียน,majlis akhir tahun,хичээлийн жилийн хаалтын ёслол,окончание учебного года,修了式,item,일정
 학급,lớp học,Class,班级,ชั้นเรียน,kelas,анги,класс,クラス,item,학교 단위
 학년,khối lớp,Grade,年级,ระดับชั้น,tahun,ангийн түвшин,год обучения,学年,item,학교 단위
@@ -429,3 +432,25 @@ QR코드,mã QR,QR code,二维码,รหัส QR,kod QR,QR код,QR-код,QR�
 대전오월드,대전오월드,대전오월드,대전오월드,대전오월드,대전오월드,대전오월드,대전오월드,대전오월드,item,place_glossary
 플라워랜드,플라워랜드,플라워랜드,플라워랜드,플라워랜드,플라워랜드,플라워랜드,플라워랜드,플라워랜드,item,place_glossary
 에코리움,에코리움,에코리움,에코리움,에코리움,에코리움,에코리움,에코리움,에코리움,item,place_glossary
+모자,mũ,hat,帽子,หมวก,topi,малгай,шапка,帽子,item,준비물
+현장체험학습 동의서,giấy đồng ý tham gia dã ngoại,Field trip consent form,户外体验学习同意书,ใบยินยอมทัศนศึกษา,borang kebenaran lawatan sambil belajar,Хээрийн аялалын зөвшөөрлийн маягт,согласие на участие в экскурсии,校外学習同意書,item,제출 서류 - 현장체험
+현장체험학습 참가 동의서,giấy đồng ý tham gia học tập thực địa,Field trip participation consent form,户外体验学习参加同意书,ใบยินยอมเข้าร่วมทัศนศึกษา,borang kebenaran penyertaan lawatan sambil belajar,Хээрийн аялалд оролцох зөвшөөрлийн маягт,согласие на участие в экскурсии,校外学習参加同意書,item,제출 서류 - 현장체험
+방과후 신청서,phiếu đăng ký chương trình sau giờ học,After-school program application form,课后项目申请表,ใบสมัครโครงการหลังเลิกเรียน,borang permohonan program selepas sekolah,Хичээлийн дараах хөтөлбөрийн хүсэлт,заявление на программу после уроков,放課後プログラム申込書,item,제출 서류
+방과후 수업 신청서,phiếu đăng ký lớp học sau giờ học,After-school class application form,课后课程申请表,ใบสมัครเรียนหลังเลิกเรียน,borang permohonan kelas selepas sekolah,Хичээлийн дараах дугуйлангийн хүсэлт,заявление на занятия после уроков,放課後授業申込書,item,제출 서류
+우유급식 신청서,phiếu đăng ký sữa học đường,School milk application form,学校牛奶申请表,ใบสมัครนมโรงเรียน,borang permohonan susu sekolah,Сургуулийн сүүний хүсэлт,заявление на школьное молоко,学校牛乳申込書,item,제출 서류 - 우유급식
+스쿨뱅킹 계좌,tài khoản School Banking,School banking account,School Banking账户,บัญชี School Banking,akaun School Banking,Сургуулийн банкны данс,счёт School Banking,スクールバンキング口座,item,납부 - 계좌
+현장체험학습비,phí học tập thực địa,Field trip fee,户外体验学习费,ค่าทัศนศึกษา,yuran lawatan sambil belajar,Хээрийн аялалын зардал,оплата за экскурсию,校外学習費,item,비용 - 현장체험
+교육비 지원 신청서,đơn xin hỗ trợ học phí,Education fee support application form,教育费用支持申请表,ใบสมัครขอรับการสนับสนุนค่าเล่าเรียน,borang permohonan sokongan yuran pendidikan,Боловсролын тэтгэмжийн хүсэлтийн маягт,заявление на поддержку в оплате обучения,教育費支援申込書,item,제출 서류 - P5
+통학 차량 신청서,đơn đăng ký xe đưa đón,School bus application form,通学班车申请表,ใบสมัครรถรับส่งนักเรียน,borang permohonan bas sekolah,Сургуулийн автобусны хүсэлтийн маягт,заявление на школьный автобус,通学バス申込書,item,제출 서류 - P5
+학교폭력 예방 서약서,bản cam kết phòng chống bạo lực học đường,Anti-bullying pledge form,预防校园暴力承诺书,แบบฟอร์มคำมั่นสัญญาป้องกันการกลั่นแกล้ง,borang ikrar pencegahan buli sekolah,Сургуулийн хүчирхийллийн эсрэг амлалтын маягт,обязательство по предотвращению школьного насилия,学校暴力予防誓約書,item,제출 서류 - P5
+생존 수영 동의서,giấy đồng ý học bơi lội an toàn,Survival swimming consent form,生存游泳同意书,ใบยินยอมการว่ายน้ำเพื่อความปลอดภัย,borang kebenaran renang keselamatan,Усанд аврах сэлэлтийн зөвшөөрлийн маягт,согласие на обучение навыкам безопасного плавания,水泳安全教育同意書,item,제출 서류 - P5
+학생 건강검진 결과서,phiếu kết quả kiểm tra sức khỏe học sinh,Student health checkup result form,学生健康检查结果表,ใบผลการตรวจสุขภาพนักเรียน,borang keputusan pemeriksaan kesihatan pelajar,Сурагчийн эрүүл мэндийн үзлэгийн дүнгийн маягт,справка о результатах медосмотра учащегося,生徒健康診断結果書,item,제출 서류 - P5
+음료수,đồ uống,Drinks,饮料,เครื่องดื่ม,minuman,Ундаа,напитки,飲み物,item,준비물 - P5
+특기적성 수업 신청서,đơn đăng ký lớp năng khiếu,Talent class application form,才艺课报名表,ใบสมัครชั้นเรียนพรสวรรค์,borang permohonan kelas bakat,Авъяасын хичээлийн хүсэлтийн маягт,заявление на кружок по интересам,特技・適性教室申込書,item,제출 서류 - P7
+독서 과제,bài tập đọc sách,Reading assignment,阅读作业,การบ้านการอ่านหนังสือ,tugasan membaca,Уншлагын даалгавар,задание по чтению,読書課題,item,제출 서류 - P7
+학교생활기록부 기재 동의서,giấy đồng ý ghi vào học bạ,School record entry consent form,学籍档案记录同意书,แบบฟอร์มยินยอมบันทึกทะเบียนนักเรียน,borang persetujuan rekod sekolah,Сургуулийн бүртгэлийн зөвшөөрлийн маягт,согласие на внесение записи в школьный журнал,学校生活記録簿記載同意書,item,제출 서류 - P7
+급식 추가 신청서,đơn đăng ký suất ăn bổ sung,Additional meal application form,追加给食申请表,ใบสมัครอาหารกลางวันเพิ่มเติม,borang permohonan makanan tambahan,Нэмэлт хоолны хүсэлтийн маягт,заявление на дополнительное питание,追加給食申込書,item,제출 서류 - P7
+급식 추가 신청서,đơn đăng ký suất ăn bổ sung,Additional meal application form,追加给食申请表,ใบสมัครอาหารกลางวันเพิ่มเติม,borang permohonan makanan tambahan,Нэмэлт хоолны хүсэлтийн маягт,заявление на дополнительное питание,追加給食申込書,item,제출 서류 - P7
+지도 부탁드립니다,xin hãy hướng dẫn và hỗ trợ con,please guide and support your child,请指导并帮助孩子,กรุณาดูแลและช่วยเหลือบุตรหลานของท่าน,sila bimbing dan sokong anak anda,хүүхдийгээ дэмжиж хамгаалаарай,пожалуйста, руководите и поддерживайте вашего ребёнка,お子様のご指導・サポートをお願いします,item,fallback_phrase - F-001 지도 동음이의어 방지 P8
+담임선생님께 미리 알려 주세요,xin hãy báo trước cho giáo viên chủ nhiệm,please inform the homeroom teacher in advance,请提前告知班主任,กรุณาแจ้งครูประจำชั้นล่วงหน้า,sila maklumkan kepada guru kelas lebih awal,ангийн багшид урьдчилан мэдэгдэнэ үү,пожалуйста, заранее сообщите классному руководителю,あらかじめ担任の先生にお知らせください,item,fallback_phrase - F-003 en 수신자 역전 방지 P8
+상담 신청서,mẫu đăng ký tư vấn,consultation form,咨询申请表,แบบฟอร์มขอรับการให้คำปรึกษา,borang permohonan kaunseling,Зөвлөгөөний өргөдлийн маягт,бланк заявки на консультацию,相談申込書,item,T-034 glossary fix - 상담+신청서 복합 항목 P9
