@@ -44,6 +44,7 @@
 자동이체,trừ tiền tự động,Auto-pay,自动转账,การหักบัญชีอัตโนมัติ,potongan automatik,автомат шилжүүлэг,автоплатеж,引き落とし,item,비용 행동
 교육비,tiền học phí,Tuition,教育费,ค่าเล่าเรียน,yuran sekolah,сургалтын төлбөр,плата за обучение,教育費,item,비용
 급식비,tiền ăn ở trường,Lunch fee,伙食费,ค่าอาหารกลางวัน,yuran makan,хоолны мөнгө,плата за питание,給食費,item,비용
+무상급식,bữa ăn miễn phí tại trường,free school meals,免费营养餐,อาหารกลางวันฟรีของโรงเรียน,makanan percuma di sekolah,чөлөөт хоол,бесплатное питание,無償給食,item,무상급식 오역(fast food) 방지
 체험학습비,phí trải nghiệm,Field trip fee,校外活动费,ค่ากิจกรรมทัศนศึกษา,yuran lawatan,аяллын зардал,оплата за экскурсию,体験学習費,item,비용
 등교,đi học,Coming to school,上学,การไปโรงเรียน,datang ke sekolah,хичээлд ирэх,приход в школу,登校,item,초등학교 등교
 하교,tan học,Going home,放学,กลับบ้านจากโรงเรียน,balik dari sekolah,хичээл тарах,уход из школы,下校,item,초등학교 하교

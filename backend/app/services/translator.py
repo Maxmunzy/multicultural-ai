@@ -250,6 +250,10 @@ _ELEMENTARY_CONTEXT_TERMS = ("\ucd08\ub4f1\ud559\uc0dd",)
 _INFANT_CONTEXT_TERMS = ("\uc720\uc544",)
 # P11-B: \uc9c0\ub3c4(\u6307\u5c0e)=guidance context \u2014 NLLB\uac00 \uc9c0\ub3c4(\u5730\u5716)=map\uc73c\ub85c \uc624\uc5ed\ud558\ub294 mn/th/ms/ja \uad50\uc815
 _GUIDANCE_CONTEXT_TERMS = ("\uc9c0\ub3c4 \ubd80\ud0c1", "\uac00\uc815\uc5d0\uc11c\ub3c4 \uc9c0\ub3c4", "\uc0dd\ud65c\uc9c0\ub3c4")
+# P11-E: vi/en \ub9d0\ubbf8 \ub4dc\ub86d \uad50\uc815 \u2014 glossary injection \ud6c4 \ubb38\uc7a5 \ub9d0\ubbf8 \uc11c\uc220\uc5b4 \uc18c\uc2e4 \ud328\ud134
+_HOME_GUIDANCE_KO = ("\uac00\uc815\uc5d0\uc11c\ub3c4 \uc9c0\ub3c4", "\uc0dd\ud65c\uc9c0\ub3c4")   # \uac00\uc815\uc5d0\uc11c\ub3c4 \uc9c0\ub3c4, \uc0dd\ud65c\uc9c0\ub3c4
+_ABSENT_NOTIFY_KO = ("\uacb0\uc11d",)                                                                 # \uacb0\uc11d
+_ABSENT_NOTIFY_TRIGGER_KO = ("\uc54c\ub824 \uc8fc\uc138\uc694", "\uc54c\ub824\uc8fc\uc138\uc694")    # \uc54c\ub824 \uc8fc\uc138\uc694, \uc54c\ub824\uc8fc\uc138\uc694
 
 _STUDENT_PATTERNS = (
     re.compile(r"\bsinh vi(?:\u00ean|en)\b", re.IGNORECASE),
@@ -393,11 +397,86 @@ _GUIDANCE_PATTERNS_MS = (
 )
 _GUIDANCE_PATTERNS_JA = (
     re.compile(r"\u5730\u56f3"),
+    re.compile(r"\u30de\u30c3\u30d7"),  # NLLB\uac00 \u30ab\u30bf\u30ab\u30ca\ub85c \ucd9c\ub825\ud558\ub294 \uacbd\uc6b0
 )
 
 
 def _has_any(text: str, terms: tuple[str, ...]) -> bool:
     return any(term in text for term in terms)
+
+
+# P11-E: 언어별 말미 드롭 교정 상수
+_P11E_GUIDANCE = {
+    'vi': ('hướng dẫn',   ', xin hãy hướng dẫn thêm tại nhà.'),
+    'en': ('guidance',    ', please also provide guidance at home.'),
+    'mn': ('хяналт',      ', гэрт ч хяналт тавина уу.'),
+    'th': ('ดูแล',         ', กรุณาช่วยดูแลที่บ้านด้วย'),
+    'ru': ('воспитани',   ', пожалуйста, уделите внимание воспитанию ребёнка дома.'),
+    'ms': ('bimbingan',   ', sila beri bimbingan di rumah juga.'),
+    'zh': ('指导',          '，请在家里也多加指导。'),
+    'ja': ('ご指導',        '、ご家庭でもご指導をよろしくお願いします。'),
+}
+_P11E_ABSENT = {
+    'vi': ('vắng mặt',   ('kết thúc',), 'Nếu học sinh vắng mặt, xin vui lòng thông báo trước cho giáo viên chủ nhiệm.'),
+    'en': ('absent',     (),            'If your child will be absent, please inform the homeroom teacher in advance.'),
+    'mn': ('ирэхгүй',   (),            'Хэрэв сурагч ирэхгүй бол урьдчилан ангийн багшид мэдэгдэнэ үү.'),
+    'th': ('ขาดเรียน',  (),            'หากนักเรียนขาดเรียน กรุณาแจ้งครูประจำชั้นล่วงหน้า'),
+    'ru': ('отсутств',  (),            'Если ребёнок будет отсутствовать, пожалуйста, заранее сообщите классному руководителю.'),
+    'ms': ('tidak hadir', (),           'Jika pelajar tidak hadir, sila maklumkan kepada guru kelas terlebih dahulu.'),
+    'zh': ('缺席',       (),            '如果学生缺席，请提前通知班主任。'),
+    'ja': ('欠席',       (),            '欠席の場合は、事前に担任の先生にご連絡ください。'),
+}
+# P11-E: "생활지도" — NLLB가 전체 문장 오역 → 완전 교체
+_P11E_SEIKATSU_JIDO = {
+    'vi': 'Sau khi đến trường, xin hãy hướng dẫn thêm cho học sinh tại nhà.',
+    'en': 'After school hours, please also provide guidance at home.',
+    'mn': 'Сургуульд ирсний дараа гэрт ч хяналт тавина уу.',
+    'th': 'หลังจากไปโรงเรียน กรุณาช่วยดูแลที่บ้านด้วย',
+    'ru': 'После прихода домой из школы, пожалуйста, уделите внимание воспитанию ребёнка.',
+    'ms': 'Selepas pergi ke sekolah, sila beri bimbingan di rumah juga.',
+    'zh': '放学后，请在家里也多加指导。',
+    'ja': '登校後、ご家庭でもご指導をよろしくお願いします。',
+}
+# P11-E: 담임교사 수합 → 교무실 제출 (R-003) — NLLB가 수신자를 역전시키는 오역 교정
+_TEACHER_COLLECT_KO = ("담임교사는",)
+_TEACHER_COLLECT_TRIGGER_KO = ("수합", "수거")
+_P11E_TEACHER_COLLECT = {
+    'vi': 'Giáo viên chủ nhiệm sẽ thu hồi phiếu phản hồi và nộp lên văn phòng nhà trường.',
+    'en': 'The homeroom teacher will collect the reply forms and submit them to the school office.',
+    'mn': 'Ангийн багш хариу маягтуудыг цуглуулж, багш нарын өрөөнд хүргэнэ.',
+    'th': 'ครูประจำชั้นจะเก็บรวบรวมใบตอบรับและส่งที่ห้องพักครู',
+    'ru': 'Классный руководитель соберёт бланки ответов и сдаст их в учительскую.',
+    'ms': 'Guru kelas akan mengumpul borang balas dan menghantarnya ke bilik guru.',
+    'zh': '班主任老师将收集回执并提交至教务处。',
+    'ja': '担任の先生が返信書を回収して、職員室に提出します。',
+}
+
+
+def _apply_p11e(lang: str, easy_ko: str, text: str) -> str:
+    """P11-E: 가정지도/결석알림/담임수합 말미 드롭·역전 교정 — 8개 언어 공통."""
+    # 담임교사 수합 → 교무실 제출 역전 교정 (R-003)
+    if _has_any(easy_ko, _TEACHER_COLLECT_KO) and _has_any(easy_ko, _TEACHER_COLLECT_TRIGGER_KO):
+        repl = _P11E_TEACHER_COLLECT.get(lang)
+        if repl:
+            return repl
+    # 생활지도 — NLLB 전체 오역이므로 완전 교체
+    if "생활지도" in easy_ko and "부탁드립니다" in easy_ko:
+        repl = _P11E_SEIKATSU_JIDO.get(lang)
+        if repl:
+            return repl
+    # 가정지도 말미 드롭 (F-001 패턴)
+    if _has_any(easy_ko, _HOME_GUIDANCE_KO) and "부탁드립니다" in easy_ko:
+        indicator, tail = _P11E_GUIDANCE.get(lang, (None, None))
+        if indicator and indicator not in text:
+            text = text.rstrip(". ") + tail
+    # 결석 알림 말미 드롭
+    if _has_any(easy_ko, _ABSENT_NOTIFY_KO) and _has_any(easy_ko, _ABSENT_NOTIFY_TRIGGER_KO):
+        cfg = _P11E_ABSENT.get(lang)
+        if cfg:
+            indicator, wrong, replacement = cfg
+            if indicator not in text or any(w in text for w in wrong):
+                text = replacement
+    return text
 
 
 def _normalize_glossary_key(text: str) -> str:
@@ -1489,6 +1568,7 @@ def _post_process_vi(easy_ko: str, vi_text: str) -> str:
     if _has_any(easy_ko, _FIELD_TRIP_CONTEXT_TERMS):
         for pat in _FIELD_TRIP_PATTERNS:
             vi_text = pat.sub("bu\u1ed5i tr\u1ea3i nghi\u1ec7m th\u1ef1c t\u1ebf", vi_text)
+    vi_text = _apply_p11e('vi', easy_ko, vi_text)  # P11-E
     return vi_text.strip()
 
 
@@ -1510,6 +1590,7 @@ def _post_process_en(easy_ko: str, en_text: str) -> str:
     if _has_any(easy_ko, _FIELD_TRIP_CONTEXT_TERMS):
         for pat in _FIELD_TRIP_PATTERNS_EN:
             en_text = pat.sub('field trip', en_text)
+    en_text = _apply_p11e('en', easy_ko, en_text)  # P11-E
     return en_text.strip()
 
 
@@ -1528,6 +1609,7 @@ def _post_process_ru(easy_ko: str, ru_text: str) -> str:
     if _has_any(easy_ko, _FIELD_TRIP_CONTEXT_TERMS):
         for pat in _PICNIC_PATTERNS_RU:
             ru_text = pat.sub('пикника', ru_text)
+    ru_text = _apply_p11e('ru', easy_ko, ru_text)  # P11-E
     return ru_text.strip()
 
 
@@ -1549,6 +1631,7 @@ def _post_process_ms(easy_ko: str, ms_text: str) -> str:
     if _has_any(easy_ko, _GUIDANCE_CONTEXT_TERMS):  # P11-B
         for pat in _GUIDANCE_PATTERNS_MS:
             ms_text = pat.sub('bimbingan', ms_text)
+    ms_text = _apply_p11e('ms', easy_ko, ms_text)  # P11-E
     return ms_text.strip()
 
 
@@ -1564,6 +1647,7 @@ def _post_process_mn(easy_ko: str, mn_text: str) -> str:
     if _has_any(easy_ko, _GUIDANCE_CONTEXT_TERMS):  # P11-B
         for pat in _GUIDANCE_PATTERNS_MN:
             mn_text = pat.sub('хяналт', mn_text)
+    mn_text = _apply_p11e('mn', easy_ko, mn_text)  # P11-E
     return mn_text.strip()
 
 
@@ -1585,6 +1669,7 @@ def _post_process_zh(easy_ko: str, zh_text: str) -> str:
     if _has_any(easy_ko, _LUNCH_CONTEXT_TERMS):
         for pat in _LUNCH_PATTERNS_ZH:
             zh_text = pat.sub('餐费', zh_text)
+    zh_text = _apply_p11e('zh', easy_ko, zh_text)  # P11-E
     return zh_text.strip()
 
 
@@ -1602,6 +1687,7 @@ def _post_process_th(easy_ko: str, th_text: str) -> str:
     if _has_any(easy_ko, _GUIDANCE_CONTEXT_TERMS):  # P11-B
         for pat in _GUIDANCE_PATTERNS_TH:
             th_text = pat.sub('การดูแล', th_text)
+    th_text = _apply_p11e('th', easy_ko, th_text)  # P11-E
     return th_text.strip()
 
 
@@ -1629,6 +1715,7 @@ def _post_process_ja(easy_ko: str, ja_text: str) -> str:
     if _has_any(easy_ko, _GUIDANCE_CONTEXT_TERMS):  # P11-B
         for pat in _GUIDANCE_PATTERNS_JA:
             ja_text = pat.sub('ご指導', ja_text)
+    ja_text = _apply_p11e('ja', easy_ko, ja_text)  # P11-E
     return ja_text.strip()
 
 
@@ -2007,12 +2094,14 @@ def translate_short_sentence(text: str, target_lang: str) -> str:
                 amount = _extract_amount_token(masked) if stype == "pay" else None
                 result = _build_from_template(stype, items, lang_key, audience, recipient, deadline=deadline, amount=amount, method=method_str, time_context=time_context_str, start_date=start_date)
                 if result:
+                    result = _apply_p11e(lang_key, text, result)  # P11-E: 역전/드롭 교정
                     return _restore_protected_entities(result, placeholders)
 
     # 3) NLLB fallback — info 유형, 템플릿 미지원 언어, glossary 항목 미감지
-    # P10: min_len=3 — 2자 이하 일반 단어(학생, 귀가 등)가 슬롯화되면 NLLB mixed-text 오역 유발
+    # P10: min_len=2 — 2자 이하 일반 단어(학생, 귀가 등)가 슬롯화되면 NLLB mixed-text 오역 유발.
+    # 3자 도메인 용어(급식비 등)는 주입 필요하므로 min_len을 3→2로 조정.
     glossary = _get_glossary()
-    hits = _find_glossary_hits_safe(masked, glossary, target_lang, min_len=3)
+    hits = _find_glossary_hits_safe(masked, glossary, target_lang, min_len=2)
     # glossary 용어를 __SLOT__으로 보호: "스쿨뱅킹(School Banking)" 주입 방식은
     # NLLB가 한국어 음역 + 괄호 힌트를 둘 다 번역해 "School Banking (School Banking)"
     # 중복 출력하는 문제 발생. 대신 번역어를 restore 값으로 stash해 NLLB 통과 후 복원.
@@ -2178,8 +2267,8 @@ def translate_short_sentence_batch(texts: list[str], target_lang: str) -> list[s
                         continue
 
         # NLLB 행 — glossary 용어를 __SLOT__ 으로 보호 후 batch 입력에 추가
-        # P10: min_len=3 — 짧은 일반 단어 슬롯화 차단
-        hits = _find_glossary_hits_safe(masked, glossary, target_lang, min_len=3)
+        # P10: min_len=2 — 2자 이하 단어 슬롯화 차단; 3자 도메인 용어(급식비 등)는 주입
+        hits = _find_glossary_hits_safe(masked, glossary, target_lang, min_len=2)
         injected = masked
         for hit in sorted(hits, key=lambda h: len(h["korean"]), reverse=True):
             korean = hit["korean"]

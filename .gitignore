@@ -31,6 +31,24 @@ backend/data/
 # 평가 스크립트 실행 결과물 (재생성 가능)
 model/translation_tts/outputs/
 
+# 번역 평가 점수 파일 (모델별 JSONL, 재생성 가능 + 대용량)
+model/translation_tts/scores/
+
+# 번역 평가 중간 산출물 (재생성 가능)
+model/translation_tts/eval_inputs*.jsonl
+model/translation_tts/eval_inputs_gemini*.json
+model/translation_tts/p11_eval_input_all.json
+model/translation_tts/translation_quality_eval_v1*.jsonl
+model/translation_tts/eval_chunks/reeval_p11e_all.jsonl
+model/translation_tts/eval_chunks/pipeline_stages_vi_en.jsonl
+model/translation_tts/evaluator_prompt.md
+model/translation_tts/p11_code_review_prompt.md
+model/translation_tts/p11_translation_eval_prompt.md
+model/translation_tts/results_summary_template.md
+model/translation_tts/run_collect_manual_eval_scores.py
+model/translation_tts/run_translation_quality.py
+model/translation_tts/run_update_p11_scores.py
+
 # Android build outputs and local settings
 android/.gradle/
 android/.idea/
