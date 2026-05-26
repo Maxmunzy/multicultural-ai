@@ -509,6 +509,18 @@ def _normalize_glossary_key(text: str) -> str:
 
 
 # ── Review Required Guard ─────────────────────────────────────────────────────
+# review_required=True일 때 번역문 끝에 붙이는 언어별 경고 문구
+_REVIEW_WARNING: dict[str, str] = {
+    'vi': '\n※ Vui lòng kiểm tra lại cùng con bạn.',
+    'en': '\n※ Please confirm the details with your child.',
+    'mn': '\n※ Хүүхэдтэйгээ хамт дахин шалгана уу.',
+    'th': '\n※ กรุณาตรวจสอบรายละเอียดร่วมกับบุตรหลานของท่าน',
+    'ru': '\n※ Пожалуйста, уточните подробности у ребёнка.',
+    'ms': '\n※ Sila semak semula butiran bersama anak anda.',
+    'zh': '\n※ 请与孩子一同确认详情。',
+    'ja': '\n※ お子様と一緒に内容をご確認ください。',
+}
+
 # 교사/행정실 대상 문장: 부모 앱에 자동 확정 번역 금지
 NON_PARENT_TARGET_PATTERNS: tuple[str, ...] = (
     "담임교사는",
@@ -530,6 +542,8 @@ RISKY_CONTEXT_PATTERNS: tuple[str, ...] = (
     "납부하지",
     "해당되는 가정만",
     "희망자만",
+    "희망자는",
+    "희망 가정만",
     "선택 사항",
     "무상급식",   # P11-A: 무상급식+부정문 조합 → 면제 오역 방지
     "무상 급식",
@@ -2188,6 +2202,11 @@ def translate_short_sentence_reviewed(text: str, target_lang: str) -> dict:
             review_reason = "RISKY_CONTEXT"
 
     translated = translate_short_sentence(text, target_lang)
+    if review_required and translated:
+        lang_key = target_lang.split("_")[0] if "_" in target_lang else target_lang
+        warning = _REVIEW_WARNING.get(lang_key, "")
+        if warning:
+            translated = translated.rstrip() + warning
     return {
         "translated_text": translated,
         "review_required": review_required,
