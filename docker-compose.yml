@@ -6,6 +6,7 @@ services:
     volumes:
       - ./backend:/app
       - ./scripts:/app/scripts
+      - ./sentence_extraction:/app/sentence_extraction
       - ./data:/app/external_data
       - ./model:/app/external_model
       - hf_cache:/root/.cache/huggingface
