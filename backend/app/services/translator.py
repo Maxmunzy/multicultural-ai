@@ -437,6 +437,18 @@ _P11E_SEIKATSU_JIDO = {
     'zh': '放学后，请在家里也多加指导。',
     'ja': '登校後、ご家庭でもご指導をよろしくお願いします。',
 }
+# P11-E: 강당 → 교실/방 오역 교정 (NLLB가 2글자라 주입 못 받는 용어)
+_GANGDANG_KO = ("강당",)
+_P11E_GANGDANG = {
+    'vi': 'hội trường',
+    'en': 'auditorium',
+    'mn': 'их танхим',
+    'th': 'หอประชุม',
+    'ru': 'актовый зал',
+    'ms': 'dewan sekolah',
+    'zh': '礼堂',
+    'ja': '講堂',
+}
 # P11-E: 담임교사 수합 → 교무실 제출 (R-003) — NLLB가 수신자를 역전시키는 오역 교정
 _TEACHER_COLLECT_KO = ("담임교사는",)
 _TEACHER_COLLECT_TRIGGER_KO = ("수합", "수거")
@@ -453,7 +465,17 @@ _P11E_TEACHER_COLLECT = {
 
 
 def _apply_p11e(lang: str, easy_ko: str, text: str) -> str:
-    """P11-E: 가정지도/결석알림/담임수합 말미 드롭·역전 교정 — 8개 언어 공통."""
+    """P11-E: 가정지도/결석알림/담임수합/강당 오역 교정 — 8개 언어 공통."""
+    # 강당 → 교실/방 오역 교정 (2글자라 glossary 주입 불가)
+    if _has_any(easy_ko, _GANGDANG_KO):
+        correct = _P11E_GANGDANG.get(lang)
+        if correct:
+            for wrong in ('课堂', 'classroom', 'class room', 'ห้องเรียน',
+                          'класс', 'bilik darjah', 'kelas', 'сургуулийн танхим',
+                          'цуглаан',
+                          '교실', '강의실', 'lớp học'):
+                if wrong in text:
+                    text = text.replace(wrong, correct)
     # 담임교사 수합 → 교무실 제출 역전 교정 (R-003)
     if _has_any(easy_ko, _TEACHER_COLLECT_KO) and _has_any(easy_ko, _TEACHER_COLLECT_TRIGGER_KO):
         repl = _P11E_TEACHER_COLLECT.get(lang)
