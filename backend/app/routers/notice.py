@@ -937,6 +937,7 @@ async def analyze_notice(
             detail="본인의 가정통신문만 분석할 수 있습니다",
         )
     target_lang = req.target_language
+    tts_engine = req.tts_engine or "edge"
 
     # 단계별 시간 측정 — 어디서 시간 잡아먹는지 진단용. 발표 후 logger.info로 낮출 것.
     _t_start = time.time()
@@ -1131,6 +1132,7 @@ async def analyze_notice(
         tts_text_translated,
         tts_text_easy_ko,
         target_lang,
+        tts_engine,
     )
     _t_marks["tts"] = time.time() - _t_start - sum(_t_marks.values())
 
@@ -1163,6 +1165,7 @@ async def analyze_notice(
         "tts_text": tts_text_translated,
         "tts_url": tts_url,
         "tts_url_easy_ko": tts_url_easy_ko,
+        "tts_engine": tts_engine,
         "quality_note": "",
         "review_needed": "",
         "ocr_corrections": [c.model_dump() for c in notice.ocr_corrections],
@@ -1185,13 +1188,22 @@ async def _generate_tts_pair(
     tts_text_translated: str,
     tts_text_easy_ko: str,
     target_lang: str,
+    tts_engine: str = "edge",
 ) -> tuple[str, str]:
     """Generate translated and easy-Korean TTS concurrently."""
     jobs = []
     if tts_text_translated:
-        jobs.append(("translated", "tts_url", generate_tts_file(tts_text_translated, target_lang=target_lang)))
+        jobs.append(("translated", "tts_url", generate_tts_file(
+            tts_text_translated,
+            target_lang=target_lang,
+            tts_engine=tts_engine,
+        )))
     if tts_text_easy_ko:
-        jobs.append(("easy_ko", "tts_url_easy_ko", generate_tts_file(tts_text_easy_ko, target_lang="ko_easy")))
+        jobs.append(("easy_ko", "tts_url_easy_ko", generate_tts_file(
+            tts_text_easy_ko,
+            target_lang="ko_easy",
+            tts_engine="edge",
+        )))
     if not jobs:
         return "", ""
 
