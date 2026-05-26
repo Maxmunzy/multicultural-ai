@@ -24,8 +24,8 @@ def test_build_tts_text_from_cards_limits_text_length():
 def test_generate_tts_pair_runs_both_sides_concurrently(monkeypatch):
     calls = []
 
-    async def fake_generate(text: str, target_lang: str = "vi") -> str:
-        calls.append((text, target_lang))
+    async def fake_generate(text: str, target_lang: str = "vi", tts_engine: str = "edge") -> str:
+        calls.append((text, target_lang, tts_engine))
         await asyncio.sleep(0.01)
         return f"/static/tts/{target_lang}.mp3"
 
@@ -34,12 +34,12 @@ def test_generate_tts_pair_runs_both_sides_concurrently(monkeypatch):
     result = asyncio.run(notice._generate_tts_pair("translated", "easy", "vi"))
 
     assert result == ("/static/tts/vi.mp3", "/static/tts/ko_easy.mp3")
-    assert ("translated", "vi") in calls
-    assert ("easy", "ko_easy") in calls
+    assert ("translated", "vi", "edge") in calls
+    assert ("easy", "ko_easy", "edge") in calls
 
 
 def test_generate_tts_pair_one_side_failure(monkeypatch):
-    async def fake_generate(text: str, target_lang: str = "vi") -> str:
+    async def fake_generate(text: str, target_lang: str = "vi", tts_engine: str = "edge") -> str:
         if target_lang == "vi":
             raise RuntimeError("edge timeout")
         return "/static/tts/easy.mp3"

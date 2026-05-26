@@ -86,6 +86,7 @@ public class MainActivity extends Activity {
     // FCM/Persistent login용 — Service 클래스에서도 참조하기 때문에 public.
     public  static final String PREFS_NAME = "app";
     public  static final String PREF_KEY_LANG = "selected_lang";
+    public  static final String PREF_TTS_ENGINE = "tts_engine";
     public  static final String PREF_USER_ID  = "user_id";   // 자동 로그인용
     public  static final String PREF_ROLE     = "role";       // "teacher" | "parent"
     public  static final String PREF_FCM_TOKEN = "fcm_token"; // 마지막 등록한 토큰 (재등록 비교용)
@@ -101,6 +102,8 @@ public class MainActivity extends Activity {
     private static final int REQUEST_OCR              = 1002;
     // 학부모 PDF 업로드 요청 코드
     private static final int REQUEST_PICK_FILE_PARENT = 1003;
+    private static final String TTS_ENGINE_EDGE = "edge";
+    private static final String TTS_ENGINE_MMS_MALE = "mms_male";
 
     // ── Daon design tokens (CSS: daon-shared.css v2) ──
     // Brand — indigo (--brand)
@@ -189,6 +192,7 @@ public class MainActivity extends Activity {
     private String currentEasyKoTtsUrl = "";
     private float ttsSpeed = 1.0f;
     private Button[] speedButtons;
+    private Button[] ttsEngineButtons;
 
     // STT / 음성 질문
     private JSONArray currentCards = null;
@@ -343,6 +347,7 @@ public class MainActivity extends Activity {
         playButton = null;
         easyKoPlayButton = null;
         langPillBtn = null;
+        ttsEngineButtons = null;
     }
 
     // ============================================================
@@ -522,6 +527,72 @@ public class MainActivity extends Activity {
         return box;
     }
 
+    private LinearLayout ttsEngineSelectCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(18), dp(16), dp(18), dp(16));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(18));
+        bg.setStroke(dp(1), COLOR_LINE);
+        box.setBackground(bg);
+
+        TextView title = text("TTS A/B", 16, COLOR_INK, true);
+        title.setPadding(0, 0, 0, dp(10));
+        box.addView(title);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        ttsEngineButtons = new Button[2];
+        ttsEngineButtons[0] = ttsEngineOptionButton("A  Edge-TTS", TTS_ENGINE_EDGE);
+        ttsEngineButtons[1] = ttsEngineOptionButton("B  MMS-TTS (남성목소리)", TTS_ENGINE_MMS_MALE);
+        row.addView(ttsEngineButtons[0]);
+        row.addView(ttsEngineButtons[1]);
+        box.addView(row);
+        updateTtsEngineButtonStyles();
+        return box;
+    }
+
+    private Button ttsEngineOptionButton(String label, String engine) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTextSize(14);
+        b.setAllCaps(false);
+        b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        b.setPadding(dp(14), dp(12), dp(14), dp(12));
+        b.setMinHeight(dp(46));
+        b.setMinimumHeight(dp(46));
+        b.setStateListAnimator(null);
+        b.setOnClickListener(v -> {
+            saveTtsEngine(engine);
+            releasePlayer();
+            currentTtsUrl = "";
+            updateTtsEngineButtonStyles();
+            Toast.makeText(this, "TTS: " + ttsEngineDisplayName(engine), Toast.LENGTH_SHORT).show();
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, dp(4), 0, dp(4));
+        b.setLayoutParams(lp);
+        return b;
+    }
+
+    private void updateTtsEngineButtonStyles() {
+        if (ttsEngineButtons == null) return;
+        String current = getSavedTtsEngine();
+        String[] engines = {TTS_ENGINE_EDGE, TTS_ENGINE_MMS_MALE};
+        for (int i = 0; i < ttsEngineButtons.length; i++) {
+            boolean selected = engines[i].equals(current);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setCornerRadius(dp(14));
+            bg.setColor(selected ? COLOR_AI_LIGHT : COLOR_PAPER2);
+            bg.setStroke(dp(1), selected ? COLOR_AI : COLOR_LINE);
+            ttsEngineButtons[i].setBackground(bg);
+            ttsEngineButtons[i].setTextColor(selected ? COLOR_AI : COLOR_INK2);
+        }
+    }
+
     // ============================================================
     //  SCREEN 2 · TEACHER HOME  (가통문 작성/발송)
     // ============================================================
@@ -699,6 +770,16 @@ public class MainActivity extends Activity {
         content.addView(smallTextButton("← " + uiText("logout"), v -> logout()));
 
         loadInbox();
+    }
+
+    private void showParentSettings() {
+        clearScreenRefs();
+        buildScreen(greetingForLanguage(), currentUserId + "님 👤",
+                    "설정", true, 4, true);
+
+        content.addView(languageSelectCard());
+        content.addView(ttsEngineSelectCard());
+        content.addView(smallTextButton("← " + uiText("logout"), v -> logout()));
     }
 
     private void loadInbox() {
@@ -1682,6 +1763,7 @@ public class MainActivity extends Activity {
         JSONObject payload = new JSONObject();
         selectedLanguage = getSavedLanguage();
         try { payload.put("target_language", backendLanguageCode(selectedLanguage)); } catch (Exception ignored) {}
+        try { payload.put("tts_engine", getSavedTtsEngine()); } catch (Exception ignored) {}
         // OCR 업로드 케이스: 보관해둔 ML Kit layout_json을 payload에 첨부 → backend가 highlights[] 채움.
         // PDF/HWP 업로드는 layout 정보 없으니 그대로 패스 (highlights 빈 리스트로 응답).
         String storedLayout = ocrLayoutByNoticeId.get(selectedNotice.noticeId);
@@ -3785,7 +3867,7 @@ public class MainActivity extends Activity {
         bar.setBackground(bg);
 
         for (int i = 0; i < icons.length; i++) {
-            bar.addView(makeTabItem(icons[i], labels[i], i == activeIndex));
+            bar.addView(makeTabItem(icons[i], labels[i], i == activeIndex, i, isParent));
         }
 
         FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(
@@ -3795,7 +3877,7 @@ public class MainActivity extends Activity {
         return bar;
     }
 
-    private LinearLayout makeTabItem(String icon, String label, boolean active) {
+    private LinearLayout makeTabItem(String icon, String label, boolean active, int index, boolean isParent) {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER);
@@ -3829,7 +3911,15 @@ public class MainActivity extends Activity {
         if (!active) {
             col.setClickable(true);
             col.setFocusable(true);
-            col.setOnClickListener(v -> notImplementedToast(label));
+            col.setOnClickListener(v -> {
+                if (isParent && index == 0) {
+                    showParentHome();
+                } else if (isParent && index == 4) {
+                    showParentSettings();
+                } else {
+                    notImplementedToast(label);
+                }
+            });
         }
         return col;
     }
@@ -4419,6 +4509,28 @@ public class MainActivity extends Activity {
                 .edit()
                 .putString(PREF_KEY_LANG, langCode)
                 .apply();
+    }
+
+    private String getSavedTtsEngine() {
+        String engine = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .getString(PREF_TTS_ENGINE, TTS_ENGINE_EDGE);
+        return isSupportedTtsEngine(engine) ? engine : TTS_ENGINE_EDGE;
+    }
+
+    private void saveTtsEngine(String engine) {
+        if (!isSupportedTtsEngine(engine)) return;
+        getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+                .edit()
+                .putString(PREF_TTS_ENGINE, engine)
+                .apply();
+    }
+
+    private boolean isSupportedTtsEngine(String engine) {
+        return TTS_ENGINE_EDGE.equals(engine) || TTS_ENGINE_MMS_MALE.equals(engine);
+    }
+
+    private String ttsEngineDisplayName(String engine) {
+        return TTS_ENGINE_MMS_MALE.equals(engine) ? "MMS-TTS (남성목소리)" : "Edge-TTS";
     }
 
     // ============================================================

@@ -77,6 +77,7 @@ class FcmTokenRegisterRequest(BaseModel):
 
 class NoticeAnalyzeRequest(BaseModel):
     target_language: str   # vi/en/ru/ms/mn/zh/th/ja/ko_easy — 필수, default 없음
+    tts_engine: str = "edge"  # edge | mms_male
     # OCR/PDF layout — Android ML Kit OCR JSON 또는 backend pdfplumber probe JSON.
     # 있으면 highlight_mapper가 카드 ↔ bbox 매칭해 highlights[]를 채운다.
     # 없으면 highlights는 빈 리스트로 남고 안드는 텍스트 카드만 표시.
@@ -266,6 +267,8 @@ class TTSRequest(BaseModel):
     user_id: str
     todo_items: list[TodoItem]
     level: KoreanLevel
+    target_language: str = "vi"
+    tts_engine: str = "edge"
 
 
 class UserProfile(BaseModel):

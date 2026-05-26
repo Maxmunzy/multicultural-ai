@@ -13,7 +13,11 @@ async def generate_tts(req: TTSRequest):
     if not text.strip():
         return ApiResponse.error(message="베트남어 텍스트가 비어 있습니다")
     try:
-        url = await generate_tts_file(text)
+        url = await generate_tts_file(
+            text,
+            target_lang=req.target_language or "vi",
+            tts_engine=req.tts_engine or "edge",
+        )
     except Exception as error:
         return ApiResponse.error(message=f"TTS 생성 실패: {error}")
     return ApiResponse.success(data={"tts_url": url})
