@@ -48,18 +48,18 @@ public class ChecklistActivity extends Activity {
 
     private static final String BASE_URL = BuildConfig.BASE_URL;
 
-    // HiClass 스타일 블루 팔레트
-    private static final int COLOR_PEACH       = Color.parseColor("#DBEAFE"); // light blue
-    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#3B67FF"); // primary blue
-    private static final int COLOR_PEACH_INK   = Color.parseColor("#1A237E"); // dark navy
-    private static final int COLOR_PAPER       = Color.parseColor("#EEF2FF"); // light blue bg
-    private static final int COLOR_PAPER2      = Color.parseColor("#FFFFFF"); // white
-    private static final int COLOR_INK         = Color.parseColor("#111827"); // near black
-    private static final int COLOR_INK2        = Color.parseColor("#374151"); // dark gray
-    private static final int COLOR_INK3        = Color.parseColor("#6B7280"); // medium gray
-    private static final int COLOR_LINE        = Color.parseColor("#E5E7EB"); // border gray
-    private static final int COLOR_MINT_INK    = Color.parseColor("#15803D"); // success green
-    private static final int COLOR_LEMON_INK   = Color.parseColor("#3B67FF"); // blue (진행중)
+    // daon-shared.css v2 색상 토큰 (MainActivity 동기화)
+    private static final int COLOR_PEACH       = Color.parseColor("#EEF2FF"); // --brand-light
+    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#4F46E5"); // --brand (indigo)
+    private static final int COLOR_PEACH_INK   = Color.parseColor("#3730A3"); // --brand-deep
+    private static final int COLOR_PAPER       = Color.parseColor("#EEF2FF"); // --surface
+    private static final int COLOR_PAPER2      = Color.parseColor("#F8FAFF"); // --surface2
+    private static final int COLOR_INK         = Color.parseColor("#1E1B4B"); // --ink
+    private static final int COLOR_INK2        = Color.parseColor("#374151"); // --ink2
+    private static final int COLOR_INK3        = Color.parseColor("#6B7280"); // --ink3
+    private static final int COLOR_LINE        = Color.parseColor("#E5E7EB"); // --line
+    private static final int COLOR_MINT_INK    = Color.parseColor("#059669"); // --success
+    private static final int COLOR_LEMON_INK   = Color.parseColor("#D97706"); // --warning (amber)
 
     // 탭 — chip 4개 + 마감일순 평면. by_chip의 키 그대로 사용.
     private static final String TAB_DUE = "__due__";

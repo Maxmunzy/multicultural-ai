@@ -1628,7 +1628,7 @@ public class MainActivity extends Activity {
     private void confirmAndDeleteNotice(NoticeItem n) {
         String[] lines = n.text.split("\\r?\\n");
         String preview = shorten(lines.length > 0 ? lines[0] : n.text, 30);
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("가정통신문 삭제")
                 .setMessage("\"" + preview + "\"\n\n이 가정통신문을 삭제할까요?")
                 .setPositiveButton("삭제", (d, w) -> deleteNoticeAndRefresh(n.noticeId))
@@ -2801,7 +2801,7 @@ public class MainActivity extends Activity {
         box.addView(image);
         loadQrImage(url, image);
 
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("신청 QR 코드")
                 .setView(box)
                 .setPositiveButton("바로가기", (d, w) -> openExternalUrl(url))
@@ -2825,7 +2825,7 @@ public class MainActivity extends Activity {
             box.addView(linkActionBlock(currentActionUrls.get(i), i + 1));
         }
 
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("신청 바로가기")
                 .setView(box)
                 .setNegativeButton("닫기", null)
@@ -2953,7 +2953,7 @@ public class MainActivity extends Activity {
         guide.setPadding(0, dp(10), 0, 0);
         box.addView(guide);
 
-        holder[0] = new AlertDialog.Builder(this)
+        holder[0] = new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle(calLoc("미니 달력","Lịch nhỏ","Mini Calendar","小日历","ปฏิทินขนาดเล็ก","Kalendar Mini","Жижиг хуанли","Мини-календарь","ミニカレンダー"))
                 .setView(scroll)
                 .setNegativeButton(calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる"), null)
@@ -3090,7 +3090,7 @@ public class MainActivity extends Activity {
                 ? isoDate + " " + calLoc("일정","lịch","schedule","日程","ตาราง","jadual","хуваарь","расписание","日程")
                 : calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程") + ": " + isoDate;
         String calClose = calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる");
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle(calTitle)
                 .setView(box)
                 .setNegativeButton(calClose, null)
@@ -3629,7 +3629,7 @@ public class MainActivity extends Activity {
     }
 
     private void showUploadDialog() {
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("통신문 올리기")
                 .setItems(new String[]{"📷  사진으로 찍기", "📄  PDF 파일 올리기"}, (dialog, which) -> {
                     if (which == 0) launchOcrActivity();
@@ -4353,7 +4353,7 @@ public class MainActivity extends Activity {
     }
 
     private void showLanguageDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert);
         builder.setTitle("Language / 언어 선택");
         builder.setItems(LANG_LABELS, (dialog, which) -> {
             if (LANG_CODES[which].equals(selectedLanguage)) return;
@@ -4394,7 +4394,7 @@ public class MainActivity extends Activity {
 
     private void showInitialLanguageDialogIfNeeded() {
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).contains(PREF_KEY_LANG)) return;
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert);
         builder.setTitle("Language / 언어 선택");
         builder.setItems(LANG_LABELS, (dialog, which) -> {
             selectedLanguage = LANG_CODES[which];
