@@ -395,7 +395,7 @@ public class MainActivity extends Activity {
                 ensureNotificationPermission();
                 // FCM 토큰 받아서 백엔드 등록 — push가 이 user_id로 도달하게.
                 fetchAndRegisterFcmToken();
-                if (role.equals("teacher")) showTeacherHome();
+                if (role.equals("teacher")) showTeacherDashboard();
                 else {
                     showParentHome();
                 }
@@ -596,48 +596,348 @@ public class MainActivity extends Activity {
     // ============================================================
     //  SCREEN 2 · TEACHER HOME  (가통문 작성/발송)
     // ============================================================
+    // ============================================================
+    //  SCREEN 1 · TEACHER DASHBOARD  (우리반 홈 — demo teacher.html Screen 1)
+    // ============================================================
+    private void showTeacherDashboard() {
+        clearScreenRefs();
+
+        FrameLayout outer = new FrameLayout(this);
+        outer.setBackground(daonGradient());
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(true);
+        scroll.setLayoutParams(new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setPadding(0, 0, 0, dp(96));
+        scroll.addView(root);
+
+        // 헤더
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.VERTICAL);
+        header.setPadding(dp(20), dp(70), dp(20), dp(4));
+        header.addView(text("안녕하세요,", 13, COLOR_INK3, false));
+        TextView titleView = text(currentUserId + " 선생님", 26, COLOR_INK, true);
+        titleView.setLetterSpacing(-0.02f);
+        titleView.setPadding(0, dp(2), 0, 0);
+        header.addView(titleView);
+        root.addView(header);
+
+        content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(18), dp(4), dp(18), 0);
+        root.addView(content);
+
+        // ── 우리반 히어로 카드 ──
+        content.addView(teacherHeroCard());
+
+        // ── 오늘 할 일 ──
+        content.addView(sectionLabel("오늘 할 일"));
+        content.addView(urgentTaskCard());
+
+        // ── 최근 발송한 통신문 ──
+        content.addView(sectionLabel("최근 발송한 통신문"));
+        content.addView(noticeHistoryRow("현", "현장체험학습 안내",
+                "5개 언어 · 24명 발송 · 5/13", "22 회신", COLOR_PEACH_DEEP, COLOR_MINT));
+        content.addView(noticeHistoryRow("식", "5월 식단 변경 안내",
+                "5개 언어 · 24명 발송 · 5/12", "읽음", Color.parseColor("#10B981"), null));
+        content.addView(noticeHistoryRow("상", "학부모 상담주간 안내",
+                "5개 언어 · 24명 발송 · 5/10", "읽음", COLOR_LEMON_INK, null));
+
+        outer.addView(scroll);
+
+        // lang pill
+        langPillBtn = makeLangPillButton();
+        FrameLayout.LayoutParams lpp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        lpp.gravity = Gravity.TOP | Gravity.END;
+        lpp.setMargins(0, dp(38), dp(16), 0);
+        outer.addView(langPillBtn, lpp);
+
+        // FAB — 새 통신문 작성
+        Button fab = new Button(this);
+        fab.setText("✏️");
+        fab.setTextSize(22);
+        fab.setAllCaps(false);
+        fab.setPadding(0, 0, 0, 0);
+        GradientDrawable fabBg = new GradientDrawable();
+        fabBg.setColor(COLOR_PEACH_DEEP);
+        fabBg.setCornerRadius(dp(16));
+        fab.setBackground(fabBg);
+        fab.setElevation(dp(6));
+        fab.setStateListAnimator(null);
+        fab.setOnClickListener(v -> showTeacherHome());
+        FrameLayout.LayoutParams fabP = new FrameLayout.LayoutParams(dp(54), dp(54));
+        fabP.gravity = Gravity.BOTTOM | Gravity.END;
+        fabP.setMargins(0, 0, dp(18), dp(82));
+        fab.setLayoutParams(fabP);
+        outer.addView(fab);
+
+        outer.addView(makeBottomTabBar(0, false));
+        setContentView(outer);
+    }
+
+    // 우리반 히어로 카드 (인디고 그라데이션)
+    private LinearLayout teacherHeroCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(22), dp(20), dp(18));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{COLOR_PEACH_DEEP, COLOR_PEACH_INK});
+        bg.setCornerRadius(dp(20));
+        box.setBackground(bg);
+        box.setElevation(dp(2));
+
+        LinearLayout chips = new LinearLayout(this);
+        chips.setOrientation(LinearLayout.HORIZONTAL);
+        chips.addView(heroChipWhite("서울초 3학년"));
+        chips.addView(heroChipWhite("2반"));
+        box.addView(chips);
+
+        TextView heroTitle = text("학생 24명", 28, Color.WHITE, true);
+        heroTitle.setLetterSpacing(-0.02f);
+        heroTitle.setPadding(0, dp(8), 0, 0);
+        box.addView(heroTitle);
+
+        TextView heroSub = text("다국어 가정 12명 · 5개 언어", 13, Color.parseColor("#C7D2FE"), false);
+        heroSub.setPadding(0, dp(3), 0, dp(10));
+        box.addView(heroSub);
+
+        LinearLayout langChips = new LinearLayout(this);
+        langChips.setOrientation(LinearLayout.HORIZONTAL);
+        for (String label : new String[]{"KO 12", "VN 5", "CN 4", "EN 2", "TH 1"}) {
+            langChips.addView(heroChipWhite(label));
+        }
+        box.addView(langChips);
+        return box;
+    }
+
+    private TextView heroChipWhite(String label) {
+        TextView chip = text(label, 11, Color.WHITE, true);
+        chip.setPadding(dp(10), dp(4), dp(10), dp(4));
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.argb(55, 255, 255, 255));
+        bg.setCornerRadius(dp(999));
+        chip.setBackground(bg);
+        LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        p.setMargins(0, 0, dp(5), 0);
+        chip.setLayoutParams(p);
+        return chip;
+    }
+
+    // 오늘 할 일 — 회신 대기 긴급 카드
+    private LinearLayout urgentTaskCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(14), dp(14), dp(14), dp(14));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(2), COLOR_PEACH);
+        box.setBackground(bg);
+        box.setElevation(dp(1));
+
+        LinearLayout iconBox = new LinearLayout(this);
+        iconBox.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams ibp = new LinearLayout.LayoutParams(dp(44), dp(44));
+        ibp.setMargins(0, 0, dp(12), 0);
+        iconBox.setLayoutParams(ibp);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setColor(COLOR_PEACH);
+        iconBg.setCornerRadius(dp(13));
+        iconBox.setBackground(iconBg);
+        TextView ic = new TextView(this);
+        ic.setText("💬");
+        ic.setTextSize(18);
+        ic.setGravity(Gravity.CENTER);
+        iconBox.addView(ic);
+        box.addView(iconBox);
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        col.addView(text("현장체험학습 회신", 14, COLOR_INK, true));
+        TextView d = text("22명 회신 완료 · 2명 대기 중", 11, COLOR_INK3, false);
+        d.setPadding(0, dp(2), 0, 0);
+        col.addView(d);
+        box.addView(col);
+
+        TextView d2chip = text("D-2", 11, COLOR_LEMON_INK, true);
+        d2chip.setPadding(dp(8), dp(4), dp(8), dp(4));
+        GradientDrawable chipBg = new GradientDrawable();
+        chipBg.setColor(COLOR_LEMON);
+        chipBg.setCornerRadius(dp(999));
+        d2chip.setBackground(chipBg);
+        box.addView(d2chip);
+        return box;
+    }
+
+    // 통신문 이력 행 (최근 발송한 통신문 목록)
+    private LinearLayout noticeHistoryRow(String initial, String title, String meta,
+                                          String badge, int avatarColor, Integer badgeAccent) {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(12), dp(12), dp(12), dp(12));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(1), COLOR_LINE);
+        box.setBackground(bg);
+
+        TextView avatar = new TextView(this);
+        avatar.setText(initial);
+        avatar.setTextSize(13);
+        avatar.setTextColor(Color.WHITE);
+        avatar.setGravity(Gravity.CENTER);
+        avatar.setTypeface(null, Typeface.BOLD);
+        int s = dp(34);
+        LinearLayout.LayoutParams ap = new LinearLayout.LayoutParams(s, s);
+        ap.setMargins(0, 0, dp(10), 0);
+        avatar.setLayoutParams(ap);
+        GradientDrawable avBg = new GradientDrawable();
+        avBg.setColor(avatarColor);
+        avBg.setShape(GradientDrawable.OVAL);
+        avatar.setBackground(avBg);
+        box.addView(avatar);
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        TextView t = text(title, 13, COLOR_INK, true);
+        t.setEllipsize(TextUtils.TruncateAt.END);
+        t.setSingleLine(true);
+        col.addView(t);
+        TextView m = text(meta, 11, COLOR_INK3, false);
+        m.setPadding(0, dp(2), 0, 0);
+        col.addView(m);
+        box.addView(col);
+
+        TextView bdg = text(badge, 10, badgeAccent != null ? badgeAccent : COLOR_INK3, true);
+        bdg.setPadding(dp(7), dp(3), dp(7), dp(3));
+        GradientDrawable bdgBg = new GradientDrawable();
+        bdgBg.setColor(badgeAccent != null ? COLOR_MINT : Color.parseColor("#F3F4F6"));
+        bdgBg.setCornerRadius(dp(999));
+        bdg.setBackground(bdgBg);
+        box.addView(bdg);
+        return box;
+    }
+
+    // ============================================================
+    //  SCREEN 2 · TEACHER COMPOSE  (통신문 작성 — demo teacher.html Screen 2)
+    // ============================================================
     private void showTeacherHome() {
         clearScreenRefs();
-        buildScreen("안녕하세요,", currentUserId + "님 ✏️",
-                    "통신문 작성", true, 1, false);
+        buildScreen(null, "새 통신문", "통신문 작성", true, 1, false);
 
+        // ← 뒤로 가기 (우리반 홈)
+        LinearLayout backNav = new LinearLayout(this);
+        backNav.setOrientation(LinearLayout.HORIZONTAL);
+        backNav.setGravity(Gravity.CENTER_VERTICAL);
+        backNav.setPadding(dp(2), dp(4), dp(2), dp(8));
+        Button backBtn = new Button(this);
+        backBtn.setText("←");
+        backBtn.setTextSize(16);
+        backBtn.setTextColor(COLOR_INK2);
+        backBtn.setAllCaps(false);
+        backBtn.setBackground(null);
+        backBtn.setStateListAnimator(null);
+        backBtn.setPadding(0, 0, dp(4), 0);
+        backBtn.setOnClickListener(v -> showTeacherDashboard());
+        backNav.addView(backBtn);
+        TextView backLabel = text("새 통신문", 13, COLOR_INK3, false);
+        backNav.addView(backLabel);
+        content.addView(backNav);
 
-        // 받는 학부모
-        content.addView(formCard("받는 학부모", () -> {
-            parentIdInput = input("parent_001", DEFAULT_PARENT_ID);
-            return parentIdInput;
-        }));
+        // 2단계 스텝바 (작성 → 발송)
+        content.addView(buildStepBar(1));
 
-        // 제목 (파일 업로드 시 숨김)
-        teacherTitleCard = formCard("제목", () -> {
-            titleInput = input("예: 현장학습 안내", "현장학습 안내");
-            titleInput.setBackground(transparentBg());
-            titleInput.setPadding(0, dp(2), 0, dp(2));
-            titleInput.setTextSize(17);
-            titleInput.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-            return titleInput;
-        });
-        content.addView(teacherTitleCard);
+        // 받는 학부모 (compact row)
+        LinearLayout recipientRow = new LinearLayout(this);
+        recipientRow.setOrientation(LinearLayout.HORIZONTAL);
+        recipientRow.setGravity(Gravity.CENTER_VERTICAL);
+        recipientRow.setPadding(dp(14), dp(10), dp(14), dp(10));
+        recipientRow.setLayoutParams(spacedParams());
+        GradientDrawable rBg = new GradientDrawable();
+        rBg.setColor(Color.WHITE);
+        rBg.setCornerRadius(dp(12));
+        rBg.setStroke(dp(1), COLOR_LINE);
+        recipientRow.setBackground(rBg);
+        TextView rLabel = text("받는 학부모", 10, COLOR_INK3, true);
+        rLabel.setLetterSpacing(0.05f);
+        rLabel.setAllCaps(true);
+        LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        rlp.setMargins(0, 0, dp(10), 0);
+        rLabel.setLayoutParams(rlp);
+        recipientRow.addView(rLabel);
+        parentIdInput = new EditText(this);
+        parentIdInput.setText(DEFAULT_PARENT_ID);
+        parentIdInput.setHint(DEFAULT_PARENT_ID);
+        parentIdInput.setSingleLine(true);
+        parentIdInput.setTextSize(14);
+        parentIdInput.setTextColor(COLOR_INK);
+        parentIdInput.setHintTextColor(COLOR_INK4);
+        parentIdInput.setBackground(transparentBg());
+        parentIdInput.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        recipientRow.addView(parentIdInput);
+        content.addView(recipientRow);
 
-        // 내용 (파일 업로드 시 숨김)
-        teacherBodyCard = formCard("내용 (한국어)", () -> {
-            bodyInput = multiInput("가정통신문 본문", sampleNotice());
-            bodyInput.setBackground(transparentBg());
-            bodyInput.setPadding(0, dp(2), 0, dp(2));
-            bodyInput.setTextSize(14);
-            return bodyInput;
-        });
-        content.addView(teacherBodyCard);
+        // 숨겨진 titleInput (sendNotice()가 참조)
+        titleInput = new EditText(this);
+        titleInput.setText("");
+        titleInput.setVisibility(View.GONE);
+        content.addView(titleInput);
 
-        // AI 헬프 카드 (정보용 — 클릭 안 됨)
-        content.addView(aiHelperCard());
+        // ── 파일로 가져오기 ──
+        content.addView(sectionLabel("파일로 가져오기"));
+        content.addView(buildUploadZone());
 
-        // 파일 업로드 시 PDF/이미지 미리보기 카드가 들어가는 영역
+        // 파일 업로드 후 미리보기 영역
         teacherPreviewBox = new LinearLayout(this);
         teacherPreviewBox.setOrientation(LinearLayout.VERTICAL);
         teacherPreviewBox.setLayoutParams(spacedParams());
         teacherPreviewBox.setVisibility(View.GONE);
         content.addView(teacherPreviewBox);
+
+        // ── 추출된 텍스트 확인 ──
+        content.addView(sectionLabel("추출된 텍스트 확인"));
+        teacherBodyCard = new LinearLayout(this);
+        teacherBodyCard.setOrientation(LinearLayout.VERTICAL);
+        teacherBodyCard.setPadding(dp(14), dp(12), dp(14), dp(12));
+        teacherBodyCard.setLayoutParams(spacedParams());
+        GradientDrawable bodyCardBg = new GradientDrawable();
+        bodyCardBg.setColor(Color.WHITE);
+        bodyCardBg.setCornerRadius(dp(14));
+        bodyCardBg.setStroke(dp(1) + 1, COLOR_LINE);
+        teacherBodyCard.setBackground(bodyCardBg);
+        TextView bodyLabel = text("내용 (한국어) · 수정 가능", 10, COLOR_INK3, true);
+        bodyLabel.setLetterSpacing(0.04f);
+        bodyLabel.setAllCaps(true);
+        bodyLabel.setPadding(0, 0, 0, dp(6));
+        teacherBodyCard.addView(bodyLabel);
+        bodyInput = multiInput("가정통신문 본문을 입력하거나 파일을 업로드하세요", sampleNotice());
+        bodyInput.setBackground(transparentBg());
+        bodyInput.setPadding(0, dp(2), 0, dp(2));
+        bodyInput.setTextSize(13);
+        teacherBodyCard.addView(bodyInput);
+        content.addView(teacherBodyCard);
+
+        // teacherTitleCard — 호환성용 (숨김)
+        teacherTitleCard = new LinearLayout(this);
+        teacherTitleCard.setVisibility(View.GONE);
+        content.addView(teacherTitleCard);
+
+        // AI 어시스트 배너 (바이올렛)
+        content.addView(buildAIAssistBanner());
 
         // 발송 결과
         sendResultText = text("", 13, COLOR_INK3, false);
@@ -646,11 +946,212 @@ public class MainActivity extends Activity {
         sendResultText.setPadding(dp(4), dp(4), dp(4), 0);
         content.addView(sendResultText);
 
-        // 발송 CTA (full width primary)
-        content.addView(bigPrimaryButton("📤  통신문 발송", v -> sendNotice()));
-        // 파일 업로드 (HWP/PDF/TXT) — 선택 시 SAF 픽커 → 백엔드 /notice/upload
-        content.addView(outlineButton("📎  PDF/HWP 파일 업로드", v -> launchFilePicker()));
-        content.addView(smallTextButton("← 로그아웃", v -> logout()));
+        // 하단 액션 행 — 임시저장 + 24명에게 발송
+        LinearLayout actionRow = new LinearLayout(this);
+        actionRow.setOrientation(LinearLayout.HORIZONTAL);
+        actionRow.setLayoutParams(spacedParams());
+        actionRow.setGravity(Gravity.CENTER_VERTICAL);
+
+        Button draftBtn = new Button(this);
+        draftBtn.setText("임시저장");
+        draftBtn.setTextSize(13);
+        draftBtn.setTextColor(COLOR_INK2);
+        draftBtn.setAllCaps(false);
+        draftBtn.setPadding(dp(16), dp(14), dp(16), dp(14));
+        GradientDrawable draftBg = new GradientDrawable();
+        draftBg.setColor(Color.WHITE);
+        draftBg.setCornerRadius(dp(14));
+        draftBg.setStroke(dp(1), COLOR_LINE);
+        draftBtn.setBackground(draftBg);
+        draftBtn.setStateListAnimator(null);
+        LinearLayout.LayoutParams draftP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        draftP.setMargins(0, 0, dp(8), 0);
+        draftBtn.setLayoutParams(draftP);
+        draftBtn.setOnClickListener(v -> notImplementedToast("임시저장"));
+        actionRow.addView(draftBtn);
+
+        Button sendBtn = new Button(this);
+        sendBtn.setText("24명에게 발송");
+        sendBtn.setTextSize(14);
+        sendBtn.setTextColor(Color.WHITE);
+        sendBtn.setAllCaps(false);
+        sendBtn.setTypeface(null, Typeface.BOLD);
+        sendBtn.setPadding(dp(18), dp(14), dp(18), dp(14));
+        GradientDrawable sendBg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{COLOR_PEACH_DEEP, COLOR_PEACH_INK});
+        sendBg.setCornerRadius(dp(14));
+        sendBtn.setBackground(sendBg);
+        sendBtn.setStateListAnimator(null);
+        sendBtn.setElevation(dp(2));
+        sendBtn.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        sendBtn.setOnClickListener(v -> sendNotice());
+        actionRow.addView(sendBtn);
+        content.addView(actionRow);
+
+        content.addView(smallTextButton("← 우리반 홈으로", v -> showTeacherDashboard()));
+        content.addView(smallTextButton("로그아웃", v -> logout()));
+    }
+
+    // 2단계 스텝바 (step=1: 작성 active, step=2: 발송 active)
+    private LinearLayout buildStepBar(int currentStep) {
+        LinearLayout bar = new LinearLayout(this);
+        bar.setOrientation(LinearLayout.HORIZONTAL);
+        bar.setGravity(Gravity.CENTER_VERTICAL);
+        bar.setLayoutParams(spacedParams());
+        bar.setPadding(dp(4), dp(4), dp(4), dp(8));
+
+        bar.addView(stepNode("1", "작성", currentStep == 1, currentStep > 1));
+        View line = new View(this);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(2), 1);
+        lp.setMargins(dp(4), 0, dp(4), dp(14));
+        line.setLayoutParams(lp);
+        line.setBackground(roundedFill(currentStep > 1 ? COLOR_PEACH_DEEP : COLOR_LINE, dp(2)));
+        bar.addView(line);
+        bar.addView(stepNode("2", "발송", currentStep == 2, false));
+        return bar;
+    }
+
+    private LinearLayout stepNode(String num, String label, boolean current, boolean done) {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setGravity(Gravity.CENTER_HORIZONTAL);
+        LinearLayout.LayoutParams outerP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        col.setLayoutParams(outerP);
+
+        TextView circle = new TextView(this);
+        circle.setText(num);
+        circle.setTextSize(10);
+        circle.setGravity(Gravity.CENTER);
+        circle.setTypeface(null, Typeface.BOLD);
+        int size = dp(22);
+        LinearLayout.LayoutParams cp = new LinearLayout.LayoutParams(size, size);
+        cp.setMargins(0, 0, 0, dp(3));
+        circle.setLayoutParams(cp);
+        GradientDrawable cBg = new GradientDrawable();
+        cBg.setShape(GradientDrawable.OVAL);
+        if (done) {
+            cBg.setColor(COLOR_PEACH_DEEP); circle.setTextColor(Color.WHITE);
+        } else if (current) {
+            cBg.setColor(COLOR_AI); circle.setTextColor(Color.WHITE);
+        } else {
+            cBg.setColor(Color.parseColor("#E5E7EB")); circle.setTextColor(COLOR_INK3);
+        }
+        circle.setBackground(cBg);
+        col.addView(circle);
+
+        TextView lbl = text(label, 9, current ? COLOR_AI : (done ? COLOR_PEACH_DEEP : COLOR_INK3), current || done);
+        lbl.setGravity(Gravity.CENTER);
+        col.addView(lbl);
+        return col;
+    }
+
+    // 파일 업로드 존 (dashed 스타일)
+    private LinearLayout buildUploadZone() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setGravity(Gravity.CENTER_HORIZONTAL);
+        box.setPadding(dp(16), dp(18), dp(16), dp(18));
+        box.setLayoutParams(spacedParams());
+        box.setClickable(true);
+        box.setFocusable(true);
+        box.setOnClickListener(v -> launchFilePicker());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(COLOR_PEACH);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(2), COLOR_PEACH_INK);
+        box.setBackground(bg);
+
+        LinearLayout iconBox = new LinearLayout(this);
+        iconBox.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams ibp = new LinearLayout.LayoutParams(dp(40), dp(40));
+        ibp.setMargins(0, 0, 0, dp(10));
+        iconBox.setLayoutParams(ibp);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setColor(COLOR_PEACH_DEEP);
+        iconBg.setCornerRadius(dp(11));
+        iconBox.setBackground(iconBg);
+        TextView upEmoji = new TextView(this);
+        upEmoji.setText("⬆");
+        upEmoji.setTextSize(17);
+        upEmoji.setTextColor(Color.WHITE);
+        upEmoji.setGravity(Gravity.CENTER);
+        iconBox.addView(upEmoji);
+        box.addView(iconBox);
+
+        TextView uzTitle = text("HWP · PDF · 이미지 올리기", 14, COLOR_PEACH_INK, true);
+        uzTitle.setGravity(Gravity.CENTER);
+        box.addView(uzTitle);
+
+        TextView uzSub = text("탭하여 파일 선택 · 서버에서 자동 변환", 11, COLOR_INK3, false);
+        uzSub.setGravity(Gravity.CENTER);
+        uzSub.setPadding(0, dp(3), 0, dp(10));
+        box.addView(uzSub);
+
+        LinearLayout chipRow = new LinearLayout(this);
+        chipRow.setOrientation(LinearLayout.HORIZONTAL);
+        chipRow.setGravity(Gravity.CENTER);
+        chipRow.setLayoutParams(new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
+        for (String type : new String[]{"HWP", "HWPX", "PDF", "JPG", "PNG"}) {
+            TextView tc = text(type, 9, COLOR_PEACH_INK, true);
+            tc.setPadding(dp(7), dp(3), dp(7), dp(3));
+            GradientDrawable tcBg = new GradientDrawable();
+            tcBg.setColor(Color.WHITE);
+            tcBg.setCornerRadius(dp(5));
+            tcBg.setStroke(dp(1), COLOR_PEACH_INK);
+            tc.setBackground(tcBg);
+            LinearLayout.LayoutParams tcp = new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+            tcp.setMargins(0, 0, dp(4), 0);
+            tc.setLayoutParams(tcp);
+            chipRow.addView(tc);
+        }
+        box.addView(chipRow);
+        return box;
+    }
+
+    // AI 어시스트 배너 (바이올렛 — demo teacher.html .ai-assist)
+    private LinearLayout buildAIAssistBanner() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(13), dp(12), dp(13), dp(12));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(COLOR_AI_LIGHT);
+        bg.setCornerRadius(dp(14));
+        bg.setStroke(dp(1), COLOR_AI_MID);
+        box.setBackground(bg);
+
+        LinearLayout iconBox = new LinearLayout(this);
+        iconBox.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams ibp = new LinearLayout.LayoutParams(dp(32), dp(32));
+        ibp.setMargins(0, 0, dp(10), 0);
+        iconBox.setLayoutParams(ibp);
+        GradientDrawable iconBg = new GradientDrawable();
+        iconBg.setColor(COLOR_AI);
+        iconBg.setCornerRadius(dp(10));
+        iconBox.setBackground(iconBg);
+        TextView ic = new TextView(this);
+        ic.setText("✨");
+        ic.setTextSize(14);
+        ic.setGravity(Gravity.CENTER);
+        iconBox.addView(ic);
+        box.addView(iconBox);
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        col.addView(text("발송하면 학부모 앱에서 AI 번역이 자동 제공됩니다", 13, COLOR_AI, true));
+        TextView d = text("일정·준비물·마감일 추출 · 9개 언어 번역 · TTS 음성", 10, COLOR_AI, false);
+        d.setAlpha(0.8f);
+        d.setPadding(0, dp(2), 0, 0);
+        col.addView(d);
+        box.addView(col);
+        return box;
     }
 
     private LinearLayout templateChip(String label, boolean active, View.OnClickListener listener) {
@@ -754,8 +1255,13 @@ public class MainActivity extends Activity {
         buildScreen(greetingForLanguage(), currentUserId + "님 👋",
                     uiText("received_notices"), true, 0, true);
 
+        // ── 언어 선택 ──
         content.addView(languageSelectCard());
 
+        // ── 히어로: 긴급 통신문 스포트라이트 (inbox 로드 전 placeholder) ──
+        content.addView(parentHeroCard());
+
+        // ── 새 통신문 목록 ──
         inboxListBox = new LinearLayout(this);
         inboxListBox.setOrientation(LinearLayout.VERTICAL);
         inboxListBox.setLayoutParams(spacedParams());
@@ -766,10 +1272,177 @@ public class MainActivity extends Activity {
         inboxEmptyText.setPadding(dp(4), dp(8), dp(4), 0);
         inboxListBox.addView(inboxEmptyText);
 
+        // ── 다가오는 일정 ──
+        content.addView(sectionLabel("다가오는 일정"));
+        content.addView(upcomingEventCard());
+
+        // ── 서비스 통계 (47건 / 9개 언어 / 340개 용어사전) ──
+        content.addView(parentStatsStrip());
+
         content.addView(outlineButton("🔄  " + uiText("refresh_inbox"), v -> loadInbox()));
         content.addView(smallTextButton("← " + uiText("logout"), v -> logout()));
 
         loadInbox();
+    }
+
+    // 학부모 히어로 카드 — 긴급 통신문 스포트라이트
+    private LinearLayout parentHeroCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(22), dp(20), dp(18));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{COLOR_PEACH_DEEP, COLOR_AI});
+        bg.setCornerRadius(dp(20));
+        box.setBackground(bg);
+        box.setElevation(dp(2));
+
+        // 칩 행
+        LinearLayout chips = new LinearLayout(this);
+        chips.setOrientation(LinearLayout.HORIZONTAL);
+        TextView dangerChip = heroChipWhite("회신 필요 · D-2");
+        GradientDrawable dangerBg = new GradientDrawable();
+        dangerBg.setColor(Color.argb(90, 239, 68, 68));
+        dangerBg.setCornerRadius(dp(999));
+        dangerChip.setBackground(dangerBg);
+        chips.addView(dangerChip);
+        chips.addView(heroChipWhite("✨ AI 번역됨"));
+        box.addView(chips);
+
+        // 제목 (번역됨)
+        TextView heroTitle = text("현장체험학습 안내", 22, Color.WHITE, true);
+        heroTitle.setLetterSpacing(-0.02f);
+        heroTitle.setPadding(0, dp(8), 0, 0);
+        box.addView(heroTitle);
+
+        TextView heroSub = text("서울초 3-2반 · 5/16 · 김선생님", 12, Color.parseColor("#C7D2FE"), false);
+        heroSub.setPadding(0, dp(3), 0, dp(10));
+        box.addView(heroSub);
+
+        // 회신하기 버튼
+        Button ctaBtn = new Button(this);
+        ctaBtn.setText("지금 회신하기 →");
+        ctaBtn.setTextSize(13);
+        ctaBtn.setTextColor(COLOR_PEACH_DEEP);
+        ctaBtn.setAllCaps(false);
+        ctaBtn.setTypeface(null, Typeface.BOLD);
+        ctaBtn.setPadding(dp(16), dp(9), dp(16), dp(9));
+        GradientDrawable ctaBg = new GradientDrawable();
+        ctaBg.setColor(Color.argb(242, 255, 255, 255));
+        ctaBg.setCornerRadius(dp(12));
+        ctaBtn.setBackground(ctaBg);
+        ctaBtn.setStateListAnimator(null);
+        ctaBtn.setOnClickListener(v -> {
+            if (!inbox.isEmpty()) showNoticeDetail(inbox.get(0));
+            else notImplementedToast("통신문을 먼저 불러오세요");
+        });
+        LinearLayout.LayoutParams ctaP = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        ctaBtn.setLayoutParams(ctaP);
+        box.addView(ctaBtn);
+        return box;
+    }
+
+    // 다가오는 일정 카드
+    private LinearLayout upcomingEventCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        box.setPadding(dp(14), dp(14), dp(14), dp(14));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable();
+        bg.setColor(Color.WHITE);
+        bg.setCornerRadius(dp(16));
+        bg.setStroke(dp(1), COLOR_LINE);
+        box.setBackground(bg);
+
+        // 날짜 박스 (brand 색)
+        LinearLayout dateBox = new LinearLayout(this);
+        dateBox.setOrientation(LinearLayout.VERTICAL);
+        dateBox.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams dbp = new LinearLayout.LayoutParams(dp(44), dp(44));
+        dbp.setMargins(0, 0, dp(12), 0);
+        dateBox.setLayoutParams(dbp);
+        GradientDrawable dateBg = new GradientDrawable();
+        dateBg.setColor(COLOR_PEACH);
+        dateBg.setCornerRadius(dp(12));
+        dateBg.setStroke(dp(1), COLOR_PEACH_DEEP);
+        dateBox.setBackground(dateBg);
+        TextView mon = text("5월", 9, COLOR_PEACH_INK, true);
+        mon.setGravity(Gravity.CENTER);
+        dateBox.addView(mon);
+        TextView num = text("16", 18, COLOR_PEACH_DEEP, true);
+        num.setGravity(Gravity.CENTER);
+        num.setLetterSpacing(-0.02f);
+        dateBox.addView(num);
+        box.addView(dateBox);
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+        col.addView(text("현장체험학습", 14, COLOR_INK, true));
+        TextView sub = text("목 9:00 — 15:00 · 서울초", 11, COLOR_INK3, false);
+        sub.setPadding(0, dp(2), 0, 0);
+        col.addView(sub);
+        box.addView(col);
+
+        TextView d2chip = text("D-2", 11, COLOR_LEMON_INK, true);
+        d2chip.setPadding(dp(8), dp(4), dp(8), dp(4));
+        GradientDrawable chipBg = new GradientDrawable();
+        chipBg.setColor(COLOR_LEMON);
+        chipBg.setCornerRadius(dp(999));
+        d2chip.setBackground(chipBg);
+        box.addView(d2chip);
+        return box;
+    }
+
+    // 서비스 통계 스트립 (47건 / 9개 언어 / 340개 용어사전)
+    private LinearLayout parentStatsStrip() {
+        LinearLayout strip = new LinearLayout(this);
+        strip.setOrientation(LinearLayout.HORIZONTAL);
+        strip.setLayoutParams(spacedParams());
+        strip.setPadding(0, dp(4), 0, dp(4));
+
+        int[] nums = {47, 9, 340};
+        String[] units = {"건", "개", "개"};
+        String[] labels = {"받은 통신문", "지원 언어", "학교 용어사전"};
+
+        for (int i = 0; i < 3; i++) {
+            LinearLayout item = new LinearLayout(this);
+            item.setOrientation(LinearLayout.VERTICAL);
+            item.setGravity(Gravity.CENTER_HORIZONTAL);
+            item.setPadding(dp(10), dp(14), dp(10), dp(14));
+            item.setLayoutParams(new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1));
+            GradientDrawable itemBg = new GradientDrawable();
+            itemBg.setColor(Color.WHITE);
+            itemBg.setCornerRadius(dp(14));
+            itemBg.setStroke(dp(1), COLOR_LINE);
+            item.setBackground(itemBg);
+
+            // 숫자 + 단위
+            LinearLayout numRow = new LinearLayout(this);
+            numRow.setOrientation(LinearLayout.HORIZONTAL);
+            numRow.setGravity(Gravity.BOTTOM);
+            TextView numView = text(String.valueOf(nums[i]), 24, COLOR_INK, true);
+            numView.setLetterSpacing(-0.02f);
+            numRow.addView(numView);
+            TextView unitView = text(units[i], 11, COLOR_INK3, true);
+            unitView.setPadding(dp(2), 0, 0, dp(3));
+            numRow.addView(unitView);
+            item.addView(numRow);
+
+            TextView lbl = text(labels[i], 10, COLOR_INK3, false);
+            lbl.setGravity(Gravity.CENTER);
+            lbl.setPadding(0, dp(3), 0, 0);
+            item.addView(lbl);
+
+            LinearLayout.LayoutParams mp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
+            if (i < 2) mp.setMargins(0, 0, dp(8), 0);
+            item.setLayoutParams(mp);
+            strip.addView(item);
+        }
+        return strip;
     }
 
     private void showParentSettings() {
@@ -2758,24 +3431,10 @@ public class MainActivity extends Activity {
     // ============================================================
     private void showTeacherSendComplete(String noticeId, String parentId) {
         clearScreenRefs();
-        buildScreen(null, "발송 완료 ✓", "학부모 앱으로 전달됐습니다", false, -1, false);
+        buildScreen(null, "발송 완료 ✓", null, false, -1, false);
 
-        // 발송 정보 칩 행
-        LinearLayout chips = new LinearLayout(this);
-        chips.setOrientation(LinearLayout.HORIZONTAL);
-        chips.setLayoutParams(spacedParams());
-        chips.addView(statusChip("FCM 푸시 전송", COLOR_MINT, COLOR_MINT_INK));
-        chips.addView(statusChip("9개 언어", COLOR_PEACH, COLOR_PEACH_INK));
-        chips.addView(statusChip("TTS 포함", COLOR_AI_LIGHT, COLOR_AI));
-        content.addView(chips);
-
-        // 340개 용어사전 배지
-        LinearLayout chips2 = new LinearLayout(this);
-        chips2.setOrientation(LinearLayout.HORIZONTAL);
-        chips2.setLayoutParams(spacedParams());
-        chips2.addView(statusChip("용어사전 340개", COLOR_LEMON, COLOR_LEMON_INK));
-        chips2.addView(statusChip("Claude Haiku 4.5", COLOR_AI_LIGHT, COLOR_AI));
-        content.addView(chips2);
+        // demo Screen 3 hero gradient card
+        content.addView(sendCompleteHeroCard());
 
         // 추출 항목 요약 카드
         content.addView(sectionLabel("학부모가 받는 내용"));
@@ -2793,7 +3452,7 @@ public class MainActivity extends Activity {
             pendingPreviewMime = null;
             showTeacherHome();
         }));
-        content.addView(smallTextButton("← 홈으로", v -> showTeacherHome()));
+        content.addView(smallTextButton("← 홈으로", v -> showTeacherDashboard()));
     }
 
     private LinearLayout statusChip(String label, int bgColor, int inkColor) {
@@ -2814,6 +3473,42 @@ public class MainActivity extends Activity {
         wp.setMargins(0, 0, dp(6), 0);
         wrap.setLayoutParams(wp);
         return wrap;
+    }
+
+    private LinearLayout sendCompleteHeroCard() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        box.setPadding(dp(20), dp(22), dp(20), dp(18));
+        box.setLayoutParams(spacedParams());
+        GradientDrawable bg = new GradientDrawable(
+                GradientDrawable.Orientation.TL_BR,
+                new int[]{COLOR_PEACH_DEEP, COLOR_AI});
+        bg.setCornerRadius(dp(20));
+        box.setBackground(bg);
+        box.setElevation(dp(2));
+
+        LinearLayout topChips = new LinearLayout(this);
+        topChips.setOrientation(LinearLayout.HORIZONTAL);
+        topChips.addView(heroChipWhite("24명 발송"));
+        topChips.addView(heroChipWhite("FCM 푸시 전송"));
+        box.addView(topChips);
+
+        TextView heroTitle = text("학부모 앱으로 전달됐습니다", 22, Color.WHITE, true);
+        heroTitle.setLetterSpacing(-0.02f);
+        heroTitle.setPadding(0, dp(10), 0, 0);
+        box.addView(heroTitle);
+
+        TextView heroSub = text("학부모가 AI 번역 버튼을 누르면 자동 분석됩니다", 13, Color.parseColor("#C7D2FE"), false);
+        heroSub.setPadding(0, dp(4), 0, dp(12));
+        box.addView(heroSub);
+
+        LinearLayout botChips = new LinearLayout(this);
+        botChips.setOrientation(LinearLayout.HORIZONTAL);
+        for (String label : new String[]{"9개 언어", "자동 번역", "TTS 음성", "일정 추출"}) {
+            botChips.addView(heroChipWhite(label));
+        }
+        box.addView(botChips);
+        return box;
     }
 
     private LinearLayout extractSummaryRow(String emoji, String label, String desc,
@@ -3907,7 +4602,7 @@ public class MainActivity extends Activity {
         lab.setPadding(0, dp(2), 0, 0);
         col.addView(lab);
 
-        // 비활성 탭만 클릭 시 안내 토스트. 활성 탭은 현재 화면이라 동작 X.
+        // 비활성 탭만 클릭 시 화면 전환 또는 안내 토스트.
         if (!active) {
             col.setClickable(true);
             col.setFocusable(true);
@@ -3916,6 +4611,10 @@ public class MainActivity extends Activity {
                     showParentHome();
                 } else if (isParent && index == 4) {
                     showParentSettings();
+                } else if (!isParent && index == 0) {
+                    showTeacherDashboard();
+                } else if (!isParent && index == 1) {
+                    showTeacherHome();
                 } else {
                     notImplementedToast(label);
                 }
@@ -4593,7 +5292,7 @@ public class MainActivity extends Activity {
         // 자동 진입 시점에도 알림 권한 + 토큰 등록 — 토큰이 만료/순환됐을 수 있어 매번 갱신.
         ensureNotificationPermission();
         fetchAndRegisterFcmToken();
-        if (role.equals("teacher")) showTeacherHome();
+        if (role.equals("teacher")) showTeacherDashboard();
         else showParentHome();
         return true;
     }
