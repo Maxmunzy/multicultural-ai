@@ -44,7 +44,7 @@ Translation/TTS 파트는 슬롯 기반 응답 구조(summary + items)로 전환
 
 ### term_glossary.csv
 
-학교 특화 용어사전 (한국어 + 8개 언어). **현재 340개** (2026-05-22 기준). tts-lab 브랜치 423개 → 다음 동기화 예정.
+학교 특화 용어사전 (한국어 + 8개 언어). **현재 455개** (2026-05-26 기준).
 
 | 카테고리 | 예시 |
 |---|---|
@@ -61,7 +61,7 @@ Translation/TTS 파트는 슬롯 기반 응답 구조(summary + items)로 전환
 ## 주요 파일
 
 - `run_mvp_pipeline.py`: MVP 파이프라인 실행 스크립트
-- `term_glossary.csv`: 학교 특화 한국어-다국어 용어사전 (8개 언어, 319개)
+- `term_glossary.csv`: 학교 특화 한국어-다국어 용어사전 (8개 언어, 455개)
 - `expand_glossary.py`: 코퍼스에서 신규 도메인 용어 추출 후 Gemini로 번역 초안 생성 (재사용 가능)
 - `languages.py`: NLLB target code 및 TTS voice 매핑
 - `run_ab_compare.py`: 원문 전체 번역(A)과 TODO 추출 번역(B) 속도/입력량 비교
@@ -115,6 +115,29 @@ python model/translation_tts/run_quality_eval.py
 | 용어사전 전/후 품질평가 | 39.0점 -> 89.6점 |
 
 공유용 요약은 `../../docs/share-summary-2026-04-28-quality-eval.md`에 정리했다.
+
+## 2026-05-26 8개 언어 × 24문장 재평가 (multilingual_v1)
+
+P11-E 구조적 오역 패치 후 8개 언어 × 24문장 평가셋 재실행.
+
+### P11-E 패치 내용
+
+| 코드 | 증상 | 처리 |
+|---|---|---|
+| P11 | 영어 문장 말미 단어 반복 드롭 | 마지막 토큰 중복 제거 |
+| E | 수신자 표현 역전 (teacher → parents) | 역전 패턴 감지 후 원복 |
+
+### 재평가 결과
+
+| 경로 | 점수 |
+|---|---:|
+| T-path (템플릿 번역, 8문장) | **94.5 / 100** |
+| F-path (NLLB fallback, 16문장) | 70.3 / 100 |
+| 전체 평균 | 78.2 / 100 |
+
+F-path 점수가 낮은 이유는 en 말미드롭, ja·zh 슬롯 garble, ru 격변화 미지원 등 NLLB 모델 구조 한계로, 후처리 규칙으로 커버 가능한 범위 밖입니다. 실제 학교 안내문 대부분을 처리하는 T-path 94.5가 서비스 품질의 실질 지표입니다.
+
+결과 문서: `outputs/multilingual_v1/reeval_p11e_scores.md`
 
 ## 2026-05-23 review_required 안전 가드
 

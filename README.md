@@ -59,7 +59,7 @@ OLD/                  과거 실험 기록과 구버전 산출물 보관
     │ 방법 2: HWP·PDF·TXT 파일 선택
     ▼ POST /notice/upload  → parser(태수): HWP→ODT→텍스트 / PDF→pdfplumber
     │
-    ▼ 발송 완료 화면 (FCM 푸시 전송 확인 · 9개 언어 · 용어사전 340개 · TTS 포함 안내)
+    ▼ 발송 완료 화면 (FCM 푸시 전송 확인 · 9개 언어 · 용어사전 455개 · TTS 포함 안내)
     │
 [FastAPI 서버]
     │ 권한 검증 (teacher 역할) · 가정통신문 저장
@@ -76,7 +76,7 @@ OLD/                  과거 실험 기록과 구버전 산출물 보관
     │ [1] Claude Haiku 4.5 — sentence_list 정제 + role_hint 태깅 (13종)
     │ [2] 윤정 KoELECTRA — 행동 문장(is_todo) 추출  (Recall 0.868)
     │ [3] 경이 KcELECTRA — 6개 카테고리 분류  (Macro F1 0.8374)
-    │ [4] 세종 NLLB-200 + 글로사리(340+항목) — 9개 언어 번역
+    │ [4] 세종 NLLB-200 + 글로사리(455+항목) — 9개 언어 번역
     │       → info_cards (준비물·비용·제출 체크리스트)
     │       → calendar_events (일정·기한·신청기간 달력 표시)
     │       → Edge-TTS 음성 생성
@@ -131,10 +131,10 @@ OLD/                  과거 실험 기록과 구버전 산출물 보관
 - [x] 태수: FastAPI 서버 + 다국어 분석 파이프라인(9개 언어) + X-User-Id 역할 인증 + Android UI 네이티브 재작성 + **NCP Seoul VM 실서버 배포 (101.79.17.196:8000)** + 원본 가정통신문 PDF/이미지 풀화면 표시 + FCM 푸시 알림
 - [x] 윤정: KoELECTRA 추출 모델 — 학습 데이터 **47,148행** · 테스트 Recall **0.868** (v1 대비 +11.2%p) · HF Hub 배포
 - [x] 경이: KcELECTRA v3 6분류 — 학습 데이터 **15,948행** · Macro F1 **0.8374** (Simple 베이스라인 0.7590 대비 +10.3%) · HF Hub 배포
-- [x] 세종: NLLB + 글로사리 **340+ 항목**(9개 언어) + 용어 보존 검수 루프 + Edge-TTS 9보이스 + TTS 속도 조절 + STT 음성 질문(9언어×6카테고리) + 카메라 OCR (ML Kit + OpenCV) + **info_cards 파이프라인(준비물/비용/제출 체크리스트)** + **calendar_events(달력/미니달력 다국어)** + **미등록 용어 자동 감지 API** + 번역 템플릿 100문장 정형 평가셋 구축 (template hit 100% · FP 0%)
+- [x] 세종: NLLB + 글로사리 **455+ 항목**(9개 언어) + 용어 보존 검수 루프 + Edge-TTS 9보이스 + TTS 속도 조절 + STT 음성 질문(9언어×6카테고리) + 카메라 OCR (ML Kit + OpenCV) + **info_cards 파이프라인(준비물/비용/제출 체크리스트)** + **calendar_events(달력/미니달력 다국어)** + **미등록 용어 자동 감지 API** + 번역 템플릿 100문장 정형 평가셋 구축 (template hit 100% · FP 0%) + **8개 언어 × 24문장 재평가 T-path 94.5점**
 - [x] 찬영: 가정통신문 **3,300장 이상** 수집(8개 초등학교) + 발표 자료
 - [x] jyj: Android 디자인 시스템 적용 — CSS daon-shared.css v2 색상 토큰(인디고/바이올렛) 이식, 학부모 AI CTA 카드, 선생님 발송완료 화면 신규, demo HTML 시연 플로우 실제 서비스와 일치하도록 교정
-- [x] 팀 공통: E2E 파이프라인 실기기 검증 완료 + self_test **125+ ALL PASS** + Claude Haiku 4.5 sentence_list 정제 통합
+- [x] 팀 공통: E2E 파이프라인 실기기 검증 완료 + self_test **157 ALL PASS** + Claude Haiku 4.5 sentence_list 정제 통합
 
 ---
 
@@ -150,6 +150,7 @@ OLD/                  과거 실험 기록과 구버전 산출물 보관
 | 데이터/권한/사전 자동 테스트 | backend pytest 27개 + GitHub Actions PR 게이트 | `backend/tests/`, `.github/workflows/backend-tests.yml` |
 | OCR 모델 비교 · 전처리 실험 | ML Kit Korean F1 0.95~0.97, CER 28.2% (정면 BEST) — EasyOCR·Tesseract 한국어 실패(CER 97%) | `OLD/docs/experiments/2026-05-01-ocr-mlkit-korean-results.md` |
 | 번역 템플릿 100문장 정형 평가 | template_hit_rate 100% · template_fp_rate 0% · item_capture_rate 100% · place_capture_rate 100% · place_fp_rate 1% (known limit 1건) | `docs/worklog-2026-05-22-translation-testset.md` |
+| 8개 언어 × 24문장 다국어 재평가 | T-path 94.5점 / F-path 70.3점 / 전체 78.2점 (P11-E 패치 후) | `model/translation_tts/outputs/multilingual_v1/reeval_p11e_scores.md` |
 
 번역 품질평가는 단순 용어 포함 여부가 아니라 현지 상용 표현, 학교 문맥, 정보 보존, 한국어 의미 역번역(Round-trip)을 함께 봅니다.
 
@@ -162,7 +163,7 @@ OLD/                  과거 실험 기록과 구버전 산출물 보관
 | 태수 | FastAPI, Python 3.11, Pydantic, Uvicorn, Docker, NCP Seoul VM, FCM, REST API, X-User-Id 인증 |
 | 윤정 | KoELECTRA-base-v3, HuggingFace Hub, PyTorch, Transformers (47,148행 학습) |
 | 경이 | KcELECTRA v3, TF-IDF+LR 베이스라인, scikit-learn, HF Hub (15,948행 학습) |
-| 세종 | facebook/nllb-200-distilled-600M, 글로사리 CSV 340+항목, Edge-TTS, ML Kit Korean OCR, OpenCV 4.9, Android SpeechRecognizer, Android TextToSpeech, Claude Haiku 4.5 (sentence_list 정제) |
+| 세종 | facebook/nllb-200-distilled-600M, 글로사리 CSV 455+항목, Edge-TTS, ML Kit Korean OCR, OpenCV 4.9, Android SpeechRecognizer, Android TextToSpeech, Claude Haiku 4.5 (sentence_list 정제) |
 | 찬영 | 가정통신문 3,300장 수집, 발표자료 |
 
 ---
