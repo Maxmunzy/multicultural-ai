@@ -4,9 +4,12 @@ uvicorn[standard]==0.29.0
 pydantic==2.7.1
 edge-tts>=7.0.0
 torch==2.3.1+cpu
+torchvision==0.18.1+cpu
 transformers==4.44.2
 huggingface-hub==0.24.7
 sentencepiece==0.2.0
+pytorch-crf==0.7.2
+PyMuPDF==1.24.10
 numpy==2.0.2
 pandas==2.2.2
 

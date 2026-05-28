@@ -30,6 +30,7 @@ import torch
 import torch.nn as nn
 
 LAYOUTXLM_ID = "microsoft/layoutxlm-base"
+# v9 base 모델 효과 없음 확인됨 → small 복귀. v10 axis는 LayoutXLM unfreeze로 도메인 적응.
 KOCHAR_ID = "monologg/kocharelectra-small-discriminator"
 NUM_LABELS = 3  # 0=O, 1=B-SENT, 2=I-SENT
 
@@ -40,12 +41,16 @@ class HybridConfig:
     kochar_id: str = KOCHAR_ID
     num_labels: int = NUM_LABELS
     layoutxlm_dim: int = 768
-    kochar_dim: int = 256
+    kochar_dim: int = 256  # small (base는 768)
     fusion_hidden: int = 384  # (768 + 256) / 2 가까운 값
     dropout: float = 0.1
     # Class imbalance: B 2%, I 64%, O 34%. B 가중치 ↑
     class_weights: tuple[float, float, float] = (1.0, 8.0, 1.0)
     layoutxlm_frozen: bool = True
+    # v10 axis: LayoutXLM 마지막 N layer unfreeze (도메인 적응).
+    # frozen=True여도 unfreeze_last_n > 0이면 마지막 N layer만 train.
+    # 0 = 전체 frozen (v7과 동등), 2 = 마지막 2 layer 도메인 적응
+    layoutxlm_unfreeze_last_n: int = 0
     # CRF — sequence consistency 학습 (단편화 fix용, v7+ axis)
     # True 시 pytorch-crf 의존성 필요 (`pip install pytorch-crf`)
     use_crf: bool = False
@@ -65,6 +70,12 @@ class HybridSentenceExtractor(nn.Module):
         if config.layoutxlm_frozen:
             for p in self.layoutxlm.parameters():
                 p.requires_grad = False
+            # v10 axis: 마지막 N layer만 unfreeze — 도메인 적응 (cell-boundary signal을 학습 분포에 맞게 재학습)
+            if config.layoutxlm_unfreeze_last_n > 0:
+                n = config.layoutxlm_unfreeze_last_n
+                for layer in self.layoutxlm.encoder.layer[-n:]:
+                    for p in layer.parameters():
+                        p.requires_grad = True
 
         # KoCharELECTRA (char-level Korean encoder, fine-tune)
         self.kochar = ElectraModel.from_pretrained(config.kochar_id)
