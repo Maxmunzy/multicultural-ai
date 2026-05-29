@@ -17,6 +17,10 @@ pandas==2.2.2
 pdfplumber==0.11.9
 python-multipart==0.0.20
 
+# 한국어 문장 분리 (태수 추출 파이프라인) — 본문 종결어미 기반 SBD.
+# camelot(표 cell 추출)은 Dockerfile에서 별도 설치.
+kiwipiepy==0.23.1
+
 # 이미지 OCR ([1] 카메라 사진 입력 — 세종)
 pytesseract>=0.3.10
 pillow>=10.0.0
