@@ -137,6 +137,45 @@ def _body_sentences(words: list) -> list[tuple[str, float]]:
     return out
 
 
+def _table_row_texts(rows: list[list[str]]) -> list[tuple[int, str]]:
+    """표 cell 2D 배열 → [(행 인덱스, 문장)]. 표 방향(orientation) 인식.
+
+    - 2열: 가통문 다수가 좌측=라벨(일시/장소/대상/준비물)인 key-value 표 →
+      행마다 "라벨: 값". (좌측 열을 컬럼 헤더로 강제해 "일시: 장소"가 되던 버그 수정.)
+    - 3열 이상: 상단 행을 컬럼 헤더로 보고 "헤더: 값".
+    - 1행: 각 cell 그대로.
+    """
+    nr = len(rows)
+    if nr == 0:
+        return []
+    nc = max((len(r) for r in rows), default=0)
+
+    def g(r: int, c: int) -> str:
+        return rows[r][c] if c < len(rows[r]) else ""
+
+    res: list[tuple[int, str]] = []
+    if nr == 1:
+        for c in range(nc):
+            if g(0, c):
+                res.append((0, g(0, c)))
+    elif nc == 2:
+        for r in range(nr):
+            k, v = g(r, 0), g(r, 1)
+            if k and v:
+                res.append((r, f"{k}: {v}"))
+            elif k or v:
+                res.append((r, k or v))
+    else:
+        hdr = [g(0, c) for c in range(nc)]
+        for r in range(1, nr):
+            for c in range(nc):
+                v = g(r, c)
+                if not v:
+                    continue
+                res.append((r, f"{hdr[c]}: {v}" if hdr[c] else v))
+    return res
+
+
 def _table_sentences(pdf_path: str, page_idx: int, table_bboxes: list,
                      H: float) -> list[tuple[str, float]]:
     """camelot 표 cell = 1문장 (결정적). Returns [(sentence, y_top)]."""
@@ -164,19 +203,13 @@ def _table_sentences(pdf_path: str, page_idx: int, table_bboxes: list,
     for tbl in tables:
         df = tbl.df
         nr, nc = len(df), len(df.columns)
-        if nr < 2:
-            for c in range(nc):
-                t = cell(0, c, df)
-                if t:
-                    out.append((t, H - tbl.cells[0][c].y2))
-        else:
-            hdr = [cell(0, c, df) for c in range(nc)]
-            for r in range(1, nr):
-                for c in range(nc):
-                    v = cell(r, c, df)
-                    if not v:
-                        continue
-                    out.append((f"{hdr[c]}: {v}" if hdr[c] else v, H - tbl.cells[r][c].y2))
+        rows = [[cell(r, c, df) for c in range(nc)] for r in range(nr)]
+        for r_idx, text in _table_row_texts(rows):
+            try:
+                y = H - tbl.cells[r_idx][0].y2
+            except Exception:
+                y = 0.0
+            out.append((text, y))
     return out
 
 
