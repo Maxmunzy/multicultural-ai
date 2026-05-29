@@ -137,13 +137,14 @@ def _body_sentences(words: list) -> list[tuple[str, float]]:
     return out
 
 
-def _table_row_texts(rows: list[list[str]]) -> list[tuple[int, str]]:
-    """표 cell 2D 배열 → [(행 인덱스, 문장)]. 표 방향(orientation) 인식.
+def _table_row_texts(rows: list[list[str]]) -> list[tuple[int, str, str]]:
+    """표 cell 2D 배열 → [(행 인덱스, 라벨, 값)]. 표 방향(orientation) 인식.
 
-    - 2열: 가통문 다수가 좌측=라벨(일시/장소/대상/준비물)인 key-value 표 →
-      행마다 "라벨: 값". (좌측 열을 컬럼 헤더로 강제해 "일시: 장소"가 되던 버그 수정.)
-    - 3열 이상: 상단 행을 컬럼 헤더로 보고 "헤더: 값".
-    - 1행: 각 cell 그대로.
+    값은 호출부에서 kiwi 종결어미 분리를 추가 적용(다중 문장 셀 분할). 라벨 없으면 "".
+    - 2열: 가통문 다수가 좌측=라벨(일시/장소/대상/준비물)인 key-value 표 → (행, 좌측, 우측).
+      (좌측 열을 컬럼 헤더로 강제해 "일시: 장소"가 되던 버그 수정.)
+    - 3열 이상: 상단 행을 컬럼 헤더로 → (행, 헤더[c], 셀).
+    - 1행: 각 cell → (행, "", 셀).
     """
     nr = len(rows)
     if nr == 0:
@@ -153,18 +154,18 @@ def _table_row_texts(rows: list[list[str]]) -> list[tuple[int, str]]:
     def g(r: int, c: int) -> str:
         return rows[r][c] if c < len(rows[r]) else ""
 
-    res: list[tuple[int, str]] = []
+    res: list[tuple[int, str, str]] = []
     if nr == 1:
         for c in range(nc):
             if g(0, c):
-                res.append((0, g(0, c)))
+                res.append((0, "", g(0, c)))
     elif nc == 2:
         for r in range(nr):
             k, v = g(r, 0), g(r, 1)
             if k and v:
-                res.append((r, f"{k}: {v}"))
+                res.append((r, k, v))
             elif k or v:
-                res.append((r, k or v))
+                res.append((r, "", k or v))
     else:
         hdr = [g(0, c) for c in range(nc)]
         for r in range(1, nr):
@@ -172,8 +173,39 @@ def _table_row_texts(rows: list[list[str]]) -> list[tuple[int, str]]:
                 v = g(r, c)
                 if not v:
                     continue
-                res.append((r, f"{hdr[c]}: {v}" if hdr[c] else v))
+                res.append((r, hdr[c], v))
     return res
+
+
+def _emit_with_label(label: str, parts: list[str]) -> list[str]:
+    """분리된 문장들에 라벨을 첫 문장에만 붙임 ("라벨: 첫문장", 나머지는 그대로)."""
+    out: list[str] = []
+    for i, p in enumerate(parts):
+        p = p.strip()
+        if not p:
+            continue
+        out.append(f"{label}: {p}" if (label and i == 0) else p)
+    return out
+
+
+def _split_cell_value(value: str) -> list[str]:
+    """표 셀 값을 kiwi 종결어미로 분리 (다중 문장 셀 분할). 변형0(원본 substring).
+
+    짧은 값(날짜/장소/단일 항목, 40자 미만)은 kiwi 미적용 — 날짜 "3. 3." 오분할 방지.
+    """
+    v = value.strip()
+    if not v:
+        return []
+    if len(v) < 40:
+        return [v]
+    try:
+        kiwi = _get_kiwi()
+        parts = [v[s.start:s.end].strip() for s in kiwi.split_into_sents(v)]
+        parts = [p for p in parts if p]
+        return parts or [v]
+    except Exception:
+        logger.warning("table cell kiwi split failed; keep whole", exc_info=True)
+        return [v]
 
 
 def _table_sentences(pdf_path: str, page_idx: int, table_bboxes: list,
@@ -204,12 +236,14 @@ def _table_sentences(pdf_path: str, page_idx: int, table_bboxes: list,
         df = tbl.df
         nr, nc = len(df), len(df.columns)
         rows = [[cell(r, c, df) for c in range(nc)] for r in range(nr)]
-        for r_idx, text in _table_row_texts(rows):
+        for r_idx, label, value in _table_row_texts(rows):
             try:
                 y = H - tbl.cells[r_idx][0].y2
             except Exception:
                 y = 0.0
-            out.append((text, y))
+            # 셀 값을 kiwi 종결어미로 분리 → 라벨은 첫 문장에만
+            for text in _emit_with_label(label, _split_cell_value(value)):
+                out.append((text, y))
     return out
 
 
