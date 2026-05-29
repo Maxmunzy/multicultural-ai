@@ -79,18 +79,21 @@ def extract_sentences(
             )
         elapsed = time.monotonic() - started
         structured = _structured_from_sentences(sents)
+        # status는 "ok"로 통일 — notice.py가 정확히 "ok"만 성공으로 인식(== "ok").
+        # 추출 방식 세부(kiwi+camelot)는 logger에만 남김.
         logger.warning(
             "extract_sentences kiwi+camelot OK: sentences=%d elapsed=%.2fs",
             len(sents), elapsed,
         )
-        return structured, "ok:kiwi_camelot", elapsed
+        return structured, "ok", elapsed
 
     # text 모드 — LLM 없이 줄 분리 passthrough (원문 그대로)
     if not text or not text.strip():
         return _empty_structured(), "skip:empty", 0.0
     lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
     elapsed = time.monotonic() - started
-    return _structured_from_sentences(lines), "ok:text_passthrough", elapsed
+    logger.warning("extract_sentences text-passthrough: lines=%d", len(lines))
+    return _structured_from_sentences(lines), "ok", elapsed
 
 
 def normalize_text(text: str) -> tuple[str, str, float]:
