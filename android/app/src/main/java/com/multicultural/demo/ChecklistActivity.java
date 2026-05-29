@@ -133,7 +133,7 @@ public class ChecklistActivity extends Activity {
         LinearLayout topBar = new LinearLayout(this);
         topBar.setOrientation(LinearLayout.HORIZONTAL);
         topBar.setGravity(Gravity.CENTER_VERTICAL);
-        topBar.setPadding(dp(16), dp(16), dp(16), dp(14));
+        topBar.setPadding(dp(16), dp(48), dp(16), dp(14));
         topBar.setBackgroundColor(Color.WHITE);
 
         TextView back = text("←", 20, COLOR_PEACH_INK, true);

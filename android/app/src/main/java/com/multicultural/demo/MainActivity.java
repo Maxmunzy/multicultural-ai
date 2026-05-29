@@ -646,6 +646,8 @@ public class MainActivity extends Activity {
         content.addView(noticeHistoryRow("상", "학부모 상담주간 안내",
                 "5개 언어 · 24명 발송 · 5/10", "읽음", COLOR_LEMON_INK, null));
 
+        content.addView(smallTextButton("로그아웃", v -> logout()));
+
         outer.addView(scroll);
 
         // lang pill
@@ -991,7 +993,6 @@ public class MainActivity extends Activity {
         content.addView(actionRow);
 
         content.addView(smallTextButton("← 우리반 홈으로", v -> showTeacherDashboard()));
-        content.addView(smallTextButton("로그아웃", v -> logout()));
     }
 
     // 2단계 스텝바 (step=1: 작성 active, step=2: 발송 active)
@@ -2209,7 +2210,7 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(0, 0, 0, dp(80));  // bottomActionsBar(56dp) + margin(16dp) + 여유
+        root.setPadding(0, 0, 0, dp(100));  // bottomActionsBar + margin + 여유
         scroll.addView(root);
 
         // 탑 액션 바: ✕ 닫기  (spacer)  🌐 lang pill
@@ -3963,8 +3964,8 @@ public class MainActivity extends Activity {
             b.setText(labels[i]);
             b.setTextSize(13);
             b.setAllCaps(false);
-            b.setPadding(dp(20), dp(6), dp(20), dp(6));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            b.setPadding(dp(12), dp(12), dp(12), dp(12));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(48), 1f);
             lp.setMargins(dp(4), 0, dp(4), 0);
             b.setLayoutParams(lp);
             final float speed = speeds[i];
@@ -4055,9 +4056,9 @@ public class MainActivity extends Activity {
         sttButton.setTextColor(Color.WHITE);
         sttButton.setAllCaps(false);
         sttButton.setTypeface(null, Typeface.BOLD);
-        sttButton.setPadding(dp(20), dp(14), dp(20), dp(14));
+        sttButton.setPadding(dp(20), dp(12), dp(20), dp(12));
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
         btnLp.topMargin = dp(10);
         sttButton.setLayoutParams(btnLp);
         GradientDrawable sttBg = new GradientDrawable(
@@ -4566,7 +4567,7 @@ public class MainActivity extends Activity {
         }
 
         FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, dp(72));
+                FrameLayout.LayoutParams.MATCH_PARENT, dp(64));
         p.gravity = Gravity.BOTTOM;
         bar.setLayoutParams(p);
         return bar;
@@ -4576,30 +4577,20 @@ public class MainActivity extends Activity {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER);
-        col.setPadding(dp(2), dp(4), dp(2), dp(2));
+        col.setPadding(dp(6), dp(4), dp(6), dp(4));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.MATCH_PARENT, 1);
         col.setLayoutParams(p);
 
-        TextView ic = new TextView(this);
-        ic.setText(icon);
-        ic.setTextSize(18);
-        ic.setGravity(Gravity.CENTER);
+        TextView lab = text(label, 12, active ? COLOR_PEACH_INK : COLOR_INK3, true);
+        lab.setGravity(Gravity.CENTER);
         if (active) {
             GradientDrawable bg = new GradientDrawable();
             bg.setColor(COLOR_PEACH);
             bg.setCornerRadius(dp(10));
-            ic.setBackground(bg);
-            int s = dp(32);
-            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(s, s);
-            ic.setLayoutParams(ip);
-            ic.setPadding(0, 0, 0, dp(2));
+            lab.setBackground(bg);
+            lab.setPadding(dp(14), dp(6), dp(14), dp(6));
         }
-        col.addView(ic);
-
-        TextView lab = text(label, 10, active ? COLOR_PEACH_INK : COLOR_INK3, active);
-        lab.setGravity(Gravity.CENTER);
-        lab.setPadding(0, dp(2), 0, 0);
         col.addView(lab);
 
         // 비활성 탭만 클릭 시 화면 전환 또는 안내 토스트.
@@ -5183,8 +5174,8 @@ public class MainActivity extends Activity {
             case "listen_easy_korean": return "쉬운 한국어 듣기";
             case "slow": return "단어별";
             case "normal": return "천천히";
-            case "fast": return "오리지날";
-            case "speak_to_ask": return "말해서 물어보기";
+            case "fast": return "일반";
+            case "speak_to_ask": return "음성으로 묻기";
             case "back_to_notice": return "통신문으로 돌아가기";
             case "refresh_inbox": return "수신함 새로고침";
             case "logout": return "로그아웃";
