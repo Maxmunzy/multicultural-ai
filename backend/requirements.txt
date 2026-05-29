@@ -17,6 +17,13 @@ pandas==2.2.2
 pdfplumber==0.11.9
 python-multipart==0.0.20
 
+# 추출 파이프라인 (태수) — 본문 SBD + 표 cell 추출.
+# kiwipiepy: 한국어 종결어미 기반 문장 분리.
+# camelot-py: 표 cell 결정적 추출. cv2(opencv-python-headless)·ghostscript는
+#   시스템/Dockerfile 의존 (apt ghostscript + pip opencv-python-headless).
+kiwipiepy==0.23.1
+camelot-py==1.0.9
+
 # 이미지 OCR ([1] 카메라 사진 입력 — 세종)
 pytesseract>=0.3.10
 pillow>=10.0.0

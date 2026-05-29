@@ -304,7 +304,19 @@ class HybridInferer:
                 break
             start += char_stride
 
-        sorted_b = sorted(all_b_positions)
+        # word 경계 snap — 모델이 word 중간 char에 찍은 B를 그 word 첫 char로 정렬.
+        # 텍스트 변형 0 (sentence 경계 정렬만), 패턴/정규식 X (char_to_word만 사용).
+        # 같은 word에 B 여러 번 찍히면 자동 dedup (set).
+        word_first: dict[int, int] = {}
+        for ci, wi_ in enumerate(char_to_word):
+            if wi_ >= 0 and wi_ not in word_first:
+                word_first[wi_] = ci
+        snapped: set[int] = set()
+        for b in all_b_positions:
+            wi_ = char_to_word[b] if b < len(char_to_word) else -1
+            snapped.add(word_first.get(wi_, b) if wi_ >= 0 else b)
+
+        sorted_b = sorted(snapped)
         out: list[tuple[str, float]] = []
         for i, b_pos in enumerate(sorted_b):
             end_pos = sorted_b[i + 1] if i + 1 < len(sorted_b) else len(char_text)
