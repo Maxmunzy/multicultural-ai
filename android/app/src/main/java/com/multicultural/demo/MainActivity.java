@@ -661,7 +661,8 @@ public class MainActivity extends Activity {
         // FAB — 새 통신문 작성
         Button fab = new Button(this);
         fab.setText("+");
-        fab.setTextSize(28);
+        fab.setTextSize(34);
+        fab.setTextColor(Color.WHITE);
         fab.setAllCaps(false);
         fab.setPadding(0, 0, 0, 0);
         GradientDrawable fabBg = new GradientDrawable();
@@ -980,7 +981,7 @@ public class MainActivity extends Activity {
         actionRow.addView(draftBtn);
 
         Button sendBtn = new Button(this);
-        sendBtn.setText("받는 학부모 (시연용)");
+        sendBtn.setText("24명에게 발송");
         sendBtn.setTextSize(14);
         sendBtn.setTextColor(Color.WHITE);
         sendBtn.setAllCaps(false);
