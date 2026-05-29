@@ -51,6 +51,7 @@ class HybridDataset(Dataset):
         max_layoutxlm_len: int = 512,
         max_char_len: int = 512,
         image_dpi: int = 150,
+        is_train: bool = True,
     ):
         self.records = records
         self.pdf_dir = pdf_dir
@@ -59,6 +60,9 @@ class HybridDataset(Dataset):
         self.max_lxlm = max_layoutxlm_len
         self.max_char = max_char_len
         self.image_dpi = image_dpi
+        # train: 매 __getitem__ 호출마다 random window crop (page 중간 시작 학습 신호)
+        # val:   항상 page 첫 510자 (평가 일관성)
+        self.is_train = is_train
 
     def __len__(self) -> int:
         return len(self.records)
@@ -100,11 +104,17 @@ class HybridDataset(Dataset):
         char_labels = rec["char_labels"]
         char_to_word = rec["char_to_word"]
 
-        # truncate char-level data
-        if len(char_text) > self.max_char - 2:  # CLS + SEP
-            char_text = char_text[: self.max_char - 2]
-            char_labels = char_labels[: self.max_char - 2]
-            char_to_word = char_to_word[: self.max_char - 2]
+        # truncate char-level data — train은 random window, val은 첫 510자 고정
+        max_keep = self.max_char - 2  # CLS + SEP
+        if len(char_text) > max_keep:
+            if self.is_train:
+                import random
+                start = random.randint(0, len(char_text) - max_keep)
+            else:
+                start = 0
+            char_text = char_text[start : start + max_keep]
+            char_labels = char_labels[start : start + max_keep]
+            char_to_word = char_to_word[start : start + max_keep]
 
         char_enc = self.char_tokenizer(
             char_text,

@@ -19,6 +19,9 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-kor \
         libgl1 \
+        git \
+        build-essential \
+        ghostscript \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -O /tmp/h2orestart.oxt "${H2O_URL}" \
@@ -26,7 +29,14 @@ RUN wget -O /tmp/h2orestart.oxt "${H2O_URL}" \
     && rm -f /tmp/h2orestart.oxt
 
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --default-timeout=600 -r requirements.txt
+
+# LayoutLMv2 (LayoutXLM backbone)는 detectron2 의존성 필요 — Hybrid sentence_extraction 모델용
+# 표 EAV 추출용 camelot + opencv-python-headless (cv2 의존)도 영구 설치
+RUN pip install --no-cache-dir --default-timeout=600 \
+        camelot-py \
+        opencv-python-headless \
+    && pip install --no-cache-dir --default-timeout=600 'git+https://github.com/facebookresearch/detectron2.git'
 
 COPY . .
 

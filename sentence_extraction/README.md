@@ -447,6 +447,120 @@ AIEP 동의서 같은 PDF가 헤더를 1~2px offset으로 두 번 인쇄(bold �
 
 전체 2,064 record 자동 재생성 중 → v8 재학습 예정.
 
+### v8 학습 결과 — 본문 mega-merge fail (2026-05-26)
+
+학습 끝, 단편화 -76%로 처음엔 좋아 보였으나 **본문도 한 덩어리로 mega-merge**되는 부작용 발생. 표 cell 라벨만 강화하니 모델이 본문에서도 cell-경계 신호를 sentence boundary로 일반화. → **라벨링 단독 변경 부족.**
+
+### v9 — KoCharELECTRA-base capacity ↑ (2026-05-27)
+
+`KoCharELECTRA-small` → `-base` (3배 capacity)로 단편화/표 한계 돌파 시도. **val 29 plateau, 효과 X.** capacity로는 안 풀림.
+
+### v10 — LayoutXLM 마지막 2 layer unfreeze (2026-05-27)
+
+LayoutXLM frozen 풀고 도메인 적응. **Ep4 best val 30.42** (v7 28.16 추월 못 함). 본문은 양호, 표 row 묶기 한계. 도메인 적응 일부 효과 있으나 표 cell 단위까지 못 풀림.
+
+### v11 — camelot EAV merge 학습 데이터 (2026-05-27)
+
+camelot으로 표 영역 word를 "header: value"로 재구성 → 본문 word와 reading order로 **merge한 단일 sequence** → 학습. `ratio 1.5` 필터로 본문 흡수 corrupt 191건 v6 fallback.
+
+- Colab Ep2 val 28.10 (GPU quota 끊김으로 중단)
+- E2E 정량 폭락: **recall 0.586 (v7 0.843 대비 −0.26)**
+- root cause: 본문 word 사이에 표 EAV word가 reading order로 끼면서 본문 segmentation 망가짐. 학교급식 PDF에서 `"음식물쓰레기 줄이기에...: 2.친환경흑미밥*..."` 식으로 본문이 식단표 cell과 한 sentence로 묶임.
+- **결론: merge axis fail.** 표/본문이 한 sequence에 섞이면 본문이 망가짐.
+
+### inference 분리 파서 → 룰 시행착오 (2026-05-27 저녁 ~ 2026-05-28)
+
+사용자 통찰: "표/본문 따로 파싱". `hybrid_infer.extract_page_sentences_split` 추가:
+- 본문 word(표 영역 제외) → hybrid → 본문 sentence
+- 표 영역 → camelot → 표 sentence
+- 좌표 merge
+
+시행착오 (모두 inference 룰 — 결국 다 제거됨):
+- **표를 모델 통과시키기**: v7이 EAV 미학습 → cell 뭉침/과단편으로 오히려 악화
+- **camelot cell `\n` 정규식 정규화**: 표 출력 깔끔해졌으나 vision 위반 ("정규식 왜 써")
+- **word snap, header 자동 판정, flavor 동적, 멀티라인 분해, 빈셀 carry-forward**: 차례로 추가했다가 "모델이 잡게" vision으로 전면 제거
+
+결론: inference 룰로 땜빵 X. **학습 데이터 자체를 본문/표 분리해서 재학습**이 정공법.
+
+### 단편화·표 심층 분석 (2026-05-28 병렬 Agent)
+
+**단편화 진단** (heldout 923 sentence):
+- 모델 B의 94%는 word 첫 char에 정확 → 모델 자체 예측 OK
+- 단편화 주원인 (1) sliding window chunk 경계(char 400)에서 spurious B — mid-word 잘림의 61% (2) pdfplumber 날짜 over-split 89.5% ("2026.01." / "02(금)" / "27(금)") (3) 모델 mid-word B 소수
+- word snap 시뮬레이션: 단어 중간 잘림 27→0, 부작용 0 (단 도서관 날짜 같은 word 첫 char 단편화는 못 잡음)
+
+**표 진단** (heldout 158 영역):
+- lattice 완전 실패 74개 영역
+- `row0=header` 가정 ~48% 깨짐 (식단표 row0=footnote, row1=요일 헤더)
+- camelot `accuracy`는 헤더/표어 오인 노이즈가 100으로 나와 필터 불가 — table 단위 텍스트 특징(반복/자간/cell 길이)이 유효
+- 멀티라인 셀(보건소식지) / 빈 셀 처리 한계
+
+### v12 — 본문/표 완전 분리 학습 데이터 (2026-05-28)
+
+`rebuild_v12_split.py`: 한 page → **본문 record + 표 record 별도 2 sample** (한 sequence에 절대 안 섞음).
+
+- 본문 record: 정상 표 영역 밖 v6 word + v6 라벨 그대로
+- 표 record: camelot EAV word + cell 단위 B/I 라벨
+
+**완전 분리 보장**: raw_words 재추출 안 하고 **v6 word를 직접** clean_bboxes로 분리 → `body_fallback 0건 (mismatch 0)`. v11에서 본문/표 경계 mismatch로 32% fallback 났던 문제 원천 차단.
+
+**노이즈 필터 3종** (학습 데이터 클리닝, 텍스트 변형 X — table 단위 drop):
+1. 인접 단어 중복 비율 ≥ 0.12 — 학교 헤더 표어 (`"MOTHer- MOTHer-"`, `"품으로 품으로"`, `"참 참"`, `"Leader Leader"`)
+2. 1글자 word 비율 ≥ 0.4 — 자간 표어 (`"참 된 배 움 멋 과 감 성"`)
+3. max cell 길이 > 200 char — 본문 오검출 (`find_tables`가 본문 전체를 표로 잡은 케이스)
+
+**본문 복귀**: 노이즈/긴cell 판정된 table은 `clean_bboxes`에서 제외 → 그 영역 v6 word가 본문 record로. 성조숙증 page0(`find_tables`가 본문 전체 표로 오검출) **289 words 본문 복귀** (정보 손실 0).
+
+**inference도 분리 forward (룰 0)**: `extract_page_sentences_split`에서 본문 word / 표 EAV word 각각 hybrid 통과 → 좌표(y) merge.
+
+**stats**:
+
+| 항목 | 값 |
+|---|---|
+| 총 records | 5,345 (본문 3,837 + 표 1,508) |
+| ok_body_table (본문+표) | 1,508 page (37.5%) |
+| ok_body_only (표 없음) | 1,156 page (28.8%) |
+| no_clean_table (표 노이즈만 → 본문 복귀) | 1,355 page (33.7%) |
+| body_fallback | **0건** |
+
+### v12 학습 + 평가 (2026-05-28)
+
+**학습**: Colab T4, LayoutXLM 2 layer unfreeze + KoCharELECTRA-small + CRF + random crop OFF, batch=2, EPOCHS=5, lr=3e-5.
+
+| Ep | train | val | best |
+|---|---|---|---|
+| 1 | 31.50 | 31.10 | ✓ |
+| 2 | 24.12 | 25.99 | ✓ |
+| 3 | 21.24 | 23.29 | ✓ |
+| **4** | **19.60** | **22.31** | **✓ best** |
+| 5 | 18.48 | 22.38 | (미세 overfitting) |
+
+**v7 best(28.16) 대비 −5.85**. train ≈ val 안정 (overfitting 신호 X).
+
+**평가**:
+
+| 지표 | 결과 |
+|---|---|
+| E2E 정량 (6 PDFs, v10 Claude cache 재활용) | recall 0.586, precision 0.607 |
+| 본문 위주 PDF (도서관·구강검진·인플루엔자) | v7 동등 또는 약간 ↑ |
+| 표 전체 PDF (부평초·현장체험학습) | 측정 편향 (표 EAV는 윤정님 todo 분류기가 todo로 안 잡음) — 정성으로 평가 필요 |
+| **본문 회복** (v11 흡수 vs v12) | ✓ 학교급식 page0 등 본문 정상 추출 |
+| **표 EAV** (도서관) | ✓ `"프 로 그 램: 가만히 들어주었어 - 비밀친구 모루토끼 인형 만들기"`, `"내용: ▸라포 형성 ▸북토크 - 책 이해하기 ▸아트 활동..."` cell 단위 깔끔 |
+
+### 잔존 한계 (다음 axis 후보)
+
+1. **pdfplumber 날짜 over-split** — `"2026.01."` / `"02(금)~02."` / `"27(금)"` 각 word 첫 char에 B → 학습으로 못 잡힘 (모델이 `". "` 패턴을 강한 sentence boundary로 학습, LayoutXLM 사전학습 영향). word merge 전처리 또는 학습 라벨 강화가 다음 후보.
+2. **camelot cell 줄바꿈** — `"1-2학년"` / `"신청자"`처럼 cell 내부 `\n`이 두 word로 추출되고 모델이 분리. cell_id 같으면 강제 묶기 같은 axis 필요.
+3. **식단표 / 병합셀 2D 그리드** — camelot lattice 자체가 cell 분리 못 함. PaddleOCR PP-Structure 같은 visual table 모델 별도 axis 검토.
+4. **chunk 경계 (char_stride=400) artifact** — Agent 진단상 mid-word 잘림의 61%가 chunk 경계. stride 조정 또는 인접 chunk B dedup으로 일부 잡힐 수 있음.
+
+### 현재 상태 (2026-05-28)
+
+- **v12 weight**: `sentence_extraction/data/hybrid_v12_split_best.pt`, 1.45 GB (Ep4 val 22.31)
+- **본문/표 완전 분리 axis 안정화** — v11 폭락 회복, 표 EAV 학습 성공, fallback 0
+- **backend는 여전히 v7 weight** — v12 교체 시 HF Hub 업로드(weight 1.5GB) + NCP 재배포 별도 필요
+- **inference 룰 0** — `extract_page_sentences_split`에서 본문/표 각각 hybrid forward + 좌표 merge
+
 ### 추가된 파일 (5/22 ~ 5/27)
 
 ```text
