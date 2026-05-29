@@ -356,7 +356,7 @@ public class MainActivity extends Activity {
     private void showLoginScreen() {
         clearScreenRefs();
         currentUserId = "";
-        buildScreen(null, "가정통신문 AI", "AI 번역 · 9개 언어 지원", false, -1, false);
+        buildScreen(null, "스쿨브릿지", "가정통신문 AI 번역 도우미", false, -1, false);
 
         content.addView(heroLoginCard());
         content.addView(languageSelectCard());
@@ -364,7 +364,7 @@ public class MainActivity extends Activity {
         if (pendingRole.isEmpty()) {
             content.addView(sectionLabel("역할 선택"));
             content.addView(roleChoiceCard("👩‍🏫", "선생님으로 시작",
-                    "가정통신문을 작성하고 발송", COLOR_PEACH, COLOR_PEACH_INK,
+                    "가정통신문을 업로드하고 학부모에게 발송", COLOR_PEACH, COLOR_PEACH_INK,
                     v -> { pendingRole = "teacher"; showLoginScreen(); }));
             content.addView(roleChoiceCard("👨‍👩‍👧", "학부모로 시작",
                     "받은 통신문을 모국어로 확인", COLOR_MINT, COLOR_MINT_INK,
@@ -660,8 +660,8 @@ public class MainActivity extends Activity {
 
         // FAB — 새 통신문 작성
         Button fab = new Button(this);
-        fab.setText("✏️");
-        fab.setTextSize(22);
+        fab.setText("+");
+        fab.setTextSize(28);
         fab.setAllCaps(false);
         fab.setPadding(0, 0, 0, 0);
         GradientDrawable fabBg = new GradientDrawable();
@@ -838,26 +838,32 @@ public class MainActivity extends Activity {
     // ============================================================
     private void showTeacherHome() {
         clearScreenRefs();
-        buildScreen(null, "새 통신문", "통신문 작성", true, 1, false);
+        buildScreen(null, "", "", true, 1, false);
 
-        // ← 뒤로 가기 (우리반 홈)
-        LinearLayout backNav = new LinearLayout(this);
-        backNav.setOrientation(LinearLayout.HORIZONTAL);
-        backNav.setGravity(Gravity.CENTER_VERTICAL);
-        backNav.setPadding(dp(2), dp(4), dp(2), dp(8));
-        Button backBtn = new Button(this);
-        backBtn.setText("←");
-        backBtn.setTextSize(16);
-        backBtn.setTextColor(COLOR_INK2);
-        backBtn.setAllCaps(false);
-        backBtn.setBackground(null);
-        backBtn.setStateListAnimator(null);
-        backBtn.setPadding(0, 0, dp(4), 0);
-        backBtn.setOnClickListener(v -> showTeacherDashboard());
-        backNav.addView(backBtn);
-        TextView backLabel = text("새 통신문", 13, COLOR_INK3, false);
-        backNav.addView(backLabel);
-        content.addView(backNav);
+        // 제목 행: ← 뒤로가기 + 제목
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        titleRow.setLayoutParams(spacedParams());
+        titleRow.setPadding(0, dp(4), 0, dp(8));
+
+        Button backArrow = new Button(this);
+        backArrow.setText("←");
+        backArrow.setTextSize(20);
+        backArrow.setTextColor(COLOR_INK2);
+        backArrow.setAllCaps(false);
+        backArrow.setBackground(null);
+        backArrow.setStateListAnimator(null);
+        backArrow.setMinWidth(0);
+        backArrow.setMinimumWidth(0);
+        backArrow.setPadding(0, 0, dp(8), 0);
+        backArrow.setOnClickListener(v -> showTeacherDashboard());
+        titleRow.addView(backArrow);
+
+        TextView titleTv = text("새 통신문 업로드", 22, COLOR_INK, true);
+        titleTv.setLetterSpacing(-0.02f);
+        titleRow.addView(titleTv);
+        content.addView(titleRow);
 
         // 2단계 스텝바 (작성 → 발송)
         content.addView(buildStepBar(1));
@@ -974,7 +980,7 @@ public class MainActivity extends Activity {
         actionRow.addView(draftBtn);
 
         Button sendBtn = new Button(this);
-        sendBtn.setText("24명에게 발송");
+        sendBtn.setText("받는 학부모 (시연용)");
         sendBtn.setTextSize(14);
         sendBtn.setTextColor(Color.WHITE);
         sendBtn.setAllCaps(false);
@@ -4511,15 +4517,16 @@ public class MainActivity extends Activity {
         // 헤더 (greet + title-xl + subtitle)
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
-        int headerTopPad = withLangPill ? dp(70) : dp(38);
+        int headerTopPad = withLangPill ? dp(70) : (greet == null ? dp(56) : dp(38));
         header.setPadding(dp(20), headerTopPad, dp(20), dp(8));
 
         if (greet != null && !greet.isEmpty()) {
             TextView g = text(greet, 13, COLOR_INK3, false);
             header.addView(g);
         }
-        TextView t = text(bigTitle, 26, COLOR_INK, true);
-        t.setLetterSpacing(-0.02f);
+        int titleSize = (greet == null || greet.isEmpty()) ? 30 : 26;
+        TextView t = text(bigTitle, titleSize, COLOR_INK, true);
+        t.setLetterSpacing(-0.025f);
         t.setLineSpacing(0, 1.12f);
         if (greet == null || greet.isEmpty()) {
             // login mode — show subtitle as small label below title
