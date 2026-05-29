@@ -3989,6 +3989,8 @@ public class MainActivity extends Activity {
             b.setText(labels[i]);
             b.setTextSize(13);
             b.setAllCaps(false);
+            b.setStateListAnimator(null);
+            b.setElevation(0);
             b.setPadding(dp(8), dp(8), dp(8), dp(8));
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(40), 1f);
             lp.setMargins(dp(4), 0, dp(4), 0);
@@ -4572,23 +4574,27 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout makeBottomTabBar(int activeIndex, boolean isParent) {
-        String[] icons  = isParent
-                ? new String[]{"🏠", "📷", "📅", "💬", "👤"}
-                : new String[]{"🏠", "✏️", "📊", "💬", "👤"};
+        int[] iconResIds = isParent
+                ? new int[]{R.drawable.ic_tab_home, R.drawable.ic_tab_translate,
+                            R.drawable.ic_tab_calendar, R.drawable.ic_tab_chat,
+                            R.drawable.ic_tab_person}
+                : new int[]{R.drawable.ic_tab_home, R.drawable.ic_tab_edit,
+                            R.drawable.ic_tab_chart, R.drawable.ic_tab_chat,
+                            R.drawable.ic_tab_person};
         String[] labels = isParent
                 ? new String[]{"홈", "번역", "일정", "회신", "나"}
                 : new String[]{"우리반", "작성", "현황", "답장", "나"};
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(8), dp(8), dp(8), dp(14));
+        bar.setPadding(dp(8), dp(6), dp(8), dp(12));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.argb(242, 255, 255, 255));
         bg.setStroke(dp(1), COLOR_LINE);
         bar.setBackground(bg);
 
-        for (int i = 0; i < icons.length; i++) {
-            bar.addView(makeTabItem(icons[i], labels[i], i == activeIndex, i, isParent));
+        for (int i = 0; i < labels.length; i++) {
+            bar.addView(makeTabItem(iconResIds[i], labels[i], i == activeIndex, i, isParent));
         }
 
         FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(
@@ -4598,44 +4604,42 @@ public class MainActivity extends Activity {
         return bar;
     }
 
-    private LinearLayout makeTabItem(String icon, String label, boolean active, int index, boolean isParent) {
+    private LinearLayout makeTabItem(int iconResId, String label, boolean active, int index, boolean isParent) {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER);
-        col.setPadding(dp(6), dp(4), dp(6), dp(4));
+        col.setPadding(dp(4), dp(6), dp(4), dp(4));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.MATCH_PARENT, 1);
         col.setLayoutParams(p);
 
-        TextView lab = text(label, 12, active ? COLOR_PEACH_INK : COLOR_INK3, true);
+        // 아이콘
+        ImageView ic = new ImageView(this);
+        ic.setImageResource(iconResId);
+        ic.setColorFilter(active ? COLOR_PEACH_INK : COLOR_INK3);
+        int s = dp(22);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(s, s);
+        ic.setLayoutParams(ip);
+        col.addView(ic);
+
+        // 레이블
+        TextView lab = text(label, 10, active ? COLOR_PEACH_INK : COLOR_INK3, active);
         lab.setGravity(Gravity.CENTER);
-        if (active) {
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(COLOR_PEACH);
-            bg.setCornerRadius(dp(10));
-            lab.setBackground(bg);
-            lab.setPadding(dp(10), dp(8), dp(10), dp(8));
-        } else {
-            lab.setPadding(dp(10), dp(8), dp(10), dp(8));
-        }
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(3);
+        lab.setLayoutParams(lp);
         col.addView(lab);
 
-        // 비활성 탭만 클릭 시 화면 전환 또는 안내 토스트.
         if (!active) {
             col.setClickable(true);
             col.setFocusable(true);
             col.setOnClickListener(v -> {
-                if (isParent && index == 0) {
-                    showParentHome();
-                } else if (isParent && index == 4) {
-                    showParentSettings();
-                } else if (!isParent && index == 0) {
-                    showTeacherDashboard();
-                } else if (!isParent && index == 1) {
-                    showTeacherHome();
-                } else {
-                    notImplementedToast(label);
-                }
+                if (isParent && index == 0) showParentHome();
+                else if (isParent && index == 4) showParentSettings();
+                else if (!isParent && index == 0) showTeacherDashboard();
+                else if (!isParent && index == 1) showTeacherHome();
+                else notImplementedToast(label);
             });
         }
         return col;
