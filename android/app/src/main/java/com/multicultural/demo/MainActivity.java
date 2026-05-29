@@ -1424,7 +1424,9 @@ public class MainActivity extends Activity {
             // 숫자 + 단위
             LinearLayout numRow = new LinearLayout(this);
             numRow.setOrientation(LinearLayout.HORIZONTAL);
-            numRow.setGravity(Gravity.BOTTOM);
+            numRow.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+            numRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
             TextView numView = text(String.valueOf(nums[i]), 24, COLOR_INK, true);
             numView.setLetterSpacing(-0.02f);
             numRow.addView(numView);
@@ -2213,24 +2215,30 @@ public class MainActivity extends Activity {
         root.setPadding(0, 0, 0, dp(100));  // bottomActionsBar + margin + 여유
         scroll.addView(root);
 
-        // 탑 액션 바: ✕ 닫기  (spacer)  🌐 lang pill
-        LinearLayout topBar = new LinearLayout(this);
-        topBar.setOrientation(LinearLayout.HORIZONTAL);
-        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        // 탑 액션 바: ✕ 닫기(좌) | AI 번역(정중앙) | 🌐 lang pill(우)
+        FrameLayout topBar = new FrameLayout(this);
         topBar.setPadding(dp(14), dp(38), dp(14), dp(8));
 
         Button close = iconButton("✕", v -> showNoticeDetail(notice));
+        FrameLayout.LayoutParams closeLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        closeLp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        close.setLayoutParams(closeLp);
         topBar.addView(close);
 
         TextView center = text(uiText("ai_translate"), 13, COLOR_INK2, true);
-        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        clp.setMargins(dp(8), 0, dp(8), 0);
-        center.setLayoutParams(clp);
         center.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams centerLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        centerLp.gravity = Gravity.CENTER;
+        center.setLayoutParams(centerLp);
         topBar.addView(center);
 
         langPillBtn = makeLangPillButton();
+        FrameLayout.LayoutParams pillLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        pillLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+        langPillBtn.setLayoutParams(pillLp);
         topBar.addView(langPillBtn);
         root.addView(topBar);
 
@@ -2249,7 +2257,7 @@ public class MainActivity extends Activity {
         // 통신문 제목 — 클래스 필드에 할당해야 applyAnalysis()의 setText가 자동 연결됨
         String[] noticeTitleLines = notice.text.split("\\r?\\n", 2);
         String initialTitle = noticeTitleLines.length > 0 ? noticeTitleLines[0].trim() : "";
-        noticeTitleView = text(initialTitle, 22, COLOR_INK, true);
+        noticeTitleView = text(initialTitle, 26, COLOR_INK, true);
         noticeTitleView.setLetterSpacing(-0.02f);
         noticeTitleView.setLineSpacing(0, 1.2f);
         noticeTitleView.setPadding(dp(2), 0, dp(2), dp(4));
@@ -2270,12 +2278,29 @@ public class MainActivity extends Activity {
         noticeTitleSubView.setVisibility(View.GONE);
         content.addView(noticeTitleSubView);
 
-        TextView sub = text(uiText("ai_subtitle"), 12, COLOR_INK3, false);
-        sub.setPadding(dp(2), 0, 0, dp(12));
-        content.addView(sub);
+        // 부제 + A-/A+ 한 줄
+        LinearLayout subRow = new LinearLayout(this);
+        subRow.setOrientation(LinearLayout.HORIZONTAL);
+        subRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams subRowLp = spacedParams();
+        subRowLp.bottomMargin = dp(12);
+        subRow.setLayoutParams(subRowLp);
 
-        // 글자 크기 조절
-        content.addView(textSizeControls());
+        TextView sub = text(uiText("ai_subtitle"), 12, COLOR_INK3, false);
+        sub.setPadding(dp(2), 0, dp(8), 0);
+        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        sub.setLayoutParams(subLp);
+        subRow.addView(sub);
+
+        Button minus = textSizeBtn("A−", v -> adjustTextSize(-2f));
+        Button plus  = textSizeBtn("A+", v -> adjustTextSize(+2f));
+        subRow.addView(minus);
+        TextView btnGap = new TextView(this);
+        btnGap.setWidth(dp(6));
+        subRow.addView(btnGap);
+        subRow.addView(plus);
+        content.addView(subRow);
 
         // 분석 진행 상태 (먼저 보임 → 결과 도착하면 GONE)
         analysisStatusText = text(uiText("analyzing"), 13, COLOR_INK3, false);
@@ -3964,8 +3989,8 @@ public class MainActivity extends Activity {
             b.setText(labels[i]);
             b.setTextSize(13);
             b.setAllCaps(false);
-            b.setPadding(dp(12), dp(12), dp(12), dp(12));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(48), 1f);
+            b.setPadding(dp(8), dp(8), dp(8), dp(8));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(40), 1f);
             lp.setMargins(dp(4), 0, dp(4), 0);
             b.setLayoutParams(lp);
             final float speed = speeds[i];
@@ -4056,7 +4081,7 @@ public class MainActivity extends Activity {
         sttButton.setTextColor(Color.WHITE);
         sttButton.setAllCaps(false);
         sttButton.setTypeface(null, Typeface.BOLD);
-        sttButton.setPadding(dp(20), dp(12), dp(20), dp(12));
+        sttButton.setPadding(dp(20), dp(10), dp(20), dp(10));
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
         btnLp.topMargin = dp(10);
@@ -4438,7 +4463,7 @@ public class MainActivity extends Activity {
         b.setTextColor(COLOR_INK);
         b.setAllCaps(false);
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        b.setPadding(dp(12), dp(2), dp(12), dp(2));
+        b.setPadding(dp(8), dp(2), dp(8), dp(2));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.WHITE);
         bg.setCornerRadius(dp(999));
@@ -4589,7 +4614,9 @@ public class MainActivity extends Activity {
             bg.setColor(COLOR_PEACH);
             bg.setCornerRadius(dp(10));
             lab.setBackground(bg);
-            lab.setPadding(dp(14), dp(6), dp(14), dp(6));
+            lab.setPadding(dp(10), dp(8), dp(10), dp(8));
+        } else {
+            lab.setPadding(dp(10), dp(8), dp(10), dp(8));
         }
         col.addView(lab);
 
