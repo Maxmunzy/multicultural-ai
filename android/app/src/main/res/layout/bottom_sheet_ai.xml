@@ -31,14 +31,14 @@
             android:text="✨ AI 어시스턴트"
             android:textSize="18sp"
             android:textStyle="bold"
-            android:textColor="#1E2937" />
+            android:textColor="#1E1B4B" />
 
         <Button
             android:id="@+id/btnClose"
             android:layout_width="32dp"
             android:layout_height="32dp"
             android:text="✕"
-            android:textColor="#64748B"
+            android:textColor="#6B7280"
             android:textSize="14sp"
             android:background="@drawable/bg_close_btn"
             android:padding="0dp" />
@@ -48,7 +48,7 @@
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#E2E8F0"
+        android:background="#E5E7EB"
         android:layout_marginBottom="8dp" />
 
     <!-- Chat messages area -->
@@ -104,7 +104,7 @@
             android:layout_weight="1"
             android:hint="질문을 입력하세요..."
             android:textSize="14sp"
-            android:textColor="#1E2937"
+            android:textColor="#1E1B4B"
             android:paddingStart="14dp"
             android:paddingTop="10dp"
             android:paddingEnd="14dp"

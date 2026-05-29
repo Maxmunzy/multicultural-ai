@@ -356,7 +356,7 @@ public class MainActivity extends Activity {
     private void showLoginScreen() {
         clearScreenRefs();
         currentUserId = "";
-        buildScreen(null, "가정통신문 AI", "AI 번역 · 9개 언어 지원", false, -1, false);
+        buildScreen(null, "스쿨브릿지", "가정통신문 AI 번역 도우미", false, -1, false);
 
         content.addView(heroLoginCard());
         content.addView(languageSelectCard());
@@ -364,7 +364,7 @@ public class MainActivity extends Activity {
         if (pendingRole.isEmpty()) {
             content.addView(sectionLabel("역할 선택"));
             content.addView(roleChoiceCard("👩‍🏫", "선생님으로 시작",
-                    "가정통신문을 작성하고 발송", COLOR_PEACH, COLOR_PEACH_INK,
+                    "가정통신문을 업로드하고 학부모에게 발송", COLOR_PEACH, COLOR_PEACH_INK,
                     v -> { pendingRole = "teacher"; showLoginScreen(); }));
             content.addView(roleChoiceCard("👨‍👩‍👧", "학부모로 시작",
                     "받은 통신문을 모국어로 확인", COLOR_MINT, COLOR_MINT_INK,
@@ -646,6 +646,8 @@ public class MainActivity extends Activity {
         content.addView(noticeHistoryRow("상", "학부모 상담주간 안내",
                 "5개 언어 · 24명 발송 · 5/10", "읽음", COLOR_LEMON_INK, null));
 
+        content.addView(smallTextButton("로그아웃", v -> logout()));
+
         outer.addView(scroll);
 
         // lang pill
@@ -658,8 +660,9 @@ public class MainActivity extends Activity {
 
         // FAB — 새 통신문 작성
         Button fab = new Button(this);
-        fab.setText("✏️");
-        fab.setTextSize(22);
+        fab.setText("+");
+        fab.setTextSize(34);
+        fab.setTextColor(Color.WHITE);
         fab.setAllCaps(false);
         fab.setPadding(0, 0, 0, 0);
         GradientDrawable fabBg = new GradientDrawable();
@@ -836,26 +839,32 @@ public class MainActivity extends Activity {
     // ============================================================
     private void showTeacherHome() {
         clearScreenRefs();
-        buildScreen(null, "새 통신문", "통신문 작성", true, 1, false);
+        buildScreen(null, "", "", true, 1, false);
 
-        // ← 뒤로 가기 (우리반 홈)
-        LinearLayout backNav = new LinearLayout(this);
-        backNav.setOrientation(LinearLayout.HORIZONTAL);
-        backNav.setGravity(Gravity.CENTER_VERTICAL);
-        backNav.setPadding(dp(2), dp(4), dp(2), dp(8));
-        Button backBtn = new Button(this);
-        backBtn.setText("←");
-        backBtn.setTextSize(16);
-        backBtn.setTextColor(COLOR_INK2);
-        backBtn.setAllCaps(false);
-        backBtn.setBackground(null);
-        backBtn.setStateListAnimator(null);
-        backBtn.setPadding(0, 0, dp(4), 0);
-        backBtn.setOnClickListener(v -> showTeacherDashboard());
-        backNav.addView(backBtn);
-        TextView backLabel = text("새 통신문", 13, COLOR_INK3, false);
-        backNav.addView(backLabel);
-        content.addView(backNav);
+        // 제목 행: ← 뒤로가기 + 제목
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        titleRow.setLayoutParams(spacedParams());
+        titleRow.setPadding(0, dp(4), 0, dp(8));
+
+        Button backArrow = new Button(this);
+        backArrow.setText("←");
+        backArrow.setTextSize(20);
+        backArrow.setTextColor(COLOR_INK2);
+        backArrow.setAllCaps(false);
+        backArrow.setBackground(null);
+        backArrow.setStateListAnimator(null);
+        backArrow.setMinWidth(0);
+        backArrow.setMinimumWidth(0);
+        backArrow.setPadding(0, 0, dp(8), 0);
+        backArrow.setOnClickListener(v -> showTeacherDashboard());
+        titleRow.addView(backArrow);
+
+        TextView titleTv = text("새 통신문 업로드", 22, COLOR_INK, true);
+        titleTv.setLetterSpacing(-0.02f);
+        titleRow.addView(titleTv);
+        content.addView(titleRow);
 
         // 2단계 스텝바 (작성 → 발송)
         content.addView(buildStepBar(1));
@@ -991,7 +1000,6 @@ public class MainActivity extends Activity {
         content.addView(actionRow);
 
         content.addView(smallTextButton("← 우리반 홈으로", v -> showTeacherDashboard()));
-        content.addView(smallTextButton("로그아웃", v -> logout()));
     }
 
     // 2단계 스텝바 (step=1: 작성 active, step=2: 발송 active)
@@ -1423,7 +1431,9 @@ public class MainActivity extends Activity {
             // 숫자 + 단위
             LinearLayout numRow = new LinearLayout(this);
             numRow.setOrientation(LinearLayout.HORIZONTAL);
-            numRow.setGravity(Gravity.BOTTOM);
+            numRow.setGravity(Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM);
+            numRow.setLayoutParams(new LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT));
             TextView numView = text(String.valueOf(nums[i]), 24, COLOR_INK, true);
             numView.setLetterSpacing(-0.02f);
             numRow.addView(numView);
@@ -1628,7 +1638,7 @@ public class MainActivity extends Activity {
     private void confirmAndDeleteNotice(NoticeItem n) {
         String[] lines = n.text.split("\\r?\\n");
         String preview = shorten(lines.length > 0 ? lines[0] : n.text, 30);
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("가정통신문 삭제")
                 .setMessage("\"" + preview + "\"\n\n이 가정통신문을 삭제할까요?")
                 .setPositiveButton("삭제", (d, w) -> deleteNoticeAndRefresh(n.noticeId))
@@ -2209,27 +2219,33 @@ public class MainActivity extends Activity {
                 FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.MATCH_PARENT));
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(0, 0, 0, dp(80));  // bottomActionsBar(56dp) + margin(16dp) + 여유
+        root.setPadding(0, 0, 0, dp(100));  // bottomActionsBar + margin + 여유
         scroll.addView(root);
 
-        // 탑 액션 바: ✕ 닫기  (spacer)  🌐 lang pill
-        LinearLayout topBar = new LinearLayout(this);
-        topBar.setOrientation(LinearLayout.HORIZONTAL);
-        topBar.setGravity(Gravity.CENTER_VERTICAL);
+        // 탑 액션 바: ✕ 닫기(좌) | AI 번역(정중앙) | 🌐 lang pill(우)
+        FrameLayout topBar = new FrameLayout(this);
         topBar.setPadding(dp(14), dp(38), dp(14), dp(8));
 
         Button close = iconButton("✕", v -> showNoticeDetail(notice));
+        FrameLayout.LayoutParams closeLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        closeLp.gravity = Gravity.START | Gravity.CENTER_VERTICAL;
+        close.setLayoutParams(closeLp);
         topBar.addView(close);
 
         TextView center = text(uiText("ai_translate"), 13, COLOR_INK2, true);
-        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(
-                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1);
-        clp.setMargins(dp(8), 0, dp(8), 0);
-        center.setLayoutParams(clp);
         center.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams centerLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.MATCH_PARENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        centerLp.gravity = Gravity.CENTER;
+        center.setLayoutParams(centerLp);
         topBar.addView(center);
 
         langPillBtn = makeLangPillButton();
+        FrameLayout.LayoutParams pillLp = new FrameLayout.LayoutParams(
+                FrameLayout.LayoutParams.WRAP_CONTENT, FrameLayout.LayoutParams.WRAP_CONTENT);
+        pillLp.gravity = Gravity.END | Gravity.CENTER_VERTICAL;
+        langPillBtn.setLayoutParams(pillLp);
         topBar.addView(langPillBtn);
         root.addView(topBar);
 
@@ -2248,7 +2264,7 @@ public class MainActivity extends Activity {
         // 통신문 제목 — 클래스 필드에 할당해야 applyAnalysis()의 setText가 자동 연결됨
         String[] noticeTitleLines = notice.text.split("\\r?\\n", 2);
         String initialTitle = noticeTitleLines.length > 0 ? noticeTitleLines[0].trim() : "";
-        noticeTitleView = text(initialTitle, 22, COLOR_INK, true);
+        noticeTitleView = text(initialTitle, 26, COLOR_INK, true);
         noticeTitleView.setLetterSpacing(-0.02f);
         noticeTitleView.setLineSpacing(0, 1.2f);
         noticeTitleView.setPadding(dp(2), 0, dp(2), dp(4));
@@ -2269,12 +2285,29 @@ public class MainActivity extends Activity {
         noticeTitleSubView.setVisibility(View.GONE);
         content.addView(noticeTitleSubView);
 
-        TextView sub = text(uiText("ai_subtitle"), 12, COLOR_INK3, false);
-        sub.setPadding(dp(2), 0, 0, dp(12));
-        content.addView(sub);
+        // 부제 + A-/A+ 한 줄
+        LinearLayout subRow = new LinearLayout(this);
+        subRow.setOrientation(LinearLayout.HORIZONTAL);
+        subRow.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams subRowLp = spacedParams();
+        subRowLp.bottomMargin = dp(12);
+        subRow.setLayoutParams(subRowLp);
 
-        // 글자 크기 조절
-        content.addView(textSizeControls());
+        TextView sub = text(uiText("ai_subtitle"), 12, COLOR_INK3, false);
+        sub.setPadding(dp(2), 0, dp(8), 0);
+        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(
+                0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        sub.setLayoutParams(subLp);
+        subRow.addView(sub);
+
+        Button minus = textSizeBtn("A−", v -> adjustTextSize(-2f));
+        Button plus  = textSizeBtn("A+", v -> adjustTextSize(+2f));
+        subRow.addView(minus);
+        TextView btnGap = new TextView(this);
+        btnGap.setWidth(dp(6));
+        subRow.addView(btnGap);
+        subRow.addView(plus);
+        content.addView(subRow);
 
         // 분석 진행 상태 (먼저 보임 → 결과 도착하면 GONE)
         analysisStatusText = text(uiText("analyzing"), 13, COLOR_INK3, false);
@@ -2801,7 +2834,7 @@ public class MainActivity extends Activity {
         box.addView(image);
         loadQrImage(url, image);
 
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("신청 QR 코드")
                 .setView(box)
                 .setPositiveButton("바로가기", (d, w) -> openExternalUrl(url))
@@ -2825,7 +2858,7 @@ public class MainActivity extends Activity {
             box.addView(linkActionBlock(currentActionUrls.get(i), i + 1));
         }
 
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("신청 바로가기")
                 .setView(box)
                 .setNegativeButton("닫기", null)
@@ -2953,7 +2986,7 @@ public class MainActivity extends Activity {
         guide.setPadding(0, dp(10), 0, 0);
         box.addView(guide);
 
-        holder[0] = new AlertDialog.Builder(this)
+        holder[0] = new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle(calLoc("미니 달력","Lịch nhỏ","Mini Calendar","小日历","ปฏิทินขนาดเล็ก","Kalendar Mini","Жижиг хуанли","Мини-календарь","ミニカレンダー"))
                 .setView(scroll)
                 .setNegativeButton(calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる"), null)
@@ -3090,7 +3123,7 @@ public class MainActivity extends Activity {
                 ? isoDate + " " + calLoc("일정","lịch","schedule","日程","ตาราง","jadual","хуваарь","расписание","日程")
                 : calLoc("일정","Lịch","Schedule","日程","ตาราง","Jadual","Хуваарь","Расписание","日程") + ": " + isoDate;
         String calClose = calLoc("닫기","Đóng","Close","关闭","ปิด","Tutup","Хаах","Закрыть","閉じる");
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle(calTitle)
                 .setView(box)
                 .setNegativeButton(calClose, null)
@@ -3629,7 +3662,7 @@ public class MainActivity extends Activity {
     }
 
     private void showUploadDialog() {
-        new AlertDialog.Builder(this)
+        new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert)
                 .setTitle("통신문 올리기")
                 .setItems(new String[]{"📷  사진으로 찍기", "📄  PDF 파일 올리기"}, (dialog, which) -> {
                     if (which == 0) launchOcrActivity();
@@ -3963,8 +3996,10 @@ public class MainActivity extends Activity {
             b.setText(labels[i]);
             b.setTextSize(13);
             b.setAllCaps(false);
-            b.setPadding(dp(20), dp(6), dp(20), dp(6));
-            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+            b.setStateListAnimator(null);
+            b.setElevation(0);
+            b.setPadding(dp(8), dp(8), dp(8), dp(8));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, dp(40), 1f);
             lp.setMargins(dp(4), 0, dp(4), 0);
             b.setLayoutParams(lp);
             final float speed = speeds[i];
@@ -4055,9 +4090,9 @@ public class MainActivity extends Activity {
         sttButton.setTextColor(Color.WHITE);
         sttButton.setAllCaps(false);
         sttButton.setTypeface(null, Typeface.BOLD);
-        sttButton.setPadding(dp(20), dp(14), dp(20), dp(14));
+        sttButton.setPadding(dp(20), dp(10), dp(20), dp(10));
         LinearLayout.LayoutParams btnLp = new LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(48));
         btnLp.topMargin = dp(10);
         sttButton.setLayoutParams(btnLp);
         GradientDrawable sttBg = new GradientDrawable(
@@ -4353,7 +4388,7 @@ public class MainActivity extends Activity {
     }
 
     private void showLanguageDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert);
         builder.setTitle("Language / 언어 선택");
         builder.setItems(LANG_LABELS, (dialog, which) -> {
             if (LANG_CODES[which].equals(selectedLanguage)) return;
@@ -4394,7 +4429,7 @@ public class MainActivity extends Activity {
 
     private void showInitialLanguageDialogIfNeeded() {
         if (getSharedPreferences(PREFS_NAME, MODE_PRIVATE).contains(PREF_KEY_LANG)) return;
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        AlertDialog.Builder builder = new AlertDialog.Builder(this, android.R.style.Theme_Material_Light_Dialog_Alert);
         builder.setTitle("Language / 언어 선택");
         builder.setItems(LANG_LABELS, (dialog, which) -> {
             selectedLanguage = LANG_CODES[which];
@@ -4437,7 +4472,7 @@ public class MainActivity extends Activity {
         b.setTextColor(COLOR_INK);
         b.setAllCaps(false);
         b.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
-        b.setPadding(dp(12), dp(2), dp(12), dp(2));
+        b.setPadding(dp(8), dp(2), dp(8), dp(2));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.WHITE);
         bg.setCornerRadius(dp(999));
@@ -4483,15 +4518,16 @@ public class MainActivity extends Activity {
         // 헤더 (greet + title-xl + subtitle)
         LinearLayout header = new LinearLayout(this);
         header.setOrientation(LinearLayout.VERTICAL);
-        int headerTopPad = withLangPill ? dp(70) : dp(38);
+        int headerTopPad = withLangPill ? dp(70) : (greet == null ? dp(56) : dp(38));
         header.setPadding(dp(20), headerTopPad, dp(20), dp(8));
 
         if (greet != null && !greet.isEmpty()) {
             TextView g = text(greet, 13, COLOR_INK3, false);
             header.addView(g);
         }
-        TextView t = text(bigTitle, 26, COLOR_INK, true);
-        t.setLetterSpacing(-0.02f);
+        int titleSize = (greet == null || greet.isEmpty()) ? 30 : 26;
+        TextView t = text(bigTitle, titleSize, COLOR_INK, true);
+        t.setLetterSpacing(-0.025f);
         t.setLineSpacing(0, 1.12f);
         if (greet == null || greet.isEmpty()) {
             // login mode — show subtitle as small label below title
@@ -4546,78 +4582,72 @@ public class MainActivity extends Activity {
     }
 
     private LinearLayout makeBottomTabBar(int activeIndex, boolean isParent) {
-        String[] icons  = isParent
-                ? new String[]{"🏠", "📷", "📅", "💬", "👤"}
-                : new String[]{"🏠", "✏️", "📊", "💬", "👤"};
+        int[] iconResIds = isParent
+                ? new int[]{R.drawable.ic_tab_home, R.drawable.ic_tab_translate,
+                            R.drawable.ic_tab_calendar, R.drawable.ic_tab_chat,
+                            R.drawable.ic_tab_person}
+                : new int[]{R.drawable.ic_tab_home, R.drawable.ic_tab_edit,
+                            R.drawable.ic_tab_chart, R.drawable.ic_tab_chat,
+                            R.drawable.ic_tab_person};
         String[] labels = isParent
                 ? new String[]{"홈", "번역", "일정", "회신", "나"}
                 : new String[]{"우리반", "작성", "현황", "답장", "나"};
         LinearLayout bar = new LinearLayout(this);
         bar.setOrientation(LinearLayout.HORIZONTAL);
         bar.setGravity(Gravity.CENTER_VERTICAL);
-        bar.setPadding(dp(8), dp(8), dp(8), dp(14));
+        bar.setPadding(dp(8), dp(6), dp(8), dp(12));
         GradientDrawable bg = new GradientDrawable();
         bg.setColor(Color.argb(242, 255, 255, 255));
         bg.setStroke(dp(1), COLOR_LINE);
         bar.setBackground(bg);
 
-        for (int i = 0; i < icons.length; i++) {
-            bar.addView(makeTabItem(icons[i], labels[i], i == activeIndex, i, isParent));
+        for (int i = 0; i < labels.length; i++) {
+            bar.addView(makeTabItem(iconResIds[i], labels[i], i == activeIndex, i, isParent));
         }
 
         FrameLayout.LayoutParams p = new FrameLayout.LayoutParams(
-                FrameLayout.LayoutParams.MATCH_PARENT, dp(72));
+                FrameLayout.LayoutParams.MATCH_PARENT, dp(64));
         p.gravity = Gravity.BOTTOM;
         bar.setLayoutParams(p);
         return bar;
     }
 
-    private LinearLayout makeTabItem(String icon, String label, boolean active, int index, boolean isParent) {
+    private LinearLayout makeTabItem(int iconResId, String label, boolean active, int index, boolean isParent) {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setGravity(Gravity.CENTER);
-        col.setPadding(dp(2), dp(4), dp(2), dp(2));
+        col.setPadding(dp(4), dp(6), dp(4), dp(4));
         LinearLayout.LayoutParams p = new LinearLayout.LayoutParams(
                 0, LinearLayout.LayoutParams.MATCH_PARENT, 1);
         col.setLayoutParams(p);
 
-        TextView ic = new TextView(this);
-        ic.setText(icon);
-        ic.setTextSize(18);
-        ic.setGravity(Gravity.CENTER);
-        if (active) {
-            GradientDrawable bg = new GradientDrawable();
-            bg.setColor(COLOR_PEACH);
-            bg.setCornerRadius(dp(10));
-            ic.setBackground(bg);
-            int s = dp(32);
-            LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(s, s);
-            ic.setLayoutParams(ip);
-            ic.setPadding(0, 0, 0, dp(2));
-        }
+        // 아이콘
+        ImageView ic = new ImageView(this);
+        ic.setImageResource(iconResId);
+        ic.setColorFilter(active ? COLOR_PEACH_INK : COLOR_INK3);
+        int s = dp(22);
+        LinearLayout.LayoutParams ip = new LinearLayout.LayoutParams(s, s);
+        ic.setLayoutParams(ip);
         col.addView(ic);
 
+        // 레이블
         TextView lab = text(label, 10, active ? COLOR_PEACH_INK : COLOR_INK3, active);
         lab.setGravity(Gravity.CENTER);
-        lab.setPadding(0, dp(2), 0, 0);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = dp(3);
+        lab.setLayoutParams(lp);
         col.addView(lab);
 
-        // 비활성 탭만 클릭 시 화면 전환 또는 안내 토스트.
         if (!active) {
             col.setClickable(true);
             col.setFocusable(true);
             col.setOnClickListener(v -> {
-                if (isParent && index == 0) {
-                    showParentHome();
-                } else if (isParent && index == 4) {
-                    showParentSettings();
-                } else if (!isParent && index == 0) {
-                    showTeacherDashboard();
-                } else if (!isParent && index == 1) {
-                    showTeacherHome();
-                } else {
-                    notImplementedToast(label);
-                }
+                if (isParent && index == 0) showParentHome();
+                else if (isParent && index == 4) showParentSettings();
+                else if (!isParent && index == 0) showTeacherDashboard();
+                else if (!isParent && index == 1) showTeacherHome();
+                else notImplementedToast(label);
             });
         }
         return col;
@@ -5183,8 +5213,8 @@ public class MainActivity extends Activity {
             case "listen_easy_korean": return "쉬운 한국어 듣기";
             case "slow": return "단어별";
             case "normal": return "천천히";
-            case "fast": return "오리지날";
-            case "speak_to_ask": return "말해서 물어보기";
+            case "fast": return "일반";
+            case "speak_to_ask": return "음성으로 묻기";
             case "back_to_notice": return "통신문으로 돌아가기";
             case "refresh_inbox": return "수신함 새로고침";
             case "logout": return "로그아웃";

@@ -44,16 +44,16 @@ import java.util.concurrent.Executors;
  */
 public class NoticeChecklistDialog {
 
-    private static final int COLOR_PEACH       = Color.parseColor("#DBEAFE");
-    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#3B67FF");
-    private static final int COLOR_PEACH_INK   = Color.parseColor("#1A237E");
-    private static final int COLOR_PAPER       = Color.parseColor("#EEF2FF");
-    private static final int COLOR_INK         = Color.parseColor("#111827");
-    private static final int COLOR_INK2        = Color.parseColor("#374151");
-    private static final int COLOR_INK3        = Color.parseColor("#6B7280");
-    private static final int COLOR_LINE        = Color.parseColor("#E5E7EB");
-    private static final int COLOR_MINT_INK    = Color.parseColor("#15803D");
-    private static final int COLOR_LEMON_INK   = Color.parseColor("#3B67FF");
+    private static final int COLOR_PEACH       = Color.parseColor("#EEF2FF"); // --brand-light
+    private static final int COLOR_PEACH_DEEP  = Color.parseColor("#4F46E5"); // --brand (indigo)
+    private static final int COLOR_PEACH_INK   = Color.parseColor("#3730A3"); // --brand-deep
+    private static final int COLOR_PAPER       = Color.parseColor("#EEF2FF"); // --surface
+    private static final int COLOR_INK         = Color.parseColor("#1E1B4B"); // --ink
+    private static final int COLOR_INK2        = Color.parseColor("#374151"); // --ink2
+    private static final int COLOR_INK3        = Color.parseColor("#6B7280"); // --ink3
+    private static final int COLOR_LINE        = Color.parseColor("#E5E7EB"); // --line
+    private static final int COLOR_MINT_INK    = Color.parseColor("#059669"); // --success
+    private static final int COLOR_LEMON_INK   = Color.parseColor("#D97706"); // --warning (amber)
 
     private static final ExecutorService executor = Executors.newSingleThreadExecutor();
 
