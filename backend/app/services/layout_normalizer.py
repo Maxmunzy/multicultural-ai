@@ -26,10 +26,37 @@ def _empty_structured() -> dict:
     return {"document_title": "", "cleaned_text": "", "sentence_list": []}
 
 
+# 제목 키워드 — 가통문 제목에 흔한 어휘 (후보 중 우선 선택)
+_TITLE_KEYWORDS = (
+    "안내", "통신문", "모집", "신청", "공지", "가정통신", "동의", "협조", "조사",
+)
+
+
+def _guess_title(sentences: list[str]) -> str:
+    """최상단 문장 중 제목 형태를 document_title로 추정.
+
+    LLM 제거 후 document_title 공백 → notice.py 제목 휴리스틱이 본문 한 줄을
+    잘못 잡는 regression 보완. 가통문 제목은 보통 페이지 최상단 + 종결어미/문장부호
+    없는 짧은 명사구. 종결어미로 끝나는 본문 문장·너무 긴 문장은 후보 제외.
+    """
+    cands: list[str] = []
+    for s in sentences[:3]:  # 최상단(y순 정렬) 3문장만 제목 후보
+        t = s.strip()
+        if not (5 <= len(t) <= 50):
+            continue
+        if t[-1] in ".?!" or t.endswith(("니다", "세요", "습니다", "바랍니다")):
+            continue
+        cands.append(t)
+    for t in cands:  # "안내/통신문/모집" 등 제목 키워드 포함 후보 우선
+        if any(k in t for k in _TITLE_KEYWORDS):
+            return t
+    return cands[0] if cands else ""
+
+
 def _structured_from_sentences(sentences: list[str]) -> dict:
     """문장 리스트 → notice.py가 기대하는 structured dict."""
     return {
-        "document_title": "",
+        "document_title": _guess_title(sentences),
         "cleaned_text": "\n".join(sentences),
         "sentence_list": [
             {
