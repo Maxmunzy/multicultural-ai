@@ -216,22 +216,23 @@ def extract_sentences(
     text: str = "",
     inline_data: tuple[bytes, str] | None = None,
 ) -> tuple[dict, str, float]:
-    """PDF/text → {document_title, cleaned_text, sentence_list} 추출.
+    """PDF/text → {document_title, cleaned_text, sentence_list} 추출. (production)
 
-    현재: LLM(Claude/Gemini) 기반. Hybrid wire-up 보류 — v12 단편화 한계 정리 후 재시도.
-    Hybrid 구현은 `hybrid_extractor.py`에 그대로 보존, 필요 시 분기 복원 가능.
+    비전-LLM(Claude Haiku 기본 / Gemini fallback) 기반. PDF/이미지는 inlineData로
+    LLM에 보내 자간·표·줄바꿈을 문맥으로 정상화. kiwi+camelot 결정적 추출은
+    PDF 시각포맷 + 열린 표 변이 한계로 제거됨(2026-05-30).
 
     Returns:
         (structured, status, elapsed_seconds)
     """
-    return _extract_sentences_llm_legacy(text, inline_data)
+    return _extract_sentences_llm(text, inline_data)
 
 
-def _extract_sentences_llm_legacy(
+def _extract_sentences_llm(
     text: str = "",
     inline_data: tuple[bytes, str] | None = None,
 ) -> tuple[dict, str, float]:
-    """LLM 기반 옛 구현 — 교차 검증/회귀 확인용. production 호출 X."""
+    """비전-LLM 추출 본체 (production). provider 토글로 Claude/Gemini 분기."""
     if LLM_PROVIDER == "claude":
         return _call_claude(text, inline_data)
 
@@ -400,13 +401,10 @@ def _extract_sentences_llm_legacy(
     if not isinstance(sentence_list_raw, list):
         sentence_list_raw = []
 
-    # DEBUG (임시): Gemini가 만든 cleaned_text head/tail docker logs에 dump.
-    # paragraph 정제 결과 확인용. 튜닝 끝나면 제거.
-    head = cleaned_text[:300].replace("\n", " / ")
-    tail = cleaned_text[-200:].replace("\n", " / ") if len(cleaned_text) > 300 else ""
-    logger.warning(
-        "extract_sentences DEBUG cleaned_text len=%d sentences=%d title=%r head=%r tail=%r",
-        len(cleaned_text), len(sentence_list_raw), document_title[:60], head, tail,
+    # 본문 내용(개인정보)은 로그에 남기지 않음 — 길이/문장수만.
+    logger.info(
+        "extract_sentences[gemini] ok: cleaned_len=%d sentences=%d",
+        len(cleaned_text), len(sentence_list_raw),
     )
 
     return (
@@ -580,11 +578,10 @@ def _call_claude(
     if not isinstance(sentence_list_raw, list):
         sentence_list_raw = []
 
-    head = cleaned_text[:300].replace("\n", " / ")
-    tail = cleaned_text[-200:].replace("\n", " / ") if len(cleaned_text) > 300 else ""
-    logger.warning(
-        "extract_sentences[claude] DEBUG cleaned_text len=%d sentences=%d title=%r head=%r tail=%r",
-        len(cleaned_text), len(sentence_list_raw), document_title[:60], head, tail,
+    # 본문 내용(개인정보)은 로그에 남기지 않음 — 길이/문장수만.
+    logger.info(
+        "extract_sentences[claude] ok: cleaned_len=%d sentences=%d",
+        len(cleaned_text), len(sentence_list_raw),
     )
 
     return (
