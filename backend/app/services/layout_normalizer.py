@@ -111,31 +111,42 @@ cleaned_text·sentence_list의 모든 어구를 원문과 **단어 단위로 대
 ═══════════════════════════════════════════
 # 5. 예시 (형식·role_hint 참고용 — 예시 단어를 다른 통신문에 복붙 금지)
 ═══════════════════════════════════════════
-## A. 단순 안내문
+**※ sentence_list는 cleaned_text의 모든 줄을 빠짐없이, sentence_id·source_order 연속(s001부터 1씩)으로 채운다. 빈 줄(\\n\\n)은 항목 아님.**
+
+## A. 단순 안내문 (모든 줄 포함, ID 연속)
 {
   "document_title": "2026학년도 4월 현장체험학습 안내",
   "cleaned_text": "학부모님께\\n5월 학년별 현장체험학습 일정을 안내드립니다.\\n\\n일시: 2026년 5월 23일(금) 09:00~15:00\\n장소: 국립중앙박물관\\n대상: 4학년 전체\\n준비물: 개인 도시락, 물병, 필기도구\\n\\n참가 동의서를 5월 16일(금)까지 담임선생님께 제출해 주시기 바랍니다.\\n\\n문의: 02-987-6543",
   "sentence_list": [
     {"sentence_id": "s001", "text": "학부모님께", "role_hint": "etc", "source_order": 1, "is_action_candidate": false},
+    {"sentence_id": "s002", "text": "5월 학년별 현장체험학습 일정을 안내드립니다.", "role_hint": "content", "source_order": 2, "is_action_candidate": false},
     {"sentence_id": "s003", "text": "일시: 2026년 5월 23일(금) 09:00~15:00", "role_hint": "event_datetime", "source_order": 3, "is_action_candidate": false},
+    {"sentence_id": "s004", "text": "장소: 국립중앙박물관", "role_hint": "location", "source_order": 4, "is_action_candidate": false},
+    {"sentence_id": "s005", "text": "대상: 4학년 전체", "role_hint": "target", "source_order": 5, "is_action_candidate": false},
     {"sentence_id": "s006", "text": "준비물: 개인 도시락, 물병, 필기도구", "role_hint": "supplies", "source_order": 6, "is_action_candidate": true},
-    {"sentence_id": "s008", "text": "참가 동의서를 5월 16일(금)까지 담임선생님께 제출해 주시기 바랍니다.", "role_hint": "submit", "source_order": 8, "is_action_candidate": true}
+    {"sentence_id": "s007", "text": "참가 동의서를 5월 16일(금)까지 담임선생님께 제출해 주시기 바랍니다.", "role_hint": "submit", "source_order": 7, "is_action_candidate": true},
+    {"sentence_id": "s008", "text": "문의: 02-987-6543", "role_hint": "contact", "source_order": 8, "is_action_candidate": false}
   ]
 }
 
-## B. 흩어진 정산 표 → 시각 구조대로 재배열 (값은 한 자도 안 바꿈)
-원문 시각: 정산 표가 인원그룹(89명/12명/3명)별로 수납인원·1인단가·수입금액 열이 나뉘고, 지급명세에 체험비·차량비 등.
+## B. 흩어진 정산 표 → 시각 구조대로 재배열 (값은 한 자도 안 바꿈, 모든 줄 포함)
+원문 시각: 정산 표가 인원그룹별로 수납인원·1인단가·수입금액 열로 나뉨.
 {
   "document_title": "2024학년도 4학년 현장체험학습 정산 안내",
-  "cleaned_text": "1. 체험장소 : 한국 잡월드\\n2. 체험일시 : 2024년 11월18일(월) 4-1, 4-2 / 11월19일(화) 4-3, 4-4, 4-5\\n3. 참가인원 : 104명\\n\\n수납인원 89명\\n1인단가 51,200\\n수입금액 (A) 4,556,800\\n수납인원 12명\\n1인단가 33,200\\n수입금액 (A) 398,400\\n반환액 (B) 0\\n지급명세(C) - 체험비 : 18,000원 * 89명 = 1,602,000\\n- 차량비 : 22,720원 * 104명 = 2,362,880\\n잔액 (D=A-B-C) 0\\n\\n2024년 11월 22일\\n성남초등학교장",
+  "cleaned_text": "1. 체험장소 : 한국 잡월드\\n2. 체험일시 : 2024년 11월18일(월) 4-1, 4-2\\n3. 참가인원 : 104명\\n\\n수납인원 89명\\n1인단가 51,200\\n수입금액 (A) 4,556,800\\n잔액 (D=A-B-C) 0\\n\\n2024년 11월 22일\\n성남초등학교장",
   "sentence_list": [
     {"sentence_id": "s001", "text": "1. 체험장소 : 한국 잡월드", "role_hint": "location", "source_order": 1, "is_action_candidate": false},
+    {"sentence_id": "s002", "text": "2. 체험일시 : 2024년 11월18일(월) 4-1, 4-2", "role_hint": "event_datetime", "source_order": 2, "is_action_candidate": false},
+    {"sentence_id": "s003", "text": "3. 참가인원 : 104명", "role_hint": "target", "source_order": 3, "is_action_candidate": false},
     {"sentence_id": "s004", "text": "수납인원 89명", "role_hint": "etc", "source_order": 4, "is_action_candidate": false},
     {"sentence_id": "s005", "text": "1인단가 51,200", "role_hint": "fee", "source_order": 5, "is_action_candidate": false},
-    {"sentence_id": "s006", "text": "수입금액 (A) 4,556,800", "role_hint": "fee", "source_order": 6, "is_action_candidate": false}
+    {"sentence_id": "s006", "text": "수입금액 (A) 4,556,800", "role_hint": "fee", "source_order": 6, "is_action_candidate": false},
+    {"sentence_id": "s007", "text": "잔액 (D=A-B-C) 0", "role_hint": "fee", "source_order": 7, "is_action_candidate": false},
+    {"sentence_id": "s008", "text": "2024년 11월 22일", "role_hint": "etc", "source_order": 8, "is_action_candidate": false},
+    {"sentence_id": "s009", "text": "성남초등학교장", "role_hint": "etc", "source_order": 9, "is_action_candidate": false}
   ]
 }
-→ 흩어진 표 조각을 시각 구조대로 "수납인원 89명", "1인단가 51,200"으로 묶음. **숫자는 한 자도 안 바꿈.**
+→ 흩어진 표 조각을 시각 구조대로 "수납인원 89명", "1인단가 51,200"으로 묶고, **모든 줄을 sentence_list에 빠짐없이** 넣음. 숫자는 한 자도 안 바꿈.
 
 **다시 강조 — 출력 전, 모든 어구가 원문에 있는지 확인하라. 없으면 만들지 마라. 숫자·날짜는 자리수까지 일치 확인.**
 """
