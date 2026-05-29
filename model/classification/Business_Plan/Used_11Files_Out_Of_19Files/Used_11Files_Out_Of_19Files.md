@@ -97,7 +97,7 @@ C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\B
 
 ## 그 외 오픈 API — 탐색 결과 및 결론
 
-### 1. XML JSON 성평등가족부_전국다문화가족실태조사 마이크로데이터 정보 서비스
+### 16. XML JSON 성평등가족부_전국다문화가족실태조사 마이크로데이터 정보 서비스
 https://www.data.go.kr/data/15078202/openapi.do
 
 - End Point: `https://apis.data.go.kr/1383000/stis/srvyMltCltrFmlyMcrDataService`
@@ -123,7 +123,7 @@ https://www.data.go.kr/data/15078202/openapi.do
 
 ---
 
-### 2. 연계데이터 — 지역별 다문화 가족 분포 정보
+### 17. 연계데이터 — 지역별 다문화 가족 분포 정보
 https://www.data.go.kr/data/844871/linkedData.do  
 실제 데이터 위치: https://www.bigdata-culture.kr (한국청소년활동진흥원 KYWA)
 
@@ -138,7 +138,8 @@ https://www.data.go.kr/data/844871/linkedData.do
 ## Maybe폴더: SchoolBridge가 활용할 수 있는 데이터인지 정확한 확인 필요. --> 안 할 거임.
 C:\Users\kysop\Team_Project_Multiculture\multicultural-ai\model\classification\Business_Plan\Maybe
 
-1. CSV 한국건강가정진흥원_전국 다문화가족지원센터 통번역 지원사 배치현황
+18. CSV 한국건강가정진흥원_전국 다문화가족지원센터 통번역 지원사 배치현황
 https://www.data.go.kr/data/3081602/fileData.do
 
-2. ODT 한국언론진흥재단_뉴스빅데이터_메타데이터_다문화https://www.data.go.kr/data/15089699/fileData.do
+19. ODT 한국언론진흥재단_뉴스빅데이터_메타데이터_다문화
+https://www.data.go.kr/data/15089699/fileData.do
