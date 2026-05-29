@@ -20,6 +20,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-kor \
         libgl1 \
+        ghostscript \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -O /tmp/h2orestart.oxt "${H2O_URL}" \
