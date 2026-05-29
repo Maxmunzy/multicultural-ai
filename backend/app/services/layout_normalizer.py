@@ -36,7 +36,7 @@ GEMINI_TIMEOUT_SECONDS = float(os.environ.get("GEMINI_TIMEOUT_SECONDS", "60"))
 
 # LLM provider 토글: "gemini" (기본) | "claude"
 # Gemini 503 폭주 회피용 fallback. Anthropic Claude는 다른 인프라.
-LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "gemini").lower()
+LLM_PROVIDER = os.environ.get("LLM_PROVIDER", "claude").lower()
 ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL = os.environ.get("CLAUDE_MODEL", "claude-haiku-4-5")
 CLAUDE_TIMEOUT_SECONDS = float(os.environ.get("CLAUDE_TIMEOUT_SECONDS", "60"))
@@ -218,78 +218,13 @@ def extract_sentences(
 ) -> tuple[dict, str, float]:
     """PDF/text → {document_title, cleaned_text, sentence_list} 추출.
 
-    자체 Hybrid 모델 (LayoutXLM frozen + KoCharELECTRA + BIO + CRF + parser dedup) 사용.
-    LLM API 의존 X — 변형 0 보장 (encoder + classifier only, generation 없음).
-
-    - **PDF 모드** (inline_data 사용): HybridInferer로 page별 sentence 추출
-    - **text 모드** (text 사용): LLM 없으니 줄 단위 단순 분리 (구조화 X)
+    현재: LLM(Claude/Gemini) 기반. Hybrid wire-up 보류 — v12 단편화 한계 정리 후 재시도.
+    Hybrid 구현은 `hybrid_extractor.py`에 그대로 보존, 필요 시 분기 복원 가능.
 
     Returns:
         (structured, status, elapsed_seconds)
     """
-    started = time.monotonic()
-
-    if inline_data is not None:
-        raw_bytes, mime_type = inline_data
-        if not raw_bytes:
-            return _empty_structured(), "skip:empty", 0.0
-        if mime_type != "application/pdf":
-            logger.warning(
-                "extract_sentences hybrid: unsupported mime %s (PDF only)",
-                mime_type,
-            )
-            return _empty_structured(), f"skip:unsupported_mime:{mime_type}", 0.0
-        try:
-            from app.services.hybrid_extractor import extract_sentences_from_pdf_bytes
-            sents = extract_sentences_from_pdf_bytes(raw_bytes)
-        except Exception as e:
-            logger.exception("hybrid extract failed")
-            return (
-                _empty_structured(),
-                f"error:hybrid:{type(e).__name__}",
-                time.monotonic() - started,
-            )
-        elapsed = time.monotonic() - started
-        structured = {
-            "document_title": "",
-            "cleaned_text": "\n".join(sents),
-            "sentence_list": [
-                {
-                    "sentence_id": f"s{i:04d}",
-                    "text": s,
-                    "role_hint": "",
-                    "source_order": i,
-                    "is_action_candidate": False,
-                }
-                for i, s in enumerate(sents)
-            ],
-        }
-        logger.warning(
-            "extract_sentences hybrid OK: sentences=%d elapsed=%.2fs",
-            len(sents), elapsed,
-        )
-        return structured, "ok:hybrid", elapsed
-
-    # text 모드 — LLM 없이 줄 분리 passthrough (raw text 그대로)
-    if not text or not text.strip():
-        return _empty_structured(), "skip:empty", 0.0
-    lines = [ln.strip() for ln in text.splitlines() if ln.strip()]
-    elapsed = time.monotonic() - started
-    structured = {
-        "document_title": "",
-        "cleaned_text": "\n".join(lines),
-        "sentence_list": [
-            {
-                "sentence_id": f"s{i:04d}",
-                "text": ln,
-                "role_hint": "",
-                "source_order": i,
-                "is_action_candidate": False,
-            }
-            for i, ln in enumerate(lines)
-        ],
-    }
-    return structured, "ok:hybrid_text_passthrough", elapsed
+    return _extract_sentences_llm_legacy(text, inline_data)
 
 
 def _extract_sentences_llm_legacy(
