@@ -23,6 +23,7 @@ python-multipart==0.0.20
 #   시스템/Dockerfile 의존 (apt ghostscript + pip opencv-python-headless).
 kiwipiepy==0.23.1
 camelot-py==1.0.9
+opencv-python-headless              # camelot lattice cv2 의존 (ghostscript는 Dockerfile apt)
 
 # 이미지 OCR ([1] 카메라 사진 입력 — 세종)
 pytesseract>=0.3.10
