@@ -84,9 +84,12 @@ _SYSTEM_INSTRUCTION = """역할: 너는 한국 학교 가정통신문(PDF/이미
 (b) **줄바꿈으로 잘린 단어·문장 잇기**: 줄 끝에서 잘린 단어를 다음 줄과 이어붙임
 (c) **특수기호→ASCII** (윤정 _clean_symbols 호환): ○→O, ✕→X, □→[], ✓→V, ☑→[V]  (마크업 ■·※·▶·- 는 보존)
 (d) **단독 장식 줄 제거**: 가로줄(─────), 절취선, ■■■ 등 글자 없는 줄
-(e) **표·다단 구조 재배열**: 표를 시각 구조 그대로 읽어 각 행을 "라벨 값" 한 줄로 정리한다.
-    - 여러 열·그룹으로 나뉜 표(예: 인원그룹별 수납인원/단가/금액)는 의미 단위로 묶는다.
-    - 흩어져 추출된 표 조각도 시각 배치를 보고 올바른 라벨↔값으로 결합.
+(e) **표·다단 구조 → 라벨-값 한 쌍씩 한 줄로 분해**: 표를 시각 구조대로 읽되, **라벨 하나 + 그 값 하나 = 한 줄**. 이게 가장 중요하다.
+    - 🚫 한 줄에 라벨-값을 **여러 개 몰아넣지 마라**(run-on 절대 금지):
+      ❌ "수납인원 89명 1인단가 51,200 수입금액 (A) 4,556,800 잔액 (D=A-B-C) 0"  ← 한 줄에 다 몰기 = 실패
+      ✅ 줄1="수납인원 89명", 줄2="1인단가 51,200", 줄3="수입금액 (A) 4,556,800", 줄4="잔액 (D=A-B-C) 0"  ← 한 쌍씩 다른 줄
+    - 여러 열·그룹으로 나뉜 표(예: 인원그룹별 수납인원/단가/금액)는 시각 배치로 올바른 라벨↔값을 맞춘다. 단 **맞춘 뒤에도 각 쌍은 제 줄에** 둔다(묶어서 한 줄로 만들지 마라). 그룹과 그룹 사이는 빈 줄(\\n\\n)로 구분.
+    - 흩어져 추출된 표 조각도 시각 배치를 보고 올바른 라벨↔값으로 결합한 다음, **한 쌍씩 한 줄**로 분해.
     - 분류·구분 정보(공용/개인/가정/학년)는 줄 끝 괄호로 완전히 보존: ✅ "준비물: 알림장 (1학년 공용)"  ❌ "준비물: 알림장 (1학년)"
     - **단, 결합·재배열·정상화만 — 셀 값 자체는 원문 그대로. 값을 바꾸거나 만들지 마라.**
 
@@ -99,10 +102,10 @@ cleaned_text·sentence_list의 모든 어구를 원문과 **단어 단위로 대
 # 4. 출력 JSON: {"document_title": "...", "cleaned_text": "...", "sentence_list": [...]}
 ═══════════════════════════════════════════
 - **document_title**: 문서 제목(가장 크고 중심인 제목). 원문 그대로.
-- **cleaned_text**: paragraph 사이 \\n\\n, 같은 paragraph 내부 \\n. **한 줄 = 한 sentence 또는 표의 한 행**.
+- **cleaned_text**: paragraph 사이 \\n\\n, 같은 paragraph 내부 \\n. **한 줄 = 한 sentence 또는 표의 한 라벨-값 쌍**(표를 한 줄에 몰지 마라).
 - **sentence_list**: 줄 단위 분해. 각 항목:
   - sentence_id: "s001", "s002", … (3자리 숫자, 1부터)
-  - text: 한 sentence 또는 한 줄(헤더+값). cleaned_text의 줄 단위, 원문 정보 보존
+  - text: 한 sentence 또는 표의 한 라벨-값 쌍. cleaned_text의 줄 단위, 원문 정보 보존
   - role_hint: 다음 13가지 중 정확히 하나 — target, content, application_period, event_datetime, application_url, contact, result_announcement, location, fee, supplies, submit, program_title, etc. 애매하면 "etc".
   - source_order: 1부터 시작하는 출현 순서 정수
   - is_action_candidate: 학부모 직접 행동(신청/제출/준비/납부/참석/확인)해야 하면 true
@@ -129,24 +132,29 @@ cleaned_text·sentence_list의 모든 어구를 원문과 **단어 단위로 대
   ]
 }
 
-## B. 흩어진 정산 표 → 시각 구조대로 재배열 (값은 한 자도 안 바꿈, 모든 줄 포함)
-원문 시각: 정산 표가 인원그룹별로 수납인원·1인단가·수입금액 열로 나뉨.
+## B. 흩어진 정산 표 → 라벨-값 한 쌍씩 한 줄 (값 한 자도 안 바꿈, run-on 금지, 모든 줄 포함)
+원문 시각: 정산 표가 인원그룹(89명/12명…)별로 수납인원·1인단가·수입금액·지급명세·잔액 행으로 나뉨. **한 줄에 다 몰지 말고 한 쌍씩** 분해. 그룹 사이는 빈 줄.
 {
   "document_title": "2024학년도 4학년 현장체험학습 정산 안내",
-  "cleaned_text": "1. 체험장소 : 한국 잡월드\\n2. 체험일시 : 2024년 11월18일(월) 4-1, 4-2\\n3. 참가인원 : 104명\\n\\n수납인원 89명\\n1인단가 51,200\\n수입금액 (A) 4,556,800\\n잔액 (D=A-B-C) 0\\n\\n2024년 11월 22일\\n성남초등학교장",
+  "cleaned_text": "1. 체험장소 : 한국 잡월드\\n2. 참가인원 : 104명\\n\\n수납인원 89명\\n1인단가 51,200\\n수입금액 (A) 4,556,800\\n지급명세(C) 체험비 : 18,000원 * 89명 = 1,602,000\\n차량비 : 22,720원 * 104명 = 2,362,880\\n잔액 (D=A-B-C) 0\\n\\n수납인원 12명\\n1인단가 33,200\\n수입금액 (A) 398,400\\n잔액 (D=A-B-C) 0\\n\\n2024년 11월 22일\\n성남초등학교장",
   "sentence_list": [
     {"sentence_id": "s001", "text": "1. 체험장소 : 한국 잡월드", "role_hint": "location", "source_order": 1, "is_action_candidate": false},
-    {"sentence_id": "s002", "text": "2. 체험일시 : 2024년 11월18일(월) 4-1, 4-2", "role_hint": "event_datetime", "source_order": 2, "is_action_candidate": false},
-    {"sentence_id": "s003", "text": "3. 참가인원 : 104명", "role_hint": "target", "source_order": 3, "is_action_candidate": false},
-    {"sentence_id": "s004", "text": "수납인원 89명", "role_hint": "etc", "source_order": 4, "is_action_candidate": false},
-    {"sentence_id": "s005", "text": "1인단가 51,200", "role_hint": "fee", "source_order": 5, "is_action_candidate": false},
-    {"sentence_id": "s006", "text": "수입금액 (A) 4,556,800", "role_hint": "fee", "source_order": 6, "is_action_candidate": false},
-    {"sentence_id": "s007", "text": "잔액 (D=A-B-C) 0", "role_hint": "fee", "source_order": 7, "is_action_candidate": false},
-    {"sentence_id": "s008", "text": "2024년 11월 22일", "role_hint": "etc", "source_order": 8, "is_action_candidate": false},
-    {"sentence_id": "s009", "text": "성남초등학교장", "role_hint": "etc", "source_order": 9, "is_action_candidate": false}
+    {"sentence_id": "s002", "text": "2. 참가인원 : 104명", "role_hint": "target", "source_order": 2, "is_action_candidate": false},
+    {"sentence_id": "s003", "text": "수납인원 89명", "role_hint": "etc", "source_order": 3, "is_action_candidate": false},
+    {"sentence_id": "s004", "text": "1인단가 51,200", "role_hint": "fee", "source_order": 4, "is_action_candidate": false},
+    {"sentence_id": "s005", "text": "수입금액 (A) 4,556,800", "role_hint": "fee", "source_order": 5, "is_action_candidate": false},
+    {"sentence_id": "s006", "text": "지급명세(C) 체험비 : 18,000원 * 89명 = 1,602,000", "role_hint": "fee", "source_order": 6, "is_action_candidate": false},
+    {"sentence_id": "s007", "text": "차량비 : 22,720원 * 104명 = 2,362,880", "role_hint": "fee", "source_order": 7, "is_action_candidate": false},
+    {"sentence_id": "s008", "text": "잔액 (D=A-B-C) 0", "role_hint": "fee", "source_order": 8, "is_action_candidate": false},
+    {"sentence_id": "s009", "text": "수납인원 12명", "role_hint": "etc", "source_order": 9, "is_action_candidate": false},
+    {"sentence_id": "s010", "text": "1인단가 33,200", "role_hint": "fee", "source_order": 10, "is_action_candidate": false},
+    {"sentence_id": "s011", "text": "수입금액 (A) 398,400", "role_hint": "fee", "source_order": 11, "is_action_candidate": false},
+    {"sentence_id": "s012", "text": "잔액 (D=A-B-C) 0", "role_hint": "fee", "source_order": 12, "is_action_candidate": false},
+    {"sentence_id": "s013", "text": "2024년 11월 22일", "role_hint": "etc", "source_order": 13, "is_action_candidate": false},
+    {"sentence_id": "s014", "text": "성남초등학교장", "role_hint": "etc", "source_order": 14, "is_action_candidate": false}
   ]
 }
-→ 흩어진 표 조각을 시각 구조대로 "수납인원 89명", "1인단가 51,200"으로 묶고, **모든 줄을 sentence_list에 빠짐없이** 넣음. 숫자는 한 자도 안 바꿈.
+→ 89명·12명 그룹을 각각 "수납인원 89명"·"1인단가 51,200"…처럼 **한 쌍씩 다른 줄**로, 그룹 사이는 빈 줄. 숫자 한 자도 안 바꿈. ❌ "수납인원 89명 1인단가 51,200 …" 한 줄로 몰기 금지.
 
 **다시 강조 — 출력 전, 모든 어구가 원문에 있는지 확인하라. 없으면 만들지 마라. 숫자·날짜는 자리수까지 일치 확인.**
 """
